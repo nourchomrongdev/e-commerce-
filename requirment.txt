@@ -1,0 +1,253 @@
+digital-products-marketplace/
+│
+├── frontend/                              # Next.js
+│   ├── public/
+│   │   ├── images/
+│   │   ├── icons/
+│   │   └── logos/
+│   │
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx                   # Marketplace home
+│   │   │   │
+│   │   │   ├── (auth)/
+│   │   │   │   ├── login/
+│   │   │   │   ├── register/
+│   │   │   │   └── forgot-password/
+│   │   │   │
+│   │   │   ├── marketplace/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── apps/
+│   │   │   │   ├── products/
+│   │   │   │   │   └── [slug]/
+│   │   │   │   ├── categories/
+│   │   │   │   │   └── [slug]/
+│   │   │   │   ├── creators/
+│   │   │   │   │   └── [username]/
+│   │   │   │   └── search/
+│   │   │   │
+│   │   │   ├── cart/
+│   │   │   ├── checkout/
+│   │   │   └── payment/
+│   │   │
+│   │   └── dashboard/
+│   │       ├── layout.tsx
+│   │       ├── page.tsx
+│   │       │
+│   │       ├── admin/
+│   │       │   ├── users/
+│   │       │   ├── roles/
+│   │       │   ├── permissions/
+│   │       │   ├── activity-logs/
+│   │       │   ├── creators/
+│   │       │   ├── products/
+│   │       │   ├── licenses/
+│   │       │   ├── orders/
+│   │       │   ├── reviews/
+│   │       │   ├── dmca/
+│   │       │   ├── affiliates/
+│   │       │   ├── coupons/
+│   │       │   ├── bundles/
+│   │       │   └── analytics/
+│   │       │
+│   │       ├── creator/
+│   │       │   ├── overview/
+│   │       │   ├── store/
+│   │       │   ├── products/
+│   │       │   │   ├── create/
+│   │       │   │   └── [id]/
+│   │       │   │       ├── edit/
+│   │       │   │       ├── files/
+│   │       │   │       ├── versions/
+│   │       │   │       └── licenses/
+│   │       │   ├── orders/
+│   │       │   ├── reviews/
+│   │       │   ├── affiliates/
+│   │       │   ├── earnings/
+│   │       │   ├── payouts/
+│   │       │   └── analytics/
+│   │       │
+│   │       ├── buyer/
+│   │       │   ├── overview/
+│   │       │   ├── purchases/
+│   │       │   ├── downloads/
+│   │       │   ├── licenses/
+│   │       │   ├── reviews/
+│   │       │   └── account/
+│   │       │
+│   │       └── affiliate/
+│   │           ├── overview/
+│   │           ├── links/
+│   │           ├── conversions/
+│   │           ├── earnings/
+│   │           └── payouts/
+│   │
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── layout/
+│   │   ├── marketplace/
+│   │   ├── product/
+│   │   ├── checkout/
+│   │   └── dashboard/
+│   │
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── products/
+│   │   ├── licenses/
+│   │   ├── orders/
+│   │   ├── downloads/
+│   │   ├── reviews/
+│   │   ├── affiliates/
+│   │   ├── promotions/
+│   │   └── analytics/
+│   │
+│   ├── hooks/
+│   ├── lib/
+│   ├── types/
+│   └── middleware.ts
+│
+│
+├── backend/                               # Express.js
+│   ├── src/
+│   │   ├── server.ts
+│   │   ├── app.ts
+│   │   │
+│   │   ├── config/
+│   │   │   ├── database.ts
+│   │   │   ├── env.ts
+│   │   │   ├── storage.ts
+│   │   │   └── payment.ts
+│   │   │
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts
+│   │   │   ├── role.middleware.ts
+│   │   │   ├── permission.middleware.ts
+│   │   │   ├── validation.middleware.ts
+│   │   │   ├── upload.middleware.ts
+│   │   │   ├── rate-limit.middleware.ts
+│   │   │   └── error.middleware.ts
+│   │   │
+│   │   └── modules/
+│   │       │
+│   │       ├── 01-role-permission/
+│   │       │   ├── role.controller.ts
+│   │       │   ├── role.service.ts
+│   │       │   ├── permission.service.ts
+│   │       │   ├── role.routes.ts
+│   │       │   └── role.validation.ts
+│   │       │
+│   │       ├── 02-activity-log/
+│   │       │   ├── activity.controller.ts
+│   │       │   ├── activity.service.ts
+│   │       │   ├── activity.routes.ts
+│   │       │   └── activity.types.ts
+│   │       │
+│   │       ├── 03-creator-storefront/
+│   │       │   ├── creator.controller.ts
+│   │       │   ├── creator.service.ts
+│   │       │   ├── storefront.service.ts
+│   │       │   ├── payout-info.service.ts
+│   │       │   └── creator.routes.ts
+│   │       │
+│   │       ├── 04-product-file/
+│   │       │   ├── product.controller.ts
+│   │       │   ├── product.service.ts
+│   │       │   ├── product.routes.ts
+│   │       │   ├── file.service.ts
+│   │       │   ├── version.service.ts
+│   │       │   ├── preview.service.ts
+│   │       │   └── storage.service.ts
+│   │       │
+│   │       ├── 05-license-drm/
+│   │       │   ├── license.controller.ts
+│   │       │   ├── license.service.ts
+│   │       │   ├── license-generator.ts
+│   │       │   ├── activation.service.ts
+│   │       │   ├── validation.service.ts
+│   │       │   ├── revoke.service.ts
+│   │       │   └── license.routes.ts
+│   │       │
+│   │       ├── 06-order-delivery/
+│   │       │   ├── order.controller.ts
+│   │       │   ├── order.service.ts
+│   │       │   ├── order.routes.ts
+│   │       │   ├── download.service.ts
+│   │       │   ├── secure-link.service.ts
+│   │       │   ├── redownload.service.ts
+│   │       │   └── delivery.service.ts
+│   │       │
+│   │       ├── 07-review-moderation/
+│   │       │   ├── review.controller.ts
+│   │       │   ├── review.service.ts
+│   │       │   ├── moderation.service.ts
+│   │       │   ├── dmca.service.ts
+│   │       │   ├── takedown.service.ts
+│   │       │   └── moderation.routes.ts
+│   │       │
+│   │       ├── 08-affiliate-referral/
+│   │       │   ├── affiliate.controller.ts
+│   │       │   ├── affiliate.service.ts
+│   │       │   ├── link.service.ts
+│   │       │   ├── conversion.service.ts
+│   │       │   ├── fraud.service.ts
+│   │       │   └── affiliate.routes.ts
+│   │       │
+│   │       ├── 09-coupon-bundle-promotion/
+│   │       │   ├── coupon.controller.ts
+│   │       │   ├── coupon.service.ts
+│   │       │   ├── bundle.controller.ts
+│   │       │   ├── bundle.service.ts
+│   │       │   ├── flash-sale.service.ts
+│   │       │   ├── prelaunch-price.service.ts
+│   │       │   ├── automatic-price-adjustment.service.ts
+│   │       │   └── promotion.routes.ts
+│   │       │
+│   │       └── 10-revenue-payout-analytics/
+│   │           ├── analytics.controller.ts
+│   │           ├── analytics.service.ts
+│   │           ├── earnings.service.ts
+│   │           ├── bestseller.service.ts
+│   │           ├── conversion.service.ts
+│   │           ├── payout.service.ts
+│   │           ├── payout-report.service.ts
+│   │           ├── export.service.ts
+│   │           └── analytics.routes.ts
+│   │
+│   ├── jobs/
+│   │   ├── price-adjustment.job.ts
+│   │   ├── payout.job.ts
+│   │   ├── license-expiration.job.ts
+│   │   ├── download-expiration.job.ts
+│   │   └── flash-sale.job.ts
+│   │
+│   ├── utils/
+│   ├── routes/
+│   └── types/
+│
+├── prisma/
+│   ├── schema.prisma
+│   ├── seed.ts
+│   └── migrations/
+│
+├── shared/
+│   ├── types/
+│   │   ├── user.ts
+│   │   ├── product.ts
+│   │   ├── license.ts
+│   │   ├── order.ts
+│   │   ├── affiliate.ts
+│   │   └── analytics.ts
+│   │
+│   └── constants/
+│       ├── roles.ts
+│       ├── permissions.ts
+│       ├── license-types.ts
+│       ├── product-types.ts
+│       └── order-status.ts
+│
+├── docker-compose.yml
+├── package.json
+├── .gitignore
+└── README.md
+
