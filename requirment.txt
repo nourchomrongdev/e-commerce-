@@ -67,6 +67,15 @@ digital-products-marketplace/
 │   │       │   ├── earnings/
 │   │       │   ├── payouts/
 │   │       │   └── analytics/
+                    /creator/
+                    ├── dashboard/
+                    ├── storefront/
+                    ├── products/
+                    ├── orders/
+                    ├── payouts/
+                    ├── verification/
+                    └── settings/
+
 │   │       │
 │   │       ├── buyer/
 │   │       │   ├── overview/
