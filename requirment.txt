@@ -260,3 +260,13 @@ digital-products-marketplace/
 ├── .gitignore
 └── README.md
 
+
+
+
+color pattern
+
+#f8f8ff
+#ffd7b5	(255,215,181)
+#ffb38a	(255,179,138)
+#ff9248	(255,146,72)
+#ff6700	(255,103,0)
