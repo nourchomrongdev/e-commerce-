@@ -1,0 +1,173 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import AppBrand, { APP_NAME } from "@/components/AppBrand";
+import PublicIcon from "@/components/icons/PublicIcon";
+
+export default function CreatorDashboardHeader({
+  onMenuOpen,
+}: {
+  onMenuOpen: () => void;
+}) {
+  const [notifications, setNotifications] = useState(false);
+  const [storefrontOpen, setStorefrontOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6">
+      <div className="flex h-20 w-full items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Toggle dashboard navigation"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-[#111b40] hover:bg-accent-light lg:hidden"
+        >
+          ☰
+        </button>
+
+        <Link
+          href="/"
+          className="flex min-w-0 items-center text-[#111b40] no-underline"
+        >
+          <AppBrand
+            name={APP_NAME}
+            className="min-w-0"
+            textClassName="truncate text-base sm:text-xl"
+            logoClassName="h-8 w-8"
+          />
+        </Link>
+
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="relative hidden sm:block">
+            <button
+              type="button"
+              onClick={() => setStorefrontOpen((prev) => !prev)}
+              className="inline-flex max-w-[220px] items-center justify-center gap-2 rounded-lg border border-[#e9edf6] bg-[#f4f7ff] px-2 py-2 text-primary shadow-sm transition hover:bg-[#edf3ff] sm:max-w-none sm:px-3.5"
+            >
+              <PublicIcon
+                name="store"
+                className="h-5 w-5 shrink-0 text-primary sm:h-6 sm:w-6"
+              />
+
+              <span className="flex min-w-0 flex-col items-start leading-tight text-left">
+                <span className="truncate text-[11px] font-medium sm:text-[13px]">
+                  My Storefront
+                </span>
+                <span className="max-w-[90px] truncate text-[9px] text-gray-500 sm:max-w-[120px] sm:text-[11px]">
+                  Chomrong Store
+                </span>
+              </span>
+
+              <PublicIcon
+                name="down"
+                className={`h-4 w-4 shrink-0 transition-transform ${
+                  storefrontOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {storefrontOpen && (
+              <div className="absolute right-0 z-50 mt-2 w-[min(86vw,18rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl sm:w-72">
+                <div className="border-b border-gray-100 px-4 py-3">
+                  <p className="text-[11px] font-medium tracking-[0.08em] text-gray-500">
+                    YOUR STOREFRONTS
+                  </p>
+                </div>
+
+                <Link
+                  href="/creator/storefront/chomrong"
+                  onClick={() => setStorefrontOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-primary">
+                    <PublicIcon name="store" className="h-5 w-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      Chomrong Store
+                    </p>
+                    <p className="text-xs text-gray-500">24 products</p>
+                  </div>
+
+                  <span className="text-base font-bold text-primary">✓</span>
+                </Link>
+
+                <Link
+                  href="/creator/storefront/DesignHub"
+                  onClick={() => setStorefrontOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
+                    <PublicIcon name="store" className="h-5 w-5" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      DesignHub Store
+                    </p>
+                    <p className="text-xs text-gray-500">12 products</p>
+                  </div>
+                </Link>
+
+                <div className="border-t border-gray-100" />
+
+                <Link
+                  href="/storefronts"
+                  onClick={() => setStorefrontOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  <PublicIcon name="settings" className="h-5 w-5 text-gray-500" />
+                  Manage Storefronts
+                </Link>
+
+                <Link
+                  href="/storefronts/create"
+                  onClick={() => setStorefrontOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary transition hover:bg-blue-50"
+                >
+                  <span className="text-lg leading-none">+</span>
+                  Create New Storefront
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setNotifications((isOpen) => !isOpen)}
+            aria-expanded={notifications}
+            aria-label="Notifications"
+            className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg text-primary hover:bg-accent-light"
+          >
+            <PublicIcon name="notification" className="text-primary" />
+            <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-white">
+              3
+            </span>
+          </button>
+
+          {notifications && (
+            <div className="absolute right-16 top-12 z-20 w-60 rounded-xl border border-[#e7e9f2] bg-white p-4 text-xs shadow-xl">
+              <strong>Notifications</strong>
+              <p className="mt-2 text-[#66718e]">
+                3 new orders are ready to review.
+              </p>
+            </div>
+          )}
+
+          <div className="hidden h-10 w-px bg-[#ededf3] sm:block" />
+
+          <div className="flex items-center gap-2">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-sm font-semibold text-white">
+              N
+            </span>
+            <div className="hidden sm:block">
+              <p className="text-sm font-semibold text-[#111b40]">NourChomrong</p>
+              <p className="text-[11px] text-[#69738f]">Creator</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
