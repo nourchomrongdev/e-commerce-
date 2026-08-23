@@ -16,14 +16,30 @@ export const routes = {
     storefronts: () => "/creator/storefront",
     storefront: (storefrontName: string) =>
       `/creator/storefront/${encodeURIComponent(storefrontName)}`,
+    storefrontOverview: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/overview`,
     storefrontBranding: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/branding`,
     storefrontSetting: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/setting`,
-        storefrontPayment: (storefrontName: string) =>
+    storefrontPayment: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/payment`,
-        storefrontSummary: (storefrontName: string) =>
-          `${routes.creator.storefront(storefrontName)}/summary`,
+    storefrontPayouts: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/payouts`,
+    storefrontSummary: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/summary`,
+    storefrontAnalytics: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/analytics`,
+    storefrontCustomers: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/customer`,
+    products: (storefrontName?: string) =>
+      storefrontName
+        ? `${routes.creator.storefront(storefrontName)}/products`
+        : "/creator/storefront",
+    orders: (storefrontName?: string) =>
+      storefrontName
+        ? `${routes.creator.storefront(storefrontName)}/orders`
+        : "/creator/storefront",
   },
 } as const;
 

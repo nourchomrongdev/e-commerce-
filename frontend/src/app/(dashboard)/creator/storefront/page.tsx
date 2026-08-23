@@ -1,5 +1,17 @@
+"use client";
+
 import PublicIcon from "@/components/icons/PublicIcon";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import LoadingMessage from "@/components/dashboard/LoadingMessage";
+
+const storefrontNames = new Set([
+  "NourChomrong",
+  "DevCourses",
+  "AI Resources",
+  "DesignHub",
+]);
 
 const storefronts = [
   {
@@ -37,6 +49,32 @@ const storefronts = [
 ];
 
 export default function StorefrontPage() {
+  const router = useRouter();
+  const [checkingSelection, setCheckingSelection] = useState(true);
+
+  useEffect(() => {
+    const selectedStorefront = window.localStorage.getItem(
+      "creator-selected-storefront",
+    );
+
+    if (selectedStorefront && storefrontNames.has(selectedStorefront)) {
+      router.replace(
+        `/creator/storefront/${encodeURIComponent(selectedStorefront)}/overview`,
+      );
+      return;
+    }
+
+    setCheckingSelection(false);
+  }, [router]);
+
+  if (checkingSelection) {
+    return (
+      <div className="flex min-h-[calc(100vh-5rem)] w-full items-center justify-center">
+        <LoadingMessage label="Loading Storefront Data Overview" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <section>
@@ -54,7 +92,7 @@ export default function StorefrontPage() {
             </div>
 
             <Link
-              href="#"
+              href="/creator/storefront"
               className="flex w-full shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(255,103,0,0.22)] transition hover:opacity-90 sm:w-auto"
             >
               <PublicIcon name="add" className="mr-2 h-4 w-4" />
@@ -162,7 +200,7 @@ export default function StorefrontPage() {
                       </div>
 
                       <Link
-                        href={`/creator/storefront/${encodeURIComponent(name)}`}
+                        href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
                         className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
                       >
                         {status}
@@ -180,7 +218,7 @@ export default function StorefrontPage() {
 
             {/* Create New Storefront */}
             <Link
-              href="#"
+              href="/creator/storefront"
               className="group flex min-h-[270px] min-w-0 flex-col items-center justify-center rounded-2xl border border-dashed border-[#cfd6e5] bg-[#fafbfe] p-5 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.02] hover:shadow-[0_12px_30px_rgba(17,27,64,0.06)] sm:p-6"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14">

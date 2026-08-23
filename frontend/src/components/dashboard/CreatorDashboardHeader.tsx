@@ -1,17 +1,51 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { routes } from "@/lib/routeController";
+
+const storefrontOptions = [
+  { name: "NourChomrong", products: 24, href: routes.creator.storefrontOverview("NourChomrong") },
+  { name: "DevCourses", products: 12, href: routes.creator.storefrontOverview("DevCourses") },
+  { name: "AI Resources", products: 7, href: routes.creator.storefrontOverview("AI Resources") },
+  { name: "DesignHub", products: 12, href: routes.creator.storefrontOverview("DesignHub") },
+] as const;
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
 }: {
   onMenuOpen: () => void;
 }) {
+  const pathname = usePathname();
   const [notifications, setNotifications] = useState(false);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
+  const [selectedStorefront, setSelectedStorefront] = useState<string>(() => {
+    if (typeof window === "undefined") return "NourChomrong";
+    return window.localStorage.getItem("creator-selected-storefront") ?? "NourChomrong";
+  });
+
+  useEffect(() => {
+    const match = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/);
+    const currentStorefront = match && !["overview", "branding", "setting", "payment", "summary", "products", "orders", "verification"].includes(match[1])
+      ? decodeURIComponent(match[1])
+      : null;
+
+    if (currentStorefront) {
+      setSelectedStorefront(currentStorefront);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("creator-selected-storefront", selectedStorefront);
+    }
+  }, [selectedStorefront]);
+
+  const isAllStoresOverview = pathname === "/creator/overview";
+  const activeStorefrontName = isAllStoresOverview ? "All Stores Overview" : selectedStorefront;
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6">
@@ -54,7 +88,7 @@ export default function CreatorDashboardHeader({
                   My Storefront
                 </span>
                 <span className="max-w-[90px] truncate text-[9px] text-gray-500 sm:max-w-[120px] sm:text-[11px]">
-                  Chomrong Store
+                  {activeStorefrontName}
                 </span>
               </span>
 
@@ -75,45 +109,60 @@ export default function CreatorDashboardHeader({
                 </div>
 
                 <Link
-                  href="/creator/storefront/chomrong"
-                  onClick={() => setStorefrontOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50"
+                  href={routes.creator.overview()}
+                  onClick={() => {
+                    setSelectedStorefront("All Stores Overview");
+                    setStorefrontOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 transition ${isAllStoresOverview ? "bg-blue-50" : "hover:bg-gray-50"}`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-primary">
-                    <PublicIcon name="store" className="h-5 w-5" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    <PublicIcon name="home" className="h-5 w-5" />
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">
-                      Chomrong Store
+                      All Stores Overview
                     </p>
-                    <p className="text-xs text-gray-500">24 products</p>
+                    <p className="text-xs text-gray-500">Overview dashboard</p>
                   </div>
 
-                  <span className="text-base font-bold text-primary">✓</span>
+                  {isAllStoresOverview && <span className="text-base font-bold text-primary">✓</span>}
                 </Link>
 
-                <Link
-                  href="/creator/storefront/DesignHub"
-                  onClick={() => setStorefrontOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
-                    <PublicIcon name="store" className="h-5 w-5" />
-                  </div>
+                {storefrontOptions.map(({ name, products, href }) => {
+                  const isSelected = !isAllStoresOverview && selectedStorefront === name;
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">
-                      DesignHub Store
-                    </p>
-                    <p className="text-xs text-gray-500">12 products</p>
-                  </div>
-                </Link>
+                  return (
+                    <Link
+                      key={name}
+                      href={href}
+                      onClick={() => {
+                        setSelectedStorefront(name);
+                        setStorefrontOpen(false);
+                      }}
+                      className={`flex items-center gap-3 px-4 py-3 transition ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                    >
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${name === "NourChomrong" ? "bg-blue-100 text-primary" : "bg-purple-100 text-purple-600"}`}>
+                        <PublicIcon name="store" className="h-5 w-5" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {name}
+                        </p>
+                        <p className="text-xs text-gray-500">{products} products</p>
+                      </div>
+
+                      {isSelected && <span className="text-base font-bold text-primary">✓</span>}
+                    </Link>
+                  );
+                })}
 
                 <div className="border-t border-gray-100" />
 
                 <Link
-                  href="/storefronts"
+                  href={routes.creator.storefronts()}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
@@ -122,7 +171,7 @@ export default function CreatorDashboardHeader({
                 </Link>
 
                 <Link
-                  href="/storefronts/create"
+                  href={routes.creator.storefronts()}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary transition hover:bg-blue-50"
                 >

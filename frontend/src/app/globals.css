@@ -11,13 +11,13 @@
 
 @theme {
   --color-background: #f8f8ff;
-  --color-primary: #ff6700;
-  --color-primary-hover: #e65d00;
+  --color-primary: #f57e1f;
+  --color-primary-hover: #e57218;
   --color-secondary: #ff9248;
-  --color-accent-light: #ffd7b5;
-  --color-accent-soft: #ffb38a;
-  --color-emerald-green: #10B981;
-  --color-amber:#F59E0B;
+  --color-accent-light: #fff0e4;
+  --color-accent-soft: #ffd7b5;
+  --color-emerald-green: #10b981;
+  --color-amber: #f59e0b;
   --color-ink: #111b40;
   --color-heading: #101a3c;
   --color-body: #283554;
@@ -45,12 +45,18 @@
   --color-verification-border: #f1e7dc;
   --color-verification-surface: #fffaf4;
   --color-verification-text: #a75b20;
-  --color-storefront-blue: var(--storefront-blue);
-  --color-storefront-indigo: var(--storefront-indigo);
-  --color-storefront-orange: var(--storefront-orange);
-  --color-storefront-teal: var(--storefront-teal);
-  --color-storefront-pink: var(--storefront-pink);
-  --color-storefront-navy: var(--storefront-navy);
+  --color-storefront-blue: #5b6ef5;
+  --color-storefront-indigo: #4f46e5;
+  --color-storefront-orange: #f57e1f;
+  --color-storefront-teal: #19b5a5;
+  --color-storefront-pink: #ec4899;
+  --color-storefront-navy: #111b40;
+  --color-customer-active-soft: #fef3eb;
+  --color-customer-active-text: #f57e1f;
+  --color-customer-status-soft: #e8f5ec;
+  --color-customer-status-text: #2f8f5b;
+  --color-customer-muted-soft: #f2f4f8;
+  --color-customer-muted-text: #687387;
 }
 
 .scrollbar-hidden {
@@ -60,6 +66,31 @@
 
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
+}
+
+/* Keep wide tables and tab rows easy to scroll without overpowering the UI. */
+.overflow-x-auto {
+  scrollbar-color: #cbd3e2 transparent;
+  scrollbar-width: thin;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #f4f6fa;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  border: 2px solid #f4f6fa;
+  border-radius: 999px;
+  background: #cbd3e2;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
 
 @media (min-width: 1280px) {
@@ -109,6 +140,21 @@ button.hidden.shrink-0.xl\:inline-flex {
 
 .route-loading-bar--active {
   opacity: 1;
+}
+
+.route-loading-bar--indeterminate {
+  width: 35%;
+  animation: route-loading 900ms ease-in-out infinite alternate;
+}
+
+@keyframes route-loading {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(285%);
+  }
 }
 
 @keyframes card-flip {

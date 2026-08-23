@@ -48,13 +48,13 @@ export default function CreatorOverview() {
         <div className="min-w-0 space-y-5">
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {stats.map(({ label, value, change, icon }) => (
-              <Card key={label} className="p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+              <Card key={label} className="relative p-5">
+                <div className="flex items-start">
+                  <div className="min-w-0 pr-8">
                     <p className="text-xs font-semibold text-[#182342]">{label}</p>
-                    <p className="mt-3 text-2xl font-bold tracking-tight text-[#111b40]">{value}</p>
+                    <p className="mt-3 truncate text-2xl font-bold tracking-tight text-[#111b40]">{value}</p>
                   </div>
-                  <span className="grid h-11 w-11 place-items-center text-primary">
+                  <span className="absolute right-5 top-5 grid h-11 w-11 place-items-center text-primary">
                     <PublicIcon name={icon as any} className="h-6 w-6" />
                   </span>
                 </div>
@@ -63,7 +63,7 @@ export default function CreatorOverview() {
             ))}
           </section>
 
-          <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <section>
             <Card className="p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-[#111b40]">Sales Overview</h2>
@@ -72,7 +72,7 @@ export default function CreatorOverview() {
                 </span>
               </div>
 
-              <div className="mt-4 flex h-[180px] gap-3">
+              <div className="mt-6 flex gap-3">
                 <div className="flex flex-col justify-between pb-6 text-[11px] text-[#6f7894]">
                   <span>$600</span>
                   <span>$400</span>
@@ -111,22 +111,6 @@ export default function CreatorOverview() {
               </div>
             </Card>
 
-            <Card className="p-5">
-              <h2 className="font-semibold text-[#111b40]">Quick Actions</h2>
-              <div className="mt-4 space-y-2">
-                {[
-                  { icon: "add", label: "Add Product", href: "/creator/products/create", color: "text-emerald-green" },
-                  { icon: "edit", label: "Edit Storefront", href: "/creator/storefront", color: "text-primary" },
-                  { icon: "settings", label: "Payout Settings", href: "/creator/payouts", color: "text-gray-600" },
-                  { icon: "view", label: "View Orders", href: "/creator/orders", color: "text-blue-600" },
-                ].map(({ icon, label, href, color }) => (
-                  <Link key={label} href={href} className="flex items-center gap-4 rounded-lg border border-[#e7e9f0] px-4 py-3 text-sm font-medium text-[#172141] no-underline transition hover:bg-accent-light">
-                    <PublicIcon name={icon as any} className={`h-5 w-5 ${color}`} />
-                    {label}
-                  </Link>
-                ))}
-              </div>
-            </Card>
           </section>
 
           <Card className="overflow-hidden">

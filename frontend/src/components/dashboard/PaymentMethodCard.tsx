@@ -5,18 +5,54 @@ type PaymentMethodCardProps = {
   cardName: string;
   cardNumber: string;
   paypalEmail: string;
+  isPrimary: boolean;
   flipped: boolean;
   onFlip: () => void;
+  onSetPrimary: () => void;
   onRemove: () => void;
 };
+
+function PrimaryControl({
+  method,
+  isPrimary,
+  onSetPrimary,
+}: {
+  method: string;
+  isPrimary: boolean;
+  onSetPrimary: () => void;
+}) {
+  if (isPrimary) {
+    return (
+      <span className="inline-flex min-h-9 items-center rounded-lg bg-emerald-50 px-3 text-xs font-semibold text-emerald-700">
+        Primary payment method
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`Set ${method} as primary payment method`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSetPrimary();
+      }}
+      className="min-h-9 rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#e65d00] focus:outline-none focus:ring-2 focus:ring-primary/30"
+    >
+      Set as primary
+    </button>
+  );
+}
 
 export default function PaymentMethodCard({
   method,
   cardName,
   cardNumber,
   paypalEmail,
+  isPrimary,
   flipped,
   onFlip,
+  onSetPrimary,
   onRemove,
 }: PaymentMethodCardProps) {
   const isCard = method === "Credit Card";
@@ -28,16 +64,17 @@ export default function PaymentMethodCard({
     : "from-[#06366b] to-[#075b9d]";
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`${flipped ? "Show front of" : "Flip"} ${method} card`}
-      onClick={onFlip}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onFlip();
-      }}
-      className="relative aspect-[1.586/1] w-full max-w-3xl cursor-pointer [perspective:1000px]"
-    >
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`${flipped ? "Show front of" : "Flip"} ${method} card`}
+        onClick={onFlip}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") onFlip();
+        }}
+        className="relative aspect-[1.586/1] w-full max-w-3xl cursor-pointer [perspective:1000px]"
+      >
       <div
         className={`relative h-full w-full ${
           flipped ? "animate-card-flip" : "animate-card-flip-back"
@@ -78,11 +115,13 @@ export default function PaymentMethodCard({
                 <p className="mt-6 text-base font-semibold tracking-[0.16em] sm:text-xl sm:tracking-[0.2em]">
                   {cardNumber}
                 </p>
-                <div className="flex items-end justify-between text-[9px] text-white/70">
+                <div className="flex flex-wrap items-end justify-between gap-2 text-[9px] text-white/70">
                   <span>VISA</span>
-                  <span className="text-[10px] font-bold text-white sm:text-xs">
-                    Tap to flip
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-white sm:text-xs">
+                      Tap to flip
+                    </span>
+                  </div>
                 </div>
               </>
             ) : (
@@ -90,11 +129,13 @@ export default function PaymentMethodCard({
                 <p className="mt-6 text-2xl font-bold italic sm:text-3xl">
                   PayPal
                 </p>
-                <div className="flex items-end justify-between gap-3 text-[9px] text-white/70">
+                <div className="flex flex-wrap items-end justify-between gap-2 text-[9px] text-white/70">
                   <span>Verified account</span>
-                  <span className="truncate text-[10px] font-bold text-white sm:text-xs">
-                    Tap to flip
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-[10px] font-bold text-white sm:text-xs">
+                      Tap to flip
+                    </span>
+                  </div>
                 </div>
               </>
             )}
@@ -122,6 +163,16 @@ export default function PaymentMethodCard({
           </p>
         </div>
       </div>
-    </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#e5e9f2] bg-white px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold text-[#33405d]">{method}</p>
+          <p className="mt-0.5 truncate text-[9px] text-[#8993aa]">
+            {isPrimary ? "Used by default for payments" : "Use this method by default"}
+          </p>
+        </div>
+        <PrimaryControl method={method} isPrimary={isPrimary} onSetPrimary={onSetPrimary} />
+      </div>
+    </>
   );
 }

@@ -26,6 +26,15 @@ type PublicIconSidebarName =
   "percent" |
   "wallet" |
   "clock-9" |
+  "file-search-corner" |
+  "type" |
+  "key" |
+  "credit-card" |
+  "shield-check" |
+  "shield-minus" |
+  "download" |
+  "message-square-reply" |
+  "rotate-ccw" |
   "help"; 
 type PublicIconActionName =
   "add" |
