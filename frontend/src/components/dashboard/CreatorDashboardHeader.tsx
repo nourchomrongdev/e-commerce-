@@ -16,16 +16,32 @@ const storefrontOptions = [
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
+  workspace = "creator",
 }: {
   onMenuOpen: () => void;
+  workspace?: "creator" | "reviewer" | "admin";
 }) {
   const pathname = usePathname();
   const [notifications, setNotifications] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [selectedStorefront, setSelectedStorefront] = useState<string>(() => {
     if (typeof window === "undefined") return "NourChomrong";
     return window.localStorage.getItem("creator-selected-storefront") ?? "NourChomrong";
   });
+
+  useEffect(() => {
+    if (!accountOpen && !storefrontOpen && !notifications) return;
+
+    const closeMenus = () => {
+      setAccountOpen(false);
+      setStorefrontOpen(false);
+      setNotifications(false);
+    };
+
+    window.addEventListener("scroll", closeMenus, { passive: true });
+    return () => window.removeEventListener("scroll", closeMenus);
+  }, [accountOpen, storefrontOpen, notifications]);
 
   useEffect(() => {
     const match = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/);
@@ -44,7 +60,10 @@ export default function CreatorDashboardHeader({
     }
   }, [selectedStorefront]);
 
-  const isAllStoresOverview = pathname === "/creator/overview";
+  const isAllStoresOverview = pathname === routes.creator.overview();
+  const isAffiliateContext = pathname === "/affiliate" || pathname.startsWith("/affiliate/") || pathname === "/creator/affiliate" || pathname.startsWith("/creator/affiliate/");
+  const isReviewerContext = workspace === "reviewer";
+  const isAdminContext = workspace === "admin";
   const activeStorefrontName = isAllStoresOverview ? "All Stores Overview" : selectedStorefront;
 
   return (
@@ -72,7 +91,7 @@ export default function CreatorDashboardHeader({
         </Link>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <div className="relative hidden sm:block">
+          {!isAffiliateContext && !isReviewerContext && !isAdminContext && <div className="relative hidden sm:block">
             <button
               type="button"
               onClick={() => setStorefrontOpen((prev) => !prev)}
@@ -85,10 +104,10 @@ export default function CreatorDashboardHeader({
 
               <span className="flex min-w-0 flex-col items-start leading-tight text-left">
                 <span className="truncate text-[11px] font-medium sm:text-[13px]">
-                  My Storefront
+                  {isAffiliateContext ? "Affiliate Dashboard" : "My Storefront"}
                 </span>
                 <span className="max-w-[90px] truncate text-[9px] text-gray-500 sm:max-w-[120px] sm:text-[11px]">
-                  {activeStorefrontName}
+                  {isAffiliateContext ? "Affiliate Overview" : activeStorefrontName}
                 </span>
               </span>
 
@@ -100,7 +119,7 @@ export default function CreatorDashboardHeader({
               />
             </button>
 
-            {storefrontOpen && (
+            {storefrontOpen && !isAffiliateContext && (
               <div className="absolute right-0 z-50 mt-2 w-[min(86vw,18rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl sm:w-72">
                 <div className="border-b border-gray-100 px-4 py-3">
                   <p className="text-[11px] font-medium tracking-[0.08em] text-gray-500">
@@ -112,6 +131,7 @@ export default function CreatorDashboardHeader({
                   href={routes.creator.overview()}
                   onClick={() => {
                     setSelectedStorefront("All Stores Overview");
+                    window.localStorage.removeItem("creator-selected-storefront");
                     setStorefrontOpen(false);
                   }}
                   className={`flex items-center gap-3 px-4 py-3 transition ${isAllStoresOverview ? "bg-blue-50" : "hover:bg-gray-50"}`}
@@ -162,7 +182,7 @@ export default function CreatorDashboardHeader({
                 <div className="border-t border-gray-100" />
 
                 <Link
-                  href={routes.creator.storefronts()}
+                  href={`${routes.creator.storefronts()}/`}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
@@ -171,7 +191,7 @@ export default function CreatorDashboardHeader({
                 </Link>
 
                 <Link
-                  href={routes.creator.storefronts()}
+                  href={`${routes.creator.storefronts()}/`}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary transition hover:bg-blue-50"
                 >
@@ -180,7 +200,7 @@ export default function CreatorDashboardHeader({
                 </Link>
               </div>
             )}
-          </div>
+          </div>}
 
           <button
             type="button"
@@ -206,14 +226,64 @@ export default function CreatorDashboardHeader({
 
           <div className="hidden h-10 w-px bg-[#ededf3] sm:block" />
 
-          <div className="flex items-center gap-2">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-sm font-semibold text-white">
-              N
-            </span>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-[#111b40]">NourChomrong</p>
-              <p className="text-[11px] text-[#69738f]">Creator</p>
-            </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAccountOpen((isOpen) => !isOpen)}
+              aria-expanded={accountOpen}
+              aria-label="Open account menu"
+              className="flex items-center gap-2 rounded-lg p-1 text-left transition hover:bg-accent-light"
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-sm font-semibold text-white">
+                {isAdminContext ? "A" : isReviewerContext ? "R" : "N"}
+              </span>
+              <span className="hidden sm:block">
+                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : "NourChomrong"}</span>
+                <span className="block text-[11px] text-[#69738f]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : isAffiliateContext ? "Affiliate" : "Creator"}</span>
+              </span>
+              <PublicIcon name="down" className={`hidden h-4 w-4 text-[#69738f] transition-transform sm:block ${accountOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {accountOpen && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-[#e7e9f2] bg-white py-2 shadow-xl">
+                {!isReviewerContext && !isAdminContext && (
+                  <>
+                    <p className="border-b border-gray-100 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+                      Switch workspace
+                    </p>
+                    <Link href="/creator/overview" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                      <PublicIcon name="store" className="h-5 w-5 text-primary" />
+                      Creator Studio
+                    </Link>
+                    <Link href="/affiliate" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                      <PublicIcon name="dashboard" className="h-5 w-5 text-primary" />
+                      Affiliate Studio
+                    </Link>
+                    <div className="border-t border-gray-100" />
+                  </>
+                )}
+                <Link href="/affiliate/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                  <PublicIcon name="user" className="h-5 w-5 text-gray-500" />
+                  Profile Settings
+                </Link>
+                <Link href="/creator/help" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                  <PublicIcon name="help" className="h-5 w-5 text-gray-500" />
+                  Help Center
+                </Link>
+                <div className="border-t border-gray-100" />
+                <Link
+                  href="/login"
+                  onClick={() => {
+                    window.localStorage.removeItem("creator-selected-storefront");
+                    setAccountOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-status-danger transition hover:bg-red-50"
+                >
+                  <PublicIcon name="arrow-left" className="h-5 w-5" />
+                  Log out
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

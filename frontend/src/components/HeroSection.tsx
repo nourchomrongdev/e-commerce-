@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PublicIcon from "./icons/PublicIcon";
+import { routes } from "@/lib/routeController";
 
 const benefits = [
   ["⚡", "Instant Download", "Get your files right away"],
@@ -44,7 +45,7 @@ export default function HeroSection({
           </p>
           <div className="mt-5 flex flex-wrap gap-2.5">
             <Link
-              href="/digital-products"
+              href={routes.digitalProducts()}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[10px] font-semibold text-white no-underline shadow-sm"
             >
             Explore Products&nbsp; 

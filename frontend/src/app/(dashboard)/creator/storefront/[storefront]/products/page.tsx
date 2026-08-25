@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
 import ProductDiscountDialog from "@/components/products/ProductDiscountDialog";
@@ -64,6 +65,14 @@ const products: Product[] = [
 const tabs: Array<"All Products" | ProductStatus> = ["All Products", "Published", "Draft", "Archived"];
 
 export default function CreatorProductsPage() {
+  const pathname = usePathname();
+  const storefrontMatch = pathname.match(/^\/creator\/storefront\/([^/]+)/);
+  const productsPath = storefrontMatch
+    ? `/creator/storefront/${storefrontMatch[1]}/products`
+    : "/creator/storefront";
+  const addProductPath = storefrontMatch
+    ? `/creator/storefront/${storefrontMatch[1]}/products/new`
+    : "/creator/storefront";
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All Products");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -102,7 +111,7 @@ export default function CreatorProductsPage() {
             <PublicIcon name="down" className="h-3.5 w-3.5 rotate-180" />
             Export
           </button>
-          <Link href="/creator/storefront" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-white no-underline shadow-sm transition hover:bg-[#e65d00]">
+          <Link href={addProductPath} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-white no-underline shadow-sm transition hover:bg-[#e65d00]">
             <PublicIcon name="add" className="h-4 w-4" />
             Add Product
           </Link>

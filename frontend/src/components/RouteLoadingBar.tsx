@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const MIN_LOADING_DURATION = 260;
+const MAX_LOADING_DURATION = 4000;
 
 export default function RouteLoadingBar() {
   const pathname = usePathname();
@@ -13,6 +14,8 @@ export default function RouteLoadingBar() {
   const startedAt = useRef(0);
   const intervalRef = useRef<number | null>(null);
   const finishTimeoutRef = useRef<number | null>(null);
+  const settleTimeoutRef = useRef<number | null>(null);
+  const observerRef = useRef<MutationObserver | null>(null);
 
   const clearTimers = () => {
     if (intervalRef.current !== null) {
@@ -24,6 +27,14 @@ export default function RouteLoadingBar() {
       window.clearTimeout(finishTimeoutRef.current);
       finishTimeoutRef.current = null;
     }
+
+    if (settleTimeoutRef.current !== null) {
+      window.clearTimeout(settleTimeoutRef.current);
+      settleTimeoutRef.current = null;
+    }
+
+    observerRef.current?.disconnect();
+    observerRef.current = null;
   };
 
   const finishLoading = () => {
@@ -45,6 +56,10 @@ export default function RouteLoadingBar() {
     loadingRef.current = true;
     setVisible(true);
     setProgress(12);
+
+    finishTimeoutRef.current = window.setTimeout(() => {
+      finishLoading();
+    }, MAX_LOADING_DURATION);
 
     intervalRef.current = window.setInterval(() => {
       setProgress((current) => {
@@ -94,12 +109,34 @@ export default function RouteLoadingBar() {
   useEffect(() => {
     if (!loadingRef.current) return;
 
-    const elapsed = Date.now() - startedAt.current;
-    const remaining = Math.max(0, MIN_LOADING_DURATION - elapsed);
+    const settleNavigation = () => {
+      const elapsed = Date.now() - startedAt.current;
+      const remaining = Math.max(0, MIN_LOADING_DURATION - elapsed);
 
-    finishTimeoutRef.current = window.setTimeout(() => {
-      finishLoading();
-    }, remaining);
+      settleTimeoutRef.current = window.setTimeout(() => {
+        finishLoading();
+      }, remaining);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (settleTimeoutRef.current !== null) {
+        window.clearTimeout(settleTimeoutRef.current);
+      }
+      settleTimeoutRef.current = window.setTimeout(settleNavigation, 180);
+    });
+
+    observerRef.current = observer;
+    observer.observe(document.body, { childList: true, subtree: true });
+    settleTimeoutRef.current = window.setTimeout(settleNavigation, 260);
+
+    return () => {
+      observer.disconnect();
+      if (observerRef.current === observer) observerRef.current = null;
+      if (settleTimeoutRef.current !== null) {
+        window.clearTimeout(settleTimeoutRef.current);
+        settleTimeoutRef.current = null;
+      }
+    };
   }, [pathname]);
 
   useEffect(() => {

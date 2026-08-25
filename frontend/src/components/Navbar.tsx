@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import { apps, products } from "./ProductGrid";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { publicNavigation } from "@/lib/routeController";
+import { publicNavigation, routes } from "@/lib/routeController";
 
 type NavbarProps = { active?: "home" | "products" | "creator" };
 const links = publicNavigation;
@@ -23,9 +23,9 @@ const companyLinks = [
   { label: "Contact Us", href: "/contact-us" },
 ];
 const moreLinks = [
-  { label: "Top Deals", href: "/digital-products" },
-  { label: "Bestsellers", href: "/digital-products" },
-  { label: "New Releases", href: "/digital-products" },
+  { label: "Top Deals", href: routes.digitalProducts() },
+  { label: "Bestsellers", href: routes.digitalProducts() },
+  { label: "New Releases", href: routes.digitalProducts() },
 ];
 export default function Navbar({ active = "home" }: NavbarProps) {
   const [open, setOpen] = useState(false);
@@ -211,7 +211,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                   {categoryLinks.map((category) => (
                     <Link
                       key={category}
-                      href="/digital-products"
+                      href={routes.digitalProducts()}
                       onClick={() => setDesktopMenu(null)}
                       className="rounded-lg px-3 py-2 text-[11px] text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
                     >
@@ -380,7 +380,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
               {categoryLinks.map((category) => (
                 <Link
                   key={category}
-                  href="/digital-products"
+                  href={routes.digitalProducts()}
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
                 >

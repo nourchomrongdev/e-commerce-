@@ -1,6 +1,7 @@
 import HeroSection from "@/components/HeroSection";
 import Navbar from "@/components/Navbar";
 import type { Metadata } from "next";
+import { routes } from "@/lib/routeController";
 export const metadata: Metadata = { title: "MarketPlace | Digital Products" };
 const categories = [
   ["♜", "Software", "Tools & Apps", "bg-accent-light text-primary"],
@@ -98,7 +99,7 @@ export default function Home() {
             </a>
           ))}
           <a
-            href="/digital-products"
+            href={routes.digitalProducts()}
             className="hidden items-center justify-center gap-2 rounded-xl border border-slate-100 text-[9px] font-semibold text-slate-700 no-underline lg:flex"
           >
             View All{" "}
@@ -116,7 +117,7 @@ export default function Home() {
               </span>
             </div>
             <a
-              href="/digital-products"
+              href={routes.digitalProducts()}
               className="text-[9px] font-semibold text-primary no-underline"
             >
               View all products　›

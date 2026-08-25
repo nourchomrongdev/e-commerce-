@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import CreatorDashboardShell from "@/components/dashboard/CreatorDashboardShell";
+import CreatorDashboardShell from "@/components/dashboard/creator/CreatorDashboardShell";
 
 export default function CreatorLayout({ children }: { children: ReactNode }) {
   return <CreatorDashboardShell>{children}</CreatorDashboardShell>;

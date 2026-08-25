@@ -35,6 +35,10 @@ type PublicIconSidebarName =
   "download" |
   "message-square-reply" |
   "rotate-ccw" |
+  "check" |
+  "link" |
+  "warning" |
+  "x" |
   "help"; 
 type PublicIconActionName =
   "add" |

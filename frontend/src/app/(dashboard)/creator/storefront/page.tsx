@@ -2,16 +2,6 @@
 
 import PublicIcon from "@/components/icons/PublicIcon";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import LoadingMessage from "@/components/dashboard/LoadingMessage";
-
-const storefrontNames = new Set([
-  "NourChomrong",
-  "DevCourses",
-  "AI Resources",
-  "DesignHub",
-]);
 
 const storefronts = [
   {
@@ -49,32 +39,6 @@ const storefronts = [
 ];
 
 export default function StorefrontPage() {
-  const router = useRouter();
-  const [checkingSelection, setCheckingSelection] = useState(true);
-
-  useEffect(() => {
-    const selectedStorefront = window.localStorage.getItem(
-      "creator-selected-storefront",
-    );
-
-    if (selectedStorefront && storefrontNames.has(selectedStorefront)) {
-      router.replace(
-        `/creator/storefront/${encodeURIComponent(selectedStorefront)}/overview`,
-      );
-      return;
-    }
-
-    setCheckingSelection(false);
-  }, [router]);
-
-  if (checkingSelection) {
-    return (
-      <div className="flex min-h-[calc(100vh-5rem)] w-full items-center justify-center">
-        <LoadingMessage label="Loading Storefront Data Overview" />
-      </div>
-    );
-  }
-
   return (
     <div className="w-full">
       <section>

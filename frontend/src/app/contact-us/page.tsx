@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import { routes } from "@/lib/routeController";
 
 export default function ContactUsPage() {
   return (
@@ -21,7 +22,7 @@ export default function ContactUsPage() {
               support@marketplace.com
             </a>
             <a
-              href="/digital-products"
+              href={routes.digitalProducts()}
               className="inline-block rounded-xl border border-accent-soft bg-accent-light px-5 py-3 text-sm font-semibold text-primary no-underline transition hover:bg-accent-soft"
             >
               Browse products

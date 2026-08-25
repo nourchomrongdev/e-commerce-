@@ -1,7 +1,8 @@
+  ["Admin", "/admin", "Manage users, moderation, orders, licenses, and analytics.", "⌘", "from-secondary to-primary"],
 import Link from "next/link";
 
 const roles = [
-  ["Admin", "/dashboard/admin", "Manage users, moderation, orders, licenses, and analytics.", "⌘", "from-violet-600 to-indigo-600"],
+  ["Admin", "/admin", "Manage users, moderation, orders, licenses, and analytics.", "⌘", "from-secondary to-primary"],
   ["Creator", "/creator/overview", "Manage your storefront, products, earnings, and payouts.", "✦", "from-secondary to-primary"],
   ["Buyer", "/dashboard/buyer/overview", "Access purchases, downloads, licenses, and reviews.", "◈", "from-cyan-500 to-blue-600"],
 ];
