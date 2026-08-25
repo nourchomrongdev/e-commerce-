@@ -1,0 +1,7 @@
+import Link from "next/link";
+import AppBrand from "@/components/AppBrand";
+import { routes } from "@/lib/routeController";
+
+export default function AccountCreatedPage() {
+  return <main className="grid min-h-screen place-items-center bg-[#f8f8ff] px-4 py-8"><section className="w-full max-w-[430px] rounded-xl border border-border bg-white p-7 text-center shadow-[0_14px_40px_rgba(17,27,64,0.07)] sm:p-10"><AppBrand className="justify-center" logoClassName="h-8 w-8" textClassName="text-xs" /><span className="mx-auto mt-10 grid h-14 w-14 place-items-center rounded-full bg-[#e4f8ed] text-2xl text-status-success">✓</span><h1 className="mt-5 text-xl font-bold text-heading">Account created!</h1><p className="mx-auto mt-2 max-w-[270px] text-xs leading-5 text-muted">Welcome to MarketPlace! Your account has been created successfully.</p><div className="mt-7 space-y-2"><Link href={routes.creator.overview()} className="flex h-10 items-center justify-center rounded-lg bg-primary text-xs font-semibold text-white no-underline hover:bg-primary-hover">Go to Dashboard</Link><Link href={routes.marketplace()} className="flex h-10 items-center justify-center rounded-lg border border-border-control text-xs font-semibold text-body no-underline hover:bg-surface-hover">Explore Marketplace</Link></div><div className="mt-8 text-3xl text-primary">⌁</div></section></main>;
+}

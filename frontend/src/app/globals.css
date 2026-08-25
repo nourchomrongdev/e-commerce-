@@ -237,3 +237,67 @@ button.hidden.shrink-0.xl\:inline-flex {
   border-radius: 0 0 1rem 1rem;
   background: #fff;
 }
+
+.auth-illustration {
+  position: absolute;
+  bottom: 92px;
+  left: 50%;
+  display: grid;
+  height: 142px;
+  width: 142px;
+  place-items: center;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 55%);
+  box-shadow: 0 16px 30px rgb(245 126 31 / 10%);
+}
+
+.auth-illustration__icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  height: 62px;
+  width: 62px;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ff9a3d, #f57e1f);
+  color: white;
+  font-size: 28px;
+  box-shadow: 0 12px 20px rgb(245 126 31 / 25%);
+}
+
+.auth-illustration__paper {
+  position: absolute;
+  right: 22px;
+  top: 28px;
+  height: 44px;
+  width: 36px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 85%);
+  box-shadow: 0 5px 12px rgb(245 126 31 / 10%);
+  transform: rotate(8deg);
+}
+
+@media (max-width: 639px) {
+  .auth-illustration {
+    bottom: 18px;
+    right: 28px;
+    left: auto;
+    height: 92px;
+    width: 92px;
+    transform: none;
+  }
+
+  .auth-illustration__icon {
+    height: 44px;
+    width: 44px;
+    font-size: 20px;
+  }
+
+  .auth-illustration__paper {
+    right: 12px;
+    top: 16px;
+    height: 30px;
+    width: 25px;
+  }
+}

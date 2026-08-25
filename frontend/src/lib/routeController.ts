@@ -10,6 +10,9 @@ export const routes = {
     login: () => "/login",
     register: () => "/register",
     forgotPassword: () => "/forgot-password",
+    accountCreated: () => "/account-created",
+    resetLinkSent: () => "/reset-link-sent",
+    verifyEmail: () => "/verify-email",
   },
   admin: {
     dashboard: () => "/admin",

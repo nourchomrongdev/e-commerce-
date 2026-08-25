@@ -1,21 +1,22 @@
-type PublicIconName = 
+type PublicIconName =
   "home" |
-  "user" | 
-  "search" | 
-  "shopping-cart" | 
-  "shopping-basket" | 
-  "notification" |
+  "user" |
+  "user-round" |
+  "search" |
+  "shopping-cart" |
+  "shopping-basket" |
+  "mail" |
   "cart" |
   "dollar" |
-  "down" | 
+  "notification" |
+  "down" |
   "dot" |
   "right" |
-  "left"|
+  "left" |
   "up" |
-  "arrow-right"|
-  "arrow-left" ;
+  "arrow-right" |
+  "arrow-left";
 type PublicIconSidebarName = 
-  "dashboard" | 
   "store" | 
   "product" | 
   "receipt" | 
@@ -45,6 +46,8 @@ type PublicIconActionName =
   "edit" |
   "delete" |
   "view" |
+  "eye" |
+  "eye-closed" |
   "settings";
 
 type PublicIconProps = {
