@@ -19,26 +19,39 @@ const categoryLinks = [
   "Fonts",
 ];
 const companyLinks = [
-  { label: "About", href: "/about" },
-  { label: "Contact Us", href: "/contact-us" },
+  { label: "About", href: routes.about() },
+  { label: "Contact Us", href: routes.contact() },
 ];
 const moreLinks = [
   { label: "Top Deals", href: routes.digitalProducts() },
   { label: "Bestsellers", href: routes.digitalProducts() },
   { label: "New Releases", href: routes.digitalProducts() },
 ];
+const programLinks = [
+  { label: "Affiliate Program", href: routes.affiliate.dashboard() },
+  { label: "Reviewer Program", href: routes.reviewer.dashboard() },
+  { label: "Creator Program", href: routes.creator.overview() },
+];
+const workspaceLinks = [
+  { label: "Creator Studio", href: routes.creator.overview(), icon: "store" as const },
+  { label: "Affiliate Studio", href: routes.affiliate.dashboard(), icon: "dashboard" as const },
+  { label: "Reviewer Workspace", href: routes.reviewer.dashboard(), icon: "product" as const },
+];
 export default function Navbar({ active = "home" }: NavbarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const [desktopMenu, setDesktopMenu] = useState<
-    "categories" | "company" | "more" | null
+    "categories" | "company" | "more" | "programs" | null
   >(null);
   const [mobileMenus, setMobileMenus] = useState({
     categories: false,
     company: false,
     more: false,
+    programs: false,
   });
   const mobileMenu = null;
   const mobileInput = useRef<HTMLInputElement>(null);
@@ -54,7 +67,9 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       : items.slice(0, 4);
   }, [items, search]);
   const showSuggestions = focused && Boolean(search.trim());
-  const toggleMobileMenu = (menu: "categories" | "company" | "more") => {
+  const toggleMobileMenu = (
+    menu: "categories" | "company" | "more" | "programs",
+  ) => {
     setMobileMenus((current) => ({ ...current, [menu]: !current[menu] }));
   };
   const goToResults = () => {
@@ -72,6 +87,14 @@ export default function Navbar({ active = "home" }: NavbarProps) {
     window.addEventListener("scroll", close, { passive: true });
     return () => window.removeEventListener("scroll", close);
   }, []);
+  useEffect(() => {
+    setSignedIn(window.localStorage.getItem("marketplace-user") === "creator");
+  }, []);
+  const signOut = () => {
+    window.localStorage.removeItem("marketplace-user");
+    setSignedIn(false);
+    setAccountOpen(false);
+  };
   const searchField = (mobile = false) => (
     <div
       className={`relative ${mobile ? "flex-1" : "hidden min-[1200px]:block"}`}
@@ -174,7 +197,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
             ☰
           </button>
           <Link
-            href="/"
+            href={routes.home()}
             className="hidden items-center min-[1200px]:flex"
           >
             <AppBrand
@@ -271,6 +294,33 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 </div>
               )}
             </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setDesktopMenu(
+                    desktopMenu === "programs" ? null : "programs",
+                  )
+                }
+                className="flex items-center py-1 text-[11px] font-medium text-slate-700 hover:text-primary"
+              >
+                Programs <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "programs" ? "rotate-180" : ""}`} />
+              </button>
+              {desktopMenu === "programs" && (
+                <div className="absolute left-0 top-8 w-44 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
+                  {programLinks.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      onClick={() => setDesktopMenu(null)}
+                      className="block rounded-lg px-3 py-2 text-[11px] text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
           {searchField()}
           <div className="ml-auto flex items-center gap-1 min-[1200px]:ml-3">
@@ -295,12 +345,66 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 2
               </span>
             </button>
-            <button
-              type="button"
-              className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-4 py-2.5 text-xs font-medium text-white shadow-[0_5px_12px_rgba(255,103,0,0.35)]"
-            >
-              Sign In
-            </button>
+            {signedIn ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountOpen((isOpen) => !isOpen)}
+                  aria-expanded={accountOpen}
+                  aria-label="Open account menu"
+                  className="flex items-center gap-2 rounded-lg p-1 text-left hover:bg-accent-light"
+                >
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-xs font-semibold text-white">
+                    N
+                  </span>
+                  <span className="hidden min-[1200px]:block">
+                    <span className="block text-[11px] font-semibold text-heading">
+                      NourChomrong
+                    </span>
+                    <span className="block text-[9px] text-muted">Creator</span>
+                  </span>
+                  <PublicIcon name="down" className={`h-3.5 w-3.5 text-muted transition-transform ${accountOpen ? "rotate-180" : ""}`} />
+                </button>
+                {accountOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-100 bg-white py-2 shadow-xl">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-xs font-semibold text-heading">Your account</p>
+                      <p className="mt-1 text-[10px] text-muted">Role: Creator</p>
+                    </div>
+                    <p className="px-4 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-soft">
+                      Workspaces
+                    </p>
+                    {workspaceLinks.map((workspace) => (
+                      <Link
+                        key={workspace.label}
+                        href={workspace.href}
+                        onClick={() => setAccountOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-xs text-body no-underline hover:bg-accent-light hover:text-primary"
+                      >
+                        <PublicIcon name={workspace.icon} className="h-4 w-4 text-primary" />
+                        {workspace.label}
+                      </Link>
+                    ))}
+                    <div className="my-1 border-t border-slate-100" />
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-xs text-status-danger hover:bg-status-danger-surface"
+                    >
+                      <PublicIcon name="arrow-left" className="h-4 w-4" />
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href={routes.auth.login()}
+                className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-xs font-medium text-white no-underline shadow-[0_5px_12px_rgba(255,103,0,0.35)]"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -334,7 +438,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       >
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <Link
-            href="/"
+            href={routes.home()}
             onClick={() => setOpen(false)}
             className="flex items-center no-underline"
           >
@@ -420,6 +524,27 @@ export default function Navbar({ active = "home" }: NavbarProps) {
           {mobileMenus.more && (
             <div className="ml-3 border-l border-accent-light pl-2">
               {moreLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => toggleMobileMenu("programs")}
+            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-accent-light hover:text-primary"
+          >
+            Programs <PublicIcon name="down" className={`h-4 w-4 text-slate-400 transition-transform ${mobileMenus.programs ? "rotate-180" : ""}`} />
+          </button>
+          {mobileMenus.programs && (
+            <div className="ml-3 border-l border-accent-light pl-2">
+              {programLinks.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href}

@@ -80,14 +80,21 @@ export default function StorefrontCustomerPage({
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Total Customers", "2,843", "↑ 15.9% vs. last month"],
-          ["New Customers", "386", "↑ 17.6% vs. last month"],
-          ["Returning Customers", "1,240", "↑ 18.6% vs. last month"],
-          ["Avg. Order Value", "$24.65", "↑ 7.6% vs. last month"],
-        ].map(([label, value, detail]) => (
+          ["Total Customers", "2,843", "↑ 15.9% vs. last month", "user", "bg-[#edf5ff] text-blue-700"],
+          ["New Customers", "386", "↑ 17.6% vs. last month", "user-round", "bg-[#effaf5] text-emerald-700"],
+          ["Returning Customers", "1,240", "↑ 18.6% vs. last month", "receipt", "bg-[#fff3e9] text-primary"],
+          ["Avg. Order Value", "$24.65", "↑ 7.6% vs. last month", "dollar", "bg-[#f7f2ff] text-violet-700"],
+        ].map(([label, value, detail, icon, iconTone]) => (
           <article key={label} className="rounded-xl border border-border bg-white p-4 shadow-sm">
-            <p className="text-[10px] text-muted-soft">{label}</p>
-            <p className="mt-2 text-lg font-bold text-ink">{value}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] text-muted-soft">{label}</p>
+                <p className="mt-2 text-lg font-bold text-ink">{value}</p>
+              </div>
+              <span className={`grid h-9 w-9 place-items-center rounded-lg ${iconTone}`}>
+                <PublicIcon name={icon as "user" | "user-round" | "receipt" | "dollar"} className="h-4 w-4" />
+              </span>
+            </div>
             <p className="mt-2 text-[9px] text-status-success">{detail}</p>
           </article>
         ))}

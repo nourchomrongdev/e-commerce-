@@ -272,3 +272,9 @@ color pattern
 #ff6700	(255,103,0)
 Emerald Green #10B981
 
+Ctrl+C
+Remove-Item -Recurse -Force frontend\.next
+npm run dev
+
+rmdir /s /q .next
+npm run dev

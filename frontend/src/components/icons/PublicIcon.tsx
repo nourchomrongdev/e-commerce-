@@ -5,6 +5,7 @@ type PublicIconName =
   "search" |
   "shopping-cart" |
   "shopping-basket" |
+  "dashboard" |
   "mail" |
   "cart" |
   "dollar" |

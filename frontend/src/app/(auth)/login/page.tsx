@@ -7,7 +7,7 @@ import AuthShell, { AuthButton, AuthField, AuthLink, PreventSubmit } from "../Au
 export default function LoginPage() {
   const router = useRouter();
   return <AuthShell title="Sign in to your account" illustration="login" footer={<p className="text-[10px] text-muted">New to MarketPlace? <AuthLink href={routes.auth.register()}>Create an account →</AuthLink></p>}>
-    <PreventSubmit onSubmit={(event) => { event.preventDefault(); router.push(routes.creator.overview()); }}>
+    <PreventSubmit onSubmit={(event) => { event.preventDefault(); window.localStorage.setItem("marketplace-user", "creator"); router.push(routes.creator.overview()); }}>
       <AuthField label="Email address" type="email" placeholder="Enter your email" />
       <div><AuthField label="Password" type="password" placeholder="Enter your password" /><div className="mt-2 flex items-center justify-between text-[10px] text-muted"><label className="flex items-center gap-1.5"><input type="checkbox" className="accent-primary" /> Remember me</label><AuthLink href={routes.auth.forgotPassword()}>Forgot password?</AuthLink></div></div>
       <AuthButton>Sign In</AuthButton>

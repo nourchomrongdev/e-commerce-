@@ -51,7 +51,7 @@ export default function HeroSection({
             Explore Products&nbsp; 
             </Link>
             <Link
-              href="/creator/overview"
+              href={routes.creator.overview()}
               className="flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-[10px] font-semibold text-primary no-underline shadow-sm ring-1 ring-accent-soft"
             >
               <PublicIcon name="user" className="text-primary" />

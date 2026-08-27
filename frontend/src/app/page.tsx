@@ -79,7 +79,7 @@ export default function Home() {
         <section className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-9">
           {categories.map(([icon, title, subtitle, color]) => (
             <a
-              href="/marketplace"
+              href={routes.marketplace()}
               key={title}
               className="flex min-h-[62px] items-center gap-2 rounded-xl border border-slate-100 px-3 py-2 no-underline shadow-[0_2px_7px_rgba(15,23,42,.025)] transition hover:-translate-y-0.5 hover:shadow-md"
             >
