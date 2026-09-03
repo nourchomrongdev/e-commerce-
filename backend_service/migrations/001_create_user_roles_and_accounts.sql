@@ -103,6 +103,10 @@ CREATE TABLE "UserAccounts" (
     */
     "PasswordHash" VARCHAR(255),
 
+    "ResetOtpHash" VARCHAR(64),
+
+    "ResetOtpExpiresAt" TIMESTAMPTZ,
+
     /* User role */
     "RoleId" INT NOT NULL
         REFERENCES "UsersRoles"("UserRoleId")
@@ -266,13 +270,12 @@ ON CONFLICT ("RoleName") DO NOTHING;
 /* =========================================================
     AUTHENTICATION QUERIES AND EXAMPLES
 
-    PasswordHash values must be produced by the application with
-    Argon2id (preferred) or bcrypt. Never pass or store plaintext.
+    :password_hash must be produced by the application with Argon2id
+    (preferred) or bcrypt. Never store or pass plaintext passwords.
     These are examples for a test transaction, not production seed data.
 ========================================================= */
 
--- A. Email registration: insert UserInfo, then UserAccounts with a
---    precomputed Argon2id/bcrypt hash and the Buyer role.
+-- A. Email registration (the application supplies :password_hash).
 -- INSERT INTO "UserInfo" ("FullName", "Email")
 -- VALUES ('Normal Email User', 'normal@example.com')
 -- RETURNING "UserInfoId";
@@ -281,8 +284,7 @@ ON CONFLICT ("RoleName") DO NOTHING;
 --         (SELECT "UserRoleId" FROM "UsersRoles" WHERE "RoleName" = 'Buyer'))
 -- RETURNING "UserId";
 
--- B. OAuth registration: verify the provider identity first, then insert
---    UserInfo, UserAccounts with NULL PasswordHash, and OAuthAccounts.
+-- B. OAuth registration: verify the provider identity before these inserts.
 -- INSERT INTO "UserInfo" ("FullName", "Email")
 -- VALUES ('Google Only User', 'google@example.com')
 -- RETURNING "UserInfoId";
@@ -304,13 +306,13 @@ ON CONFLICT ("RoleName") DO NOTHING;
 --   AND oa."ProviderAccountId" = :provider_account_id
 --   AND ua."Status" = TRUE;
 
--- D. Add a password to the existing OAuth account.
+-- D. OAuth user later adds a password: update the existing UserId.
 -- UPDATE "UserAccounts"
 -- SET "PasswordHash" = :password_hash
 -- WHERE "UserId" = :authenticated_user_id
 --   AND "PasswordHash" IS NULL;
 
--- E. Connect another provider to the same account.
+-- E. Connect GitHub to that same account; do not create UserAccounts again.
 -- INSERT INTO "OAuthAccounts"
 --     ("Provider", "ProviderAccountId", "ProviderEmail", "UserId")
 -- VALUES ('github', :github_id, 'google@example.com', :authenticated_user_id);
@@ -323,10 +325,11 @@ ON CONFLICT ("RoleName") DO NOTHING;
 -- WHERE lower(ui."Email") = lower(:email)
 --   AND ua."Status" = TRUE;
 
--- Example shapes: normal user (hash + Buyer), Google-only user (NULL hash +
--- Google identity), OAuth user later adding a hash on the same UserId, and
--- Google + GitHub identities stored as two OAuthAccounts rows sharing UserId.
+-- Additional example shapes:
+-- OAuth user with password: one UserAccounts row (same UserId), non-NULL hash.
+-- Google + GitHub: two OAuthAccounts rows sharing one UserId.
+-- OAuth tokens are omitted unless the application needs provider API access.
 
--- Relationship: UserInfo 1:1 UserAccounts, UserAccounts 1:N OAuthAccounts,
--- and many UserAccounts can reference one UsersRoles row. CASCADE removes
--- identities with their account; RESTRICT preserves assigned roles.
+-- Relationships: UserInfo 1:1 UserAccounts; UserAccounts 1:N OAuthAccounts;
+-- many UserAccounts can reference one UsersRoles row. Account/profile deletion
+-- cascades to identities; assigned roles are protected with RESTRICT.

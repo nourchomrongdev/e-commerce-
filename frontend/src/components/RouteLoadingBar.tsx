@@ -70,6 +70,11 @@ export default function RouteLoadingBar() {
   };
 
   useEffect(() => {
+    const handleSubmit = (event: SubmitEvent) => {
+      const form = event.target as HTMLFormElement | null;
+      if (form) startLoading();
+    };
+
     const handleClick = (event: MouseEvent) => {
       const target = event.target as Element | null;
       const link = target?.closest("a[href]") as HTMLAnchorElement | null;
@@ -97,11 +102,13 @@ export default function RouteLoadingBar() {
     };
 
     window.addEventListener("click", handleClick, true);
+    window.addEventListener("submit", handleSubmit, true);
     window.addEventListener("popstate", startLoading);
 
     return () => {
       clearTimers();
       window.removeEventListener("click", handleClick, true);
+      window.removeEventListener("submit", handleSubmit, true);
       window.removeEventListener("popstate", startLoading);
     };
   }, []);

@@ -1,4 +1,5 @@
 const express = require("express");
+const authRoutes = require("./authRoutes");
 
 const router = express.Router();
 
@@ -83,19 +84,7 @@ router.get("/marketplace", (req, res) => {
   res.json({ products, storefronts });
 });
 
-router.post("/auth/login", (req, res) => {
-  const { email } = req.body;
-  res.json({ user: { email: email || "creator@example.com", role: "creator" }, token: "demo-token" });
-});
-
-router.post("/auth/register", (req, res) => {
-  const { name, email } = req.body;
-  res.status(201).json({ user: { name, email, role: "creator" }, message: "Account created" });
-});
-
-router.post("/auth/forgot-password", (req, res) => {
-  res.json({ message: "If the email exists, a reset link will be sent." });
-});
+router.use("/auth", authRoutes);
 
 router.get("/creator/overview", (req, res) => {
   res.json({

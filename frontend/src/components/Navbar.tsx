@@ -37,6 +37,13 @@ const workspaceLinks = [
   { label: "Affiliate Studio", href: routes.affiliate.dashboard(), icon: "dashboard" as const },
   { label: "Reviewer Workspace", href: routes.reviewer.dashboard(), icon: "product" as const },
 ];
+
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return "Unknown";
+  return `${name.slice(0, 2)}${"*".repeat(Math.max(4, name.length - 2))}@${domain}`;
+}
+
 export default function Navbar({ active = "home" }: NavbarProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -44,6 +51,9 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [userRole, setUserRole] = useState("");
+  const [username, setUsername] = useState("Unknown");
+  const [email, setEmail] = useState("");
   const [desktopMenu, setDesktopMenu] = useState<
     "categories" | "company" | "more" | "programs" | null
   >(null);
@@ -53,6 +63,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
     more: false,
     programs: false,
   });
+  const roleLabel = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : "User";
   const mobileMenu = null;
   const mobileInput = useRef<HTMLInputElement>(null);
   const items = active === "products" ? products : apps;
@@ -88,11 +99,31 @@ export default function Navbar({ active = "home" }: NavbarProps) {
     return () => window.removeEventListener("scroll", close);
   }, []);
   useEffect(() => {
-    setSignedIn(window.localStorage.getItem("marketplace-user") === "creator");
+    const token = window.localStorage.getItem("marketplace-token");
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (response) => {
+      if (!response.ok) throw new Error("Session expired");
+      const data = await response.json();
+      setSignedIn(true);
+      setUserRole(data.user.role || "");
+      setUsername(data.user.username || "Unknown");
+      setEmail(data.user.email || "");
+    }).catch(() => {
+      window.localStorage.removeItem("marketplace-token");
+      setSignedIn(false);
+      setUserRole("");
+      setUsername("Unknown");
+      setEmail("");
+    });
   }, []);
   const signOut = () => {
-    window.localStorage.removeItem("marketplace-user");
+    window.localStorage.removeItem("marketplace-token");
     setSignedIn(false);
+    setUserRole("");
+    setUsername("Unknown");
+    setEmail("");
     setAccountOpen(false);
   };
   const searchField = (mobile = false) => (
@@ -359,9 +390,9 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                   </span>
                   <span className="hidden min-[1200px]:block">
                     <span className="block text-[11px] font-semibold text-heading">
-                      NourChomrong
+                      {username}
                     </span>
-                    <span className="block text-[9px] text-muted">Creator</span>
+                    <span className="block text-[9px] text-muted">{roleLabel}</span>
                   </span>
                   <PublicIcon name="down" className={`h-3.5 w-3.5 text-muted transition-transform ${accountOpen ? "rotate-180" : ""}`} />
                 </button>
@@ -369,7 +400,8 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                   <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-100 bg-white py-2 shadow-xl">
                     <div className="border-b border-slate-100 px-4 py-3">
                       <p className="text-xs font-semibold text-heading">Your account</p>
-                      <p className="mt-1 text-[10px] text-muted">Role: Creator</p>
+                      <p className="mt-1 text-[10px] text-muted">{email ? maskEmail(email) : "Unknown"}</p>
+                      <p className="mt-1 text-[10px] text-muted">Role: {roleLabel}</p>
                     </div>
                     <p className="px-4 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-soft">
                       Workspaces

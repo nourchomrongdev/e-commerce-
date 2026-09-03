@@ -12,6 +12,9 @@ export const routes = {
     forgotPassword: () => "/forgot-password",
     accountCreated: () => "/account-created",
     resetLinkSent: () => "/reset-link-sent",
+    resetPassword: () => "/reset-password",
+    otp: () => "/otp",
+    newPassword: () => "/newpassword",
     verifyEmail: () => "/verify-email",
   },
   admin: {
