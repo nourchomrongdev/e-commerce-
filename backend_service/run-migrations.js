@@ -4,10 +4,10 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const hasDatabaseParts = process.env.DB_HOST && process.env.DB_PORT && process.env.DB_NAME && process.env.DB_USER && process.env.DB_PASSWORD;
+const hasDatabaseParts = process.env.DB_HOST && process.env.DB_PORT && process.env.DB_DATABASE && process.env.DB_USERNAME && process.env.DB_PASSWORD;
 const dbUrl = hasDatabaseParts
-  ? `postgresql://${encodeURIComponent(process.env.DB_USER)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`
-  : process.env.DATABASE_URL || 'postgresql://postgres:your_password@localhost:5432/digital_product';
+  ? `postgresql://${encodeURIComponent(process.env.DB_USERNAME)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DATABASE}`
+  : process.env.DATABASE_URL || 'postgresql://postgres:lerd@127.0.0.1:5432/lerd';
 const migrationsDir = path.join(__dirname, 'migrations');
 
 if (!fs.existsSync(migrationsDir)) {

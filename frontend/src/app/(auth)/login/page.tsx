@@ -6,11 +6,19 @@ import { routes } from "@/lib/routeController";
 import AuthShell, { AuthButton, AuthField, AuthLink, PreventSubmit } from "../AuthShell";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const oauthErrorMessages: Record<string, string> = {
+  "google-account-already-linked": "This Google account is already linked to another account.",
+  "google-sign-in-failed": "Google sign-in failed. Please try again.",
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const errorCode = new URLSearchParams(window.location.search).get("error");
+    return errorCode ? oauthErrorMessages[errorCode] || "Unable to sign in with Google. Please try again." : "";
+  });
   const [loading, setLoading] = useState(false);
   const update = (field: keyof typeof form) => (event: ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [field]: event.target.value }));

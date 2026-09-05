@@ -14,6 +14,9 @@ FIRST TIME RUN GUIDE
 3) Make sure PostgreSQL is installed and running
    - Install PostgreSQL on your computer
    - Start PostgreSQL server
+   - On Ubuntu/Debian, install the `psql` client if needed:
+       sudo apt update
+       sudo apt install postgresql-client
    - Create database named: digital_product
 
    Command example:
@@ -31,10 +34,10 @@ FIRST TIME RUN GUIDE
 
 5) Create the backend environment file
    From the project root, copy the template:
-   Copy-Item backend_service\.env.example backend_service\.env
+   cp backend_service/.env.example backend_service/.env
 
    Open the file:
-   notepad backend_service\.env
+   nano backend_service/.env
 
    Put these values in backend_service\.env:
    DB_HOST=localhost
@@ -83,7 +86,7 @@ FIRST TIME RUN GUIDE
 
 6) Run migration from backend
    cd backend_service
-   npm.cmd run migrate
+   npm run migrate
 
    For an existing database, do not run the command above because migration 001 recreates the tables.
    Run only this SQL in pgAdmin Query Tool instead:
@@ -93,21 +96,20 @@ FIRST TIME RUN GUIDE
 
 7) Start backend server
    cd backend_service
-   npm.cmd run dev
+   npm run dev
 
    Backend runs at:
    http://localhost:5000
 
 8) Start frontend server (use a second terminal)
    cd frontend
-   npm.cmd run dev
+   npm run dev
 
    Frontend runs at:
    http://localhost:3000
 
 9) Start both together from project root
-   cd D:\studydocs\Y4S2\ProjectManagementSystem\digital_products_downloads_marketplace
-   npm.cmd run dev
+   npm run dev
 
 10) Useful checks
    - Backend health check:
@@ -154,6 +156,7 @@ TROUBLESHOOTING
 
 If psql is not recognized:
    - Install PostgreSQL and add the bin folder to PATH
+   - On Ubuntu/Debian, install `postgresql-client` (not only `postgresql-client-common`)
    - Example path:
      C:\Program Files\PostgreSQL\16\bin
 
@@ -192,15 +195,15 @@ FINAL QUICK COMMANDS
 ====================================================
 
 Project root:
-   npm.cmd install
-   npm.cmd install --prefix frontend
-   npm.cmd install --prefix backend_service
-   npm.cmd run dev
+   npm install
+   npm install --prefix frontend
+   npm install --prefix backend_service
+   npm run dev
 
 Backend only:
    cd backend_service
-   npm.cmd run dev
+   npm run dev
 
 Frontend only:
    cd frontend
-   npm.cmd run dev
+   npm run dev

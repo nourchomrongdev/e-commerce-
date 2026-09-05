@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const { sequelize, UserInfo, UserAccount, UserRole } = require("../models");
 const { authResponse, normaliseEmail, requireDatabase } = require("./authHelpers");
+const { sendSecurityEmail } = require("../services/mailService");
 
 async function login(req, res) {
   if (!requireDatabase(res, sequelize)) return;
@@ -12,6 +13,11 @@ async function login(req, res) {
     const user = info?.account;
     if (!user || !user.PasswordHash || !(await bcrypt.compare(password, user.PasswordHash))) return res.status(401).json({ error: "Invalid email or password." });
     user.info = info;
+    await sendSecurityEmail({
+      to: email,
+      subject: "New login to your Digital Products Marketplace account",
+      text: `A successful login was detected on your Digital Products Marketplace account. If this was not you, reset your password immediately.`
+    });
     return res.json(authResponse(user));
   } catch (error) {
     console.error("Login failed", error);

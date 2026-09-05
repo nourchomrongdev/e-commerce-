@@ -1,16 +1,11 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const nodemailer = require("nodemailer");
 const { sequelize, UserInfo, UserAccount } = require("../models");
 const { findByToken, requireDatabase, toUser } = require("./authHelpers");
+const { sendSecurityEmail } = require("../services/mailService");
 
 const otpLength = Math.max(4, Math.min(8, Number(process.env.PASSWORD_RESET_OTP_LENGTH || 6)));
 const otpExpiryMinutes = Math.max(1, Number(process.env.PASSWORD_RESET_OTP_EXPIRES_MINUTES || 15));
-
-function mailTransport() {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
-  return nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
-}
 
 function maskEmail(email) {
   const [localPart, domain] = email.split("@");
@@ -47,10 +42,8 @@ async function forgotPassword(req, res) {
     info.account.ResetOtpHash = crypto.createHash("sha256").update(otp).digest("hex");
     info.account.ResetOtpExpiresAt = new Date(Date.now() + otpExpiryMinutes * 60 * 1000);
     await info.account.save();
-    const transport = mailTransport();
-    if (transport) {
-      await transport.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: email, subject: "Your password reset code", text: `Your password reset OTP is ${otp}. It expires in ${otpExpiryMinutes} minutes.` });
-    } else if (process.env.NODE_ENV !== "production") {
+    const emailSent = await sendSecurityEmail({ to: email, subject: "Your password reset code", text: `Your password reset OTP is ${otp}. It expires in ${otpExpiryMinutes} minutes.` });
+    if (!emailSent && process.env.NODE_ENV !== "production") {
       response.otp = otp;
     }
     return res.json(response);
@@ -74,6 +67,11 @@ async function resetPassword(req, res) {
   account.ResetOtpHash = null;
   account.ResetOtpExpiresAt = null;
   await account.save();
+  await sendSecurityEmail({
+    to: email,
+    subject: "Your Digital Products Marketplace password was changed",
+    text: "Your Digital Products Marketplace password was changed successfully. If this was not you, contact support immediately."
+  });
   return res.json({ message: "Password reset successfully." });
 }
 

@@ -56,6 +56,18 @@ npm run dev --prefix backend_service
 
 The backend server runs on port `5000`.
 
+### Google sign-in setup
+
+The backend starts Google sign-in at `http://localhost:5000/api/auth/google`. In Google Cloud Console, create an OAuth client with application type **Web application** and add this exact value under **Authorized redirect URIs**:
+
+```text
+http://localhost:5000/api/auth/google/callback
+```
+
+The value must match `GOOGLE_CALLBACK_URL` in `backend_service/.env` character-for-character. If the OAuth consent screen is in **Testing**, add the Google account being used to **Test users**. A missing redirect URI or non-test account produces Google’s `Error 400: invalid_request` policy page before the backend receives any request.
+
+For a deployed environment, use HTTPS and register the deployed callback URL in Google Cloud Console; do not reuse the localhost callback.
+
 ## Build & Production
 
 ### Frontend build
