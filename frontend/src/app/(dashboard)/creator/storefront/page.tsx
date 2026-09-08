@@ -2,6 +2,7 @@
 
 import PublicIcon from "@/components/icons/PublicIcon";
 import Link from "next/link";
+import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const storefronts = [
   {
@@ -140,7 +141,7 @@ export default function StorefrontPage() {
                           className="mt-1 truncate text-xl font-bold tracking-tight text-[#111b40] sm:text-2xl"
                           title={revenue}
                         >
-                          {revenue}
+                          {formatCompactCurrency(revenue)}
                         </p>
                       </div>
                     </div>

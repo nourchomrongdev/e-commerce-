@@ -1,6 +1,7 @@
 import Link from "next/link";
 import StorefrontHeader from "@/components/dashboard/StorefrontHeader";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const storefrontData: Record<string, { displayName: string; type: string; description: string }> = {
   NourChomrong: {
@@ -71,7 +72,7 @@ export default async function StorefrontOverviewPage({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8993aa]">{label}</p>
-                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{value}</p>
+                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{label === "Revenue" ? formatCompactCurrency(value) : value}</p>
                 </div>
                 <span className={`grid h-10 w-10 place-items-center rounded-lg ${tone}`}>
                   <PublicIcon name={icon as any} className="h-5 w-5" />

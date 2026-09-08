@@ -51,6 +51,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [userRole, setUserRole] = useState("");
   const [username, setUsername] = useState("Unknown");
   const [email, setEmail] = useState("");
@@ -94,13 +95,27 @@ export default function Navbar({ active = "home" }: NavbarProps) {
     if (mobileSearchOpen) mobileInput.current?.focus();
   }, [mobileSearchOpen]);
   useEffect(() => {
-    const close = () => setFocused(false);
+    const close = () => {
+      setFocused(false);
+      setDesktopMenu(null);
+      setAccountOpen(false);
+      setMobileSearchOpen(false);
+      setMobileMenus({
+        categories: false,
+        company: false,
+        more: false,
+        programs: false,
+      });
+    };
     window.addEventListener("scroll", close, { passive: true });
     return () => window.removeEventListener("scroll", close);
   }, []);
   useEffect(() => {
     const token = window.localStorage.getItem("marketplace-token");
-    if (!token) return;
+    if (!token) {
+      setAuthChecked(true);
+      return;
+    }
     fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(async (response) => {
@@ -116,6 +131,8 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       setUserRole("");
       setUsername("Unknown");
       setEmail("");
+    }).finally(() => {
+      setAuthChecked(true);
     });
   }, []);
   const signOut = () => {
@@ -131,7 +148,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       className={`relative ${mobile ? "flex-1" : "hidden min-[1200px]:block"}`}
     >
       <div
-        className={`flex h-10 items-center gap-2 rounded-lg border bg-white px-3 text-slate-400 shadow-sm ${focused ? "border-primary" : "border-slate-200"} ${mobile ? "w-full" : "w-64"}`}
+        className={`flex h-10 items-center gap-2 rounded-lg border bg-white px-3 text-slate-400 shadow-sm ${focused ? "border-primary" : "border-slate-200"} ${mobile ? "w-full" : "w-52 2xl:w-64"}`}
       >
         <PublicIcon name="search" className="h-4 w-4 text-slate-400" />
         <input
@@ -218,7 +235,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-30 border-b border-slate-100 bg-white/95 backdrop-blur">
-        <div className="flex h-14 w-full items-center gap-5 px-4 sm:px-6 md:px-[7%]">
+        <div className="flex h-14 w-full items-center gap-3 px-4 sm:px-6 md:px-[7%] xl:gap-5">
           <button
             type="button"
             aria-label="Open menu"
@@ -238,7 +255,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
               logoClassName="h-9 w-9 p-1"
             />
           </Link>
-          <nav className="ml-auto hidden items-center gap-4 min-[1200px]:flex xl:gap-7">
+          <nav className="ml-auto hidden items-center gap-3 min-[1200px]:flex 2xl:gap-7">
             {links.map((link) => (
               <Link
                 key={link.label}
@@ -261,7 +278,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 Categories <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "categories" ? "rotate-180" : ""}`} />
               </button>
               {desktopMenu === "categories" && (
-                <div className="absolute left-0 top-8 grid w-72 grid-cols-2 gap-1 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
+                <div className="menu-popover-enter absolute left-0 top-8 grid w-72 grid-cols-2 gap-1 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
                   {categoryLinks.map((category) => (
                     <Link
                       key={category}
@@ -286,7 +303,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 Company <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "company" ? "rotate-180" : ""}`} />
               </button>
               {desktopMenu === "company" && (
-                <div className="absolute left-0 top-8 w-40 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
+                <div className="menu-popover-enter absolute left-0 top-8 w-40 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
                   {companyLinks.map((link) => (
                     <Link
                       key={link.label}
@@ -311,7 +328,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 More <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "more" ? "rotate-180" : ""}`} />
               </button>
               {desktopMenu === "more" && (
-                <div className="absolute left-0 top-8 w-40 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
+                <div className="menu-popover-enter absolute left-0 top-8 w-40 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
                   {moreLinks.map((link) => (
                     <Link
                       key={link.label}
@@ -338,7 +355,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 Programs <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "programs" ? "rotate-180" : ""}`} />
               </button>
               {desktopMenu === "programs" && (
-                <div className="absolute left-0 top-8 w-44 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
+                <div className="menu-popover-enter absolute left-0 top-8 w-44 rounded-xl border border-slate-100 bg-white p-2 shadow-xl">
                   {programLinks.map((link) => (
                     <Link
                       key={link.label}
@@ -376,7 +393,9 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 2
               </span>
             </button>
-            {signedIn ? (
+            {!authChecked ? (
+              <span className="h-10 w-20 shrink-0" aria-hidden="true" />
+            ) : signedIn ? (
               <div className="relative">
                 <button
                   type="button"
@@ -389,15 +408,15 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                     N
                   </span>
                   <span className="hidden min-[1200px]:block">
-                    <span className="block text-[11px] font-semibold text-heading">
-                      {username}
+                    <span className="block max-w-28 truncate whitespace-nowrap text-[11px] font-semibold text-heading">
+                      {username.replace(/_\d{6}$/, "").replace(/_/g, " ")}
                     </span>
                     <span className="block text-[9px] text-muted">{roleLabel}</span>
                   </span>
                   <PublicIcon name="down" className={`h-3.5 w-3.5 text-muted transition-transform ${accountOpen ? "rotate-180" : ""}`} />
                 </button>
                 {accountOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-100 bg-white py-2 shadow-xl">
+                  <div className="menu-popover-enter absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-100 bg-white py-2 shadow-xl">
                     <div className="border-b border-slate-100 px-4 py-3">
                       <p className="text-xs font-semibold text-heading">Your account</p>
                       <p className="mt-1 text-[10px] text-muted">{email ? maskEmail(email) : "Unknown"}</p>
@@ -432,8 +451,9 @@ export default function Navbar({ active = "home" }: NavbarProps) {
             ) : (
               <Link
                 href={routes.auth.login()}
-                className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-xs font-medium text-white no-underline shadow-[0_5px_12px_rgba(255,103,0,0.35)]"
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-orange-300/60 bg-gradient-to-r from-primary to-[#ff9848] px-2.5 py-1.5 text-[10px] font-semibold text-white no-underline shadow-[0_3px_8px_rgba(255,103,0,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_5px_12px_rgba(255,103,0,0.34)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
+                <PublicIcon name="user-round" className="h-2.5 w-2.5" />
                 Sign In
               </Link>
             )}

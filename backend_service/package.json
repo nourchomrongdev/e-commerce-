@@ -2,11 +2,12 @@
   "name": "backend_service",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
-    "dev": "node --watch server.js",
-    "start": "node server.js",
-    "migrate": "node run-migrations.js"
+    "dev": "tsx watch server.ts",
+    "start": "tsx server.ts",
+    "build": "tsc",
+    "migrate": "tsx run-migrations.ts"
   },
   "author": "",
   "license": "ISC",
@@ -21,5 +22,11 @@
     "nodemailer": "^9.1.1",
     "pg": "^8.16.3",
     "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.5.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }

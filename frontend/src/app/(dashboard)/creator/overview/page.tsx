@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const stats = [
   { label: "Total Sales", value: "$1,284.50", change: "↑ 12.5%", icon: "cart" },
@@ -52,7 +53,7 @@ export default function CreatorOverview() {
                 <div className="flex items-start">
                   <div className="min-w-0 pr-8">
                     <p className="text-xs font-semibold text-[#182342]">{label}</p>
-                    <p className="mt-3 truncate text-2xl font-bold tracking-tight text-[#111b40]">{value}</p>
+                    <p className="mt-3 truncate text-2xl font-bold tracking-tight text-[#111b40]">{value.startsWith("$") ? formatCompactCurrency(value) : value}</p>
                   </div>
                   <span className="absolute right-5 top-5 grid h-11 w-11 place-items-center text-primary">
                     <PublicIcon name={icon as any} className="h-6 w-6" />

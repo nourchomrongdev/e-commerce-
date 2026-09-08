@@ -12,7 +12,7 @@ type ProductTableProps = {
 
 export default function ProductTable({ products, discounts, onDiscount, onEdit, onMore }: ProductTableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto product-responsive-table">
       <table className="w-full min-w-[900px] text-left text-xs">
         <thead className="bg-[#fcfcfe] text-[10px] text-[#66718e]">
           <tr>
@@ -32,7 +32,7 @@ export default function ProductTable({ products, discounts, onDiscount, onEdit, 
 
             return (
               <tr key={product.name} className="border-t border-[#edf0f5] text-[#283554] transition hover:bg-[#fffaf6]">
-                <td className="px-6 py-3">
+                <td data-label="Product" className="px-6 py-3">
                   <div className="flex items-center gap-3">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-sm text-white shadow-sm" style={{ backgroundColor: product.icon }}>✦</span>
                     <span className="min-w-0">
@@ -41,19 +41,19 @@ export default function ProductTable({ products, discounts, onDiscount, onEdit, 
                     </span>
                   </div>
                 </td>
-                <td className="font-medium text-[#172141]">
+                <td data-label="Price" className="font-medium text-[#172141]">
                   {discount > 0 ? <><span className="text-primary">${(price * (1 - discount / 100)).toFixed(2)}</span><span className="ml-2 text-[10px] text-[#9aa2b5] line-through">{product.price}</span></> : product.price}
                 </td>
-                <td>
+                <td data-label="Discount">
                   {discount > 0 ? <button type="button" onClick={() => onDiscount(product)} className="rounded-md bg-orange-50 px-2 py-1 text-[9px] font-semibold text-primary hover:bg-orange-100">-{discount}%</button> : <button type="button" onClick={() => onDiscount(product)} className="text-[10px] font-medium text-[#8a93a8] hover:text-primary">Add discount</button>}
                 </td>
-                <td><ProductStatusBadge status={product.status} /></td>
-                <td>{product.sales}</td>
-                <td className="text-[#66718e]">{product.createdAt}</td>
-                <td className="px-6">
+                <td data-label="Status"><ProductStatusBadge status={product.status} /></td>
+                <td data-label="Sales">{product.sales}</td>
+                <td data-label="Created At" className="text-[#66718e]">{product.createdAt}</td>
+                <td data-label="Actions" className="px-6">
                   <div className="flex justify-end gap-2">
-                    <button type="button" aria-label={`Edit ${product.name}`} onClick={() => onEdit?.(product)} className="grid h-7 w-7 place-items-center rounded-md border border-[#e4e7ef] text-[#66718e] hover:border-primary hover:text-primary"><PublicIcon name="edit" className="h-3.5 w-3.5 text-primary" /></button>
-                    <button type="button" aria-label={`Set discount for ${product.name}`} onClick={() => onDiscount(product)} className="grid h-7 w-7 place-items-center rounded-md border border-[#e4e7ef] text-[10px] font-semibold text-[#66718e] hover:border-primary hover:text-primary"><PublicIcon name="percent" className="h-3.5 w-3.5" /></button>
+                    <button type="button" aria-label={`Edit ${product.name}`} onClick={() => onEdit?.(product)} className="product-action-secondary grid h-7 w-7 place-items-center rounded-md border border-[#e4e7ef] text-[#66718e] hover:border-primary hover:text-primary"><PublicIcon name="edit" className="h-3.5 w-3.5 text-primary" /></button>
+                    <button type="button" aria-label={`Set discount for ${product.name}`} onClick={() => onDiscount(product)} className="product-action-secondary grid h-7 w-7 place-items-center rounded-md border border-[#e4e7ef] text-[10px] font-semibold text-[#66718e] hover:border-primary hover:text-primary"><PublicIcon name="percent" className="h-3.5 w-3.5" /></button>
                     <button type="button" aria-label={`More actions for ${product.name}`} onClick={() => onMore?.(product)} className="grid h-7 w-7 place-items-center rounded-md border border-[#e4e7ef] text-[#66718e] hover:border-primary hover:text-primary"><PublicIcon name="ellipsis-vertical" className="h-3.5 w-3.5" /></button>
                   </div>
                 </td>

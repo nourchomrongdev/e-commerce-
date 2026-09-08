@@ -107,6 +107,231 @@ select:focus,
   background: var(--color-primary);
 }
 
+@keyframes menu-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-popover-enter {
+  animation: menu-popover-in 160ms ease-out both;
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-popover-enter {
+    animation: none;
+  }
+}
+
+/* Use the shared overflow menu glyph for table action controls. */
+button[class*="border-border-action"]:has(> span[style*="view.svg"]) > span,
+a[class*="border-border-action"]:has(> span[style*="view.svg"]) > span {
+  mask: url("/icons/ellipsis-vertical.svg") center / contain no-repeat !important;
+  -webkit-mask: url("/icons/ellipsis-vertical.svg") center / contain no-repeat !important;
+}
+
+/* Wide data tables use compact cards on phones; desktop keeps the existing table layout. */
+@media (max-width: 767px) {
+  .overflow-x-auto:has(> table) {
+    overflow-x: visible;
+  }
+
+  .overflow-x-auto:has(> table) > table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .overflow-x-auto:has(> table) > table > thead {
+    display: none;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    position: relative;
+    gap: 0.35rem 0.75rem;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 0.75rem;
+    background: white;
+    padding: 0.65rem 0.75rem;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 4%);
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr > td {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    overflow-wrap: anywhere;
+    padding: 0.2rem 0 !important;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr > td[data-label]::before {
+    margin-bottom: 0.125rem;
+    color: var(--color-muted-soft);
+    content: attr(data-label);
+    font-size: 0.5625rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr > td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr > td > * {
+    max-width: 100%;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr > td .truncate {
+    white-space: normal;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr:has(> td:last-child button) > td:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-right: 2.5rem !important;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr:has(> td:last-child button) > td:last-child {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    align-items: flex-end;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr:has(> td:last-child button) > td:last-child[data-label]::before {
+    display: none;
+  }
+
+  .overflow-x-auto:has(> table) > table > tbody > tr:has(> td:last-child button) > td:last-child button:not(:last-child) {
+    display: none;
+  }
+
+  .customer-responsive-table > div > table > tbody > tr > td:last-child {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    align-items: flex-end;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .customer-responsive-table > div > table > tbody > tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .customer-responsive-table > div > table > tbody > tr > td:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-right: 2.5rem !important;
+  }
+
+  .customer-responsive-table > div > table > tbody > tr > td:last-child[data-label]::before {
+    display: none;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:last-child {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    align-items: flex-end;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:first-child {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-self: start;
+    padding-right: 2.5rem !important;
+    padding-top: 0.1rem !important;
+  }
+
+  .product-responsive-table > table > tbody > tr {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(5) {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(6) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(2),
+  .product-responsive-table > table > tbody > tr > td:nth-child(3),
+  .product-responsive-table > table > tbody > tr > td:nth-child(4) {
+    border-bottom: 1px solid var(--color-divider);
+    padding-bottom: 0.55rem !important;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:nth-child(5),
+  .product-responsive-table > table > tbody > tr > td:nth-child(6) {
+    padding-top: 0.45rem !important;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:first-child .grid {
+    height: 3rem;
+    width: 3rem;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:last-child[data-label]::before {
+    display: none;
+  }
+
+  .product-responsive-table .product-action-secondary {
+    display: none;
+  }
+
+  .product-responsive-table > table > tbody > tr > td[data-label]::before {
+    font-size: 0.625rem;
+    letter-spacing: 0.01em;
+  }
+
+  .product-responsive-table > table > tbody > tr > td:not(:first-child) {
+    min-height: 2.5rem;
+  }
+}
+
 button[aria-label="Previous page"]:hover,
 button[aria-label="Next page"]:hover {
   border-color: var(--color-primary);
