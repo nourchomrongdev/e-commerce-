@@ -1,91 +1,62 @@
 import HeroSection from "@/components/HeroSection";
 import Navbar from "@/components/Navbar";
+import PublicFooter from "@/components/PublicFooter";
 import type { Metadata } from "next";
 import { routes } from "@/lib/routeController";
 export const metadata: Metadata = { title: "MarketPlace | Digital Products" };
 const categories = [
-  ["♜", "Software", "Tools & Apps", "bg-accent-light text-primary"],
-  ["▦", "Templates", "UI, Web, Docs", "bg-accent-soft text-primary"],
-  ["✦", "Graphics", "Icons, Assets", "bg-accent-light text-primary"],
-  ["▤", "E-Books", "Books & Guides", "bg-accent-soft text-primary"],
-  ["♫", "Music", "Audio & Tracks", "bg-accent-light text-primary"],
-  ["▧", "Stock Photos", "Images & Photos", "bg-accent-soft text-primary"],
-  ["▣", "Video Courses", "Learn & Grow", "bg-accent-light text-primary"],
-  ["A", "Fonts", "Typography", "bg-accent-soft text-primary"],
+  ["▦", "Templates", "UI, web and docs", "bg-orange-50 text-primary"],
+  ["✦", "Graphics", "Icons and assets", "bg-blue-50 text-blue-600"],
+  ["♫", "Music", "Audio and tracks", "bg-violet-50 text-violet-600"],
+  ["▤", "E-books", "Books and guides", "bg-emerald-50 text-emerald-600"],
+  ["♜", "Courses", "Learn and grow", "bg-amber-50 text-amber-600"],
+  ["⌘", "Software", "Tools and apps", "bg-sky-50 text-sky-600"],
 ];
-const products = [
-  [
-    "Soft UI Dashboard Pro",
-    "Web Templates",
-    "4.9 (128)",
-    "$24.99",
-    "from-[#092d57] via-[#3157a2] to-[#101c53]",
-    "▦",
-  ],
-  [
-    "Line Awesome Icons",
-    "Icons",
-    "4.8 (215)",
-    "$9.99",
-    "from-[#f5f0ff] to-[#e9e5ff]",
-    "✣",
-  ],
-  [
-    "SaaS Landing Page Kit",
-    "Web Templates",
-    "4.7 (163)",
-    "$19.99",
-    "from-[#0a123d] via-[#41236d] to-[#111847]",
-    "SaaS",
-  ],
-  [
-    "The Design System",
-    "E-Books",
-    "4.9 (98)",
-    "$7.99",
-    "from-[#faf5ed] to-[#f0ddd0]",
-    "The\nDesign",
-  ],
-  [
-    "Chill Lo-fi Music Pack",
-    "Music",
-    "4.8 (76)",
-    "$14.99",
-    "from-[#0c2631] via-[#283d35] to-[#0c1d28]",
-    "◕",
-  ],
-  [
-    "Nature Stock Photo Pack",
-    "Stock Photos",
-    "4.7 (134)",
-    "$12.99",
-    "from-[#3a6889] via-[#7da4b3] to-[#375644]",
-    "⌁",
-  ],
-];
-const stats = [
-  ["♧", "10K+", "Happy Customers", "Trustors worldwide"],
-  ["♧", "24K+", "Digital Products", "High quality digital products"],
-  ["♙", "2K+", "Verified Creators", "Talented creators and developers"],
-  ["♢", "99.9%", "Secure Downloads", "DRM protection & secure delivery"],
-  ["☆", "4.8/5", "Customer Rating", "Based on thousands of reviews"],
+const features = [
+  ["⌕", "Discover", "Explore products made to help you create and ship faster.", "bg-orange-50 text-primary"],
+  ["✎", "Create", "Build your own digital products with powerful tools.", "bg-indigo-50 text-indigo-600"],
+  ["▣", "Organize", "Keep files, projects and licenses easy to find.", "bg-sky-50 text-sky-600"],
 ];
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background text-slate-800">
+    <main className="min-h-screen overflow-hidden bg-background text-slate-800">
       <Navbar />
-      <div className="mx-auto max-w-[1440px] px-3 pb-5 sm:px-6">
+      <div className="w-full px-4 pb-8 sm:px-8 lg:px-[5%]">
         <HeroSection />
-        <section className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-9">
+        <section className="mt-10 grid gap-8 border-b border-slate-100 pb-10 lg:grid-cols-[.8fr_2fr] lg:items-end">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[8px] font-bold uppercase tracking-[.18em] text-primary">Key features</p>
+              <h2 className="mt-1 text-xl font-extrabold leading-tight text-[#09234a] sm:text-2xl">Everything you need in one platform</h2>
+              <p className="mt-2 max-w-md text-[10px] leading-4 text-slate-500">Create, manage and share your digital content in one simple place.</p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {features.map(([icon, title, text, color]) => (
+              <a key={title} href={routes.digitalProducts()} className={`group min-h-[126px] border border-slate-200 p-4 no-underline shadow-sm transition hover:border-primary hover:shadow-md ${color}`}>
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-white text-sm shadow-sm">{icon}</span>
+                <b className="mt-3 block text-sm text-[#09234a]">{title}</b>
+                <p className="mt-1 text-[9px] leading-4 text-slate-500">{text}</p>
+              </a>
+            ))}
+          </div>
+        </section>
+        <section className="mt-8">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+            <p className="text-[8px] font-bold uppercase tracking-[.18em] text-primary">Categories</p>
+              <h2 className="mt-1 text-xl font-extrabold text-[#09234a]">Explore by category</h2>
+            </div>
+            <a href={routes.marketplace()} className="text-[10px] font-semibold text-primary no-underline">View all →</a>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {categories.map(([icon, title, subtitle, color]) => (
             <a
               href={routes.marketplace()}
               key={title}
-              className="flex min-h-[62px] items-center gap-2 rounded-xl border border-slate-100 px-3 py-2 no-underline shadow-[0_2px_7px_rgba(15,23,42,.025)] transition hover:-translate-y-0.5 hover:shadow-md"
+              className="flex min-h-[72px] items-center gap-3 border border-slate-200 bg-white px-3 py-2 text-left no-underline shadow-sm transition hover:border-primary hover:shadow-md"
             >
-              <span
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs ${color}`}
-              >
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-xs ${color}`}>
                 {icon}
               </span>
               <span>
@@ -98,77 +69,18 @@ export default function Home() {
               </span>
             </a>
           ))}
-          <a
-            href={routes.digitalProducts()}
-            className="hidden items-center justify-center gap-2 rounded-xl border border-slate-100 text-[9px] font-semibold text-slate-700 no-underline lg:flex"
-          >
-            View All{" "}
-            <span className="text-lg font-light text-slate-400">›</span>
-          </a>
-        </section>
-        <section className="mt-5">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[14px] font-extrabold text-slate-900">
-                Featured Products
-              </h2>
-              <span className="rounded bg-accent-light px-1.5 py-0.5 text-[7px] font-semibold text-primary">
-                Handpicked for you
-              </span>
-            </div>
-            <a
-              href={routes.digitalProducts()}
-              className="text-[9px] font-semibold text-primary no-underline"
-            >
-              View all products　›
-            </a>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {products.map(([name, type, rating, price, background, art]) => (
-              <article key={name} className="min-w-0">
-                <div
-                  className={`relative grid h-[105px] place-items-center overflow-hidden rounded-xl bg-gradient-to-br ${background} p-3 shadow-sm`}
-                >
-                  <span className="whitespace-pre-line text-center text-[18px] font-bold leading-none text-white/90">
-                    {art}
-                  </span>
-                  <button className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-xs text-primary">
-                    ♡
-                  </button>
-                </div>
-                <b className="mt-2 block truncate text-[10px] text-slate-700">
-                  {name}
-                </b>
-                <small className="block text-[8px] text-slate-400">
-                  {type}
-                </small>
-                <div className="mt-1 flex items-center justify-between">
-                  <small className="text-[8px] text-slate-500">
-                    <span className="text-[#ff9c1a]">★</span> {rating}
-                  </small>
-                  <b className="text-[9px] text-[#ff681c]">{price}</b>
-                </div>
-              </article>
-            ))}
           </div>
         </section>
-        <section className="mt-6 grid divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-[0_5px_16px_rgba(15,23,42,.06)] sm:grid-cols-5 sm:divide-x sm:divide-y-0 sm:px-5">
-          {stats.map(([icon, number, title, subtitle]) => (
-            <div key={title} className="flex items-center gap-3 px-3 py-2">
-              <span className="text-2xl text-[#ff681c]">{icon}</span>
-              <span>
-                <b className="block text-[13px] text-[#09234a]">{number}</b>
-                <strong className="block text-[8px] text-slate-600">
-                  {title}
-                </strong>
-                <small className="block text-[7px] text-slate-400">
-                  {subtitle}
-                </small>
-              </span>
-            </div>
-          ))}
+        <section className="relative mt-8 overflow-hidden bg-gradient-to-r from-primary to-[#ff9b42] px-5 py-6 text-white sm:px-8">
+          <div className="relative z-10">
+            <h2 className="text-lg font-extrabold">Ready to create something great?</h2>
+            <p className="mt-1 text-[9px] text-white/80">Join thousands of creators and users already building, learning and achieving more.</p>
+            <a href={routes.digitalProducts()} className="mt-3 inline-flex rounded-full bg-white px-4 py-1.5 text-[9px] font-bold text-primary no-underline">Get started →</a>
+          </div>
+          <span className="absolute -right-8 -top-20 h-48 w-48 rounded-full border-[22px] border-white/15" />
         </section>
       </div>
+      <PublicFooter />
     </main>
   );
 }

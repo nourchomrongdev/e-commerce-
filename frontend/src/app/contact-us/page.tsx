@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import PublicFooter from "@/components/PublicFooter";
 import { routes } from "@/lib/routeController";
 
 export default function ContactUsPage() {
@@ -30,6 +31,7 @@ export default function ContactUsPage() {
           </div>
         </div>
       </section>
+      <PublicFooter />
     </main>
   );
 }

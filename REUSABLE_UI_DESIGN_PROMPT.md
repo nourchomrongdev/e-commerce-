@@ -1,4 +1,4 @@
-# Reusable UI Design Prompt
+# Reusable UI Design
 
 Copy and adapt the prompt below for another project.
 

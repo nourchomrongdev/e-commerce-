@@ -1,45 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
 import Link from "next/link";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
 
-const storefronts = [
-  {
-    name: "NourChomrong",
-    type: "Templates",
-    products: 24,
-    revenue: "$1,284.00",
-    status: "Open Store",
-    accent: "from-[#7c5cf3] to-[#4f46e5]",
-  },
-  {
-    name: "DevCourses",
-    type: "Digital Products",
-    products: 12,
-    revenue: "$2,450.00",
-    status: "Open Store",
-    accent: "from-[#ff8a3d] to-[#ff5a1f]",
-  },
-  {
-    name: "AI Resources",
-    type: "Bundles",
-    products: 7,
-    revenue: "$920.00",
-    status: "Open Store",
-    accent: "from-[#19b5a5] to-[#0ea5a4]",
-  },
-  {
-    name: "DesignHub",
-    type: "UI Kits",
-    products: 18,
-    revenue: "$1,860.00",
-    status: "Open Store",
-    accent: "from-[#ec4899] to-[#db2777]",
-  },
-];
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const accents = ["from-[#7c5cf3] to-[#4f46e5]", "from-[#ff8a3d] to-[#ff5a1f]", "from-[#19b5a5] to-[#0ea5a4]", "from-[#ec4899] to-[#db2777]"];
+
+type Storefront = {
+  displayName: string;
+  type: string;
+  products: number;
+  revenue: string;
+  isPublished?: boolean;
+};
 
 export default function StorefrontPage() {
+  const [storefronts, setStorefronts] = useState<Storefront[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`${apiUrl}/creator/storefronts`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load storefronts");
+        return response.json();
+      })
+      .then((data: { storefronts: Storefront[] }) => setStorefronts(data.storefronts))
+      .catch(() => setError("Unable to load storefronts. Check that the backend is running."))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="w-full">
       <section>
@@ -57,7 +49,7 @@ export default function StorefrontPage() {
             </div>
 
             <Link
-              href="/creator/storefront"
+              href="/creator/storefront/new"
               className="flex w-full shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_18px_rgba(255,103,0,0.22)] transition hover:opacity-90 sm:w-auto"
             >
               <PublicIcon name="add" className="mr-2 h-4 w-4" />
@@ -68,16 +60,18 @@ export default function StorefrontPage() {
 
         {/* Storefront Grid */}
         <div className="px-4 pb-6 sm:px-6 lg:px-8">
+          {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
+          {loading && <p className="py-12 text-center text-sm text-[#8993aa]">Loading storefronts...</p>}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {storefronts.map(
-              ({ name, type, products, revenue, status, accent }) => (
+              ({ displayName: name, type, products, revenue, isPublished }, index) => (
                 <div
                   key={name}
                   className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[#e8ecf4] bg-white shadow-[0_4px_20px_rgba(17,27,64,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-[#dce2ef] hover:shadow-[0_12px_30px_rgba(17,27,64,0.08)]"
                 >
                   {/* Card Header */}
                   <div
-                    className={`bg-gradient-to-br ${accent} p-4 sm:p-5`}
+                    className={`bg-gradient-to-br ${accents[index % accents.length]} p-4 sm:p-5`}
                   >
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -89,7 +83,7 @@ export default function StorefrontPage() {
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
 
                           <span className="text-[10px] font-medium text-white/75">
-                            Active
+                            {isPublished === false ? "Inactive" : "Active"}
                           </span>
                         </div>
 
@@ -105,16 +99,17 @@ export default function StorefrontPage() {
                         </p>
                       </div>
 
-                      <button
+                      <Link
+                        href={`/creator/storefront/${encodeURIComponent(name)}/edit`}
                         type="button"
                         aria-label={`More options for ${name}`}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
                       >
                         <PublicIcon
-                          name="ellipsis-vertical"
+                          name="edit"
                           className="h-5 w-5"
                         />
-                      </button>
+                      </Link>
                     </div>
                   </div>
 
@@ -156,10 +151,10 @@ export default function StorefrontPage() {
                         </p>
 
                         <div className="mt-1 flex items-center gap-1.5">
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${isPublished === false ? "bg-slate-400" : "bg-emerald-500"}`} />
 
                           <span className="text-xs font-semibold text-[#263252]">
-                            Open
+                            {isPublished === false ? "Closed" : "Open"}
                           </span>
                         </div>
                       </div>
@@ -168,7 +163,7 @@ export default function StorefrontPage() {
                         href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
                         className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
                       >
-                        {status}
+                        Open Store
 
                         <PublicIcon
                           name="arrow-right"
@@ -183,7 +178,7 @@ export default function StorefrontPage() {
 
             {/* Create New Storefront */}
             <Link
-              href="/creator/storefront"
+              href="/creator/storefront/new"
               className="group flex min-h-[270px] min-w-0 flex-col items-center justify-center rounded-2xl border border-dashed border-[#cfd6e5] bg-[#fafbfe] p-5 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.02] hover:shadow-[0_12px_30px_rgba(17,27,64,0.06)] sm:p-6"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import RouteLoadingBar from "@/components/RouteLoadingBar";
+import CookieConsent from "@/components/CookieConsent";
 import "./globals.css";
 
 const roboto = Roboto({
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
     template: '%s | MarketPlace',
     default: 'MarketPlace',
   },
-  description: "Discover apps and digital products from trusted creators.",
+  description: "Discover apps and digital products from independent creators.",
 };
 
 export default function RootLayout({
@@ -30,6 +31,7 @@ export default function RootLayout({
       >
         <RouteLoadingBar />
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

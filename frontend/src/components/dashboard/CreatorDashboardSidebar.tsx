@@ -42,6 +42,7 @@ export default function CreatorDashboardSidebar({
   const reserved = new Set([
     "overview",
     "storefront",
+    "new",
     "verification",
     "products",
     "orders",

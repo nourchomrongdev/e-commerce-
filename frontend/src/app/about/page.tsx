@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import PublicFooter from "@/components/PublicFooter";
 
 export default function AboutPage() {
   return (
@@ -14,23 +15,23 @@ export default function AboutPage() {
           </h1>
           <p className="mt-6 text-base leading-8 text-slate-600 sm:text-lg">
             MarketPlace connects customers with quality digital products from talented creators.
-            We help sellers launch, showcase, and deliver premium downloads while giving buyers a
-            trusted, seamless shopping experience.
+            We help sellers launch, showcase, and deliver digital downloads while giving buyers a clear shopping and delivery experience.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {[
-              ["10K+", "Products sold"],
-              ["2K+", "Verified creators"],
-              ["99.9%", "Secure delivery"],
+              ["Creator tools", "Storefronts, files, and product management"],
+              ["Buyer tools", "Purchases, downloads, and licences"],
+              ["Support", "Help with accounts, orders, and access"],
             ].map(([value, label]) => (
               <div key={label} className="rounded-2xl bg-gradient-to-br from-accent-light to-white p-5 ring-1 ring-accent-light">
-                <div className="text-2xl font-bold text-primary">{value}</div>
+                <div className="text-lg font-bold text-primary">{value}</div>
                 <div className="mt-2 text-sm text-slate-600">{label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
+      <PublicFooter />
     </main>
   );
 }

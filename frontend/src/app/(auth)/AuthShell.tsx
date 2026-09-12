@@ -21,7 +21,7 @@ const copy = {
   register: [
     "Create",
     "your account",
-    "Join thousands of creators and start selling your digital products.",
+    "Create an account to buy digital products or apply to become a creator.",
   ],
   reset: [
     "Reset",

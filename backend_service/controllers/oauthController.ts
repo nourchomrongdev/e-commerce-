@@ -74,7 +74,7 @@ async function googleCallback(req, res) {
           const info = existingInfo || await UserInfo.create({ FullName: profile.name || profile.email, Email: normaliseEmail(profile.email) }, { transaction });
           const role = await UserRole.findOne({ where: { RoleName: "Buyer" }, transaction });
           const username = await googleUsername(profile.name, profile.email, profile.sub, transaction);
-          account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: null, RoleId: role.UserRoleId, Status: true }, { transaction });
+          account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: null, RoleId: role.UserRoleId, Status: "active" }, { transaction });
         }
         await OAuthAccount.create({ Provider: "google", ProviderAccountId: profile.sub, ProviderEmail: profile.email, UserId: account.UserId }, { transaction });
         return findById(account.UserId, transaction);

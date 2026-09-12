@@ -1,5 +1,6 @@
 import HeroSection from "@/components/HeroSection";
 import Navbar from "@/components/Navbar";
+import PublicFooter from "@/components/PublicFooter";
 import ProductGrid, { products } from "@/components/ProductGrid";
 import type { Metadata } from "next";
 
@@ -67,6 +68,7 @@ export default function DigitalProductsPage() {
           <ProductGrid items={products} product />
           </section>
         </div>
+        <PublicFooter />
       </div>
     </main>
   );

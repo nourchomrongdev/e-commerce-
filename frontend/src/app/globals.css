@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-phone-number-input/style.css";
 
 :root {
   --storefront-blue: #5b6ef5;
@@ -10,7 +11,7 @@
 }
 
 @theme {
-  --color-background: #f8f8ff;
+  --color-background: #f5f5fb;
   --color-primary: #f57e1f;
   --color-primary-hover: #e57218;
   --color-secondary: #ff9248;
@@ -525,4 +526,67 @@ button.hidden.shrink-0.xl\:inline-flex {
     height: 30px;
     width: 25px;
   }
+}
+
+.creator-phone-input {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border-control);
+  border-radius: 0.5rem;
+  background: white;
+  padding: 0.625rem 0.75rem;
+  color: var(--color-body-strong);
+  font-size: 0.875rem;
+}
+
+.creator-phone-input:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgb(245 126 31 / 15%);
+}
+
+.creator-phone-input .PhoneInputCountry {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-right: 0.25rem;
+}
+
+.creator-phone-input .PhoneInputCountryIcon {
+  display: block;
+  width: 1.5rem !important;
+  height: 1rem !important;
+  flex: 0 0 auto;
+}
+
+.creator-phone-input .PhoneInputCountryIconImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.creator-country-icon {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  align-items: center;
+  overflow: hidden;
+}
+
+.creator-country-icon > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+
+.creator-phone-input .PhoneInputInput {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  outline: 0;
 }

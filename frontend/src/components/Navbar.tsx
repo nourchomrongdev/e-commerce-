@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import { apps, products } from "./ProductGrid";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { publicNavigation, routes } from "@/lib/routeController";
+import { publicNavigation, routes, type PublicRouteKey } from "@/lib/routeController";
 
-type NavbarProps = { active?: "home" | "products" | "creator" };
+type NavbarProps = { active?: PublicRouteKey | null };
 const links = publicNavigation;
 const categoryLinks = [
   "Apps",
@@ -21,6 +22,10 @@ const categoryLinks = [
 const companyLinks = [
   { label: "About", href: routes.about() },
   { label: "Contact Us", href: routes.contact() },
+  { label: "Privacy Policy", href: routes.legal.privacy() },
+  { label: "Terms and Conditions", href: routes.legal.terms() },
+  { label: "Refund Policy", href: routes.legal.refunds() },
+  { label: "Cookies Policy", href: routes.legal.cookies() },
 ];
 const moreLinks = [
   { label: "Top Deals", href: routes.digitalProducts() },
@@ -28,9 +33,9 @@ const moreLinks = [
   { label: "New Releases", href: routes.digitalProducts() },
 ];
 const programLinks = [
-  { label: "Affiliate Program", href: routes.affiliate.dashboard() },
-  { label: "Reviewer Program", href: routes.reviewer.dashboard() },
-  { label: "Creator Program", href: routes.creator.overview() },
+  { label: "Affiliate Program", href: routes.programs.affiliateProgram() },
+  { label: "Reviewer Program", href: routes.programs.reviewerProgram() },
+  { label: "Creator Program", href: routes.programs.creatorProgram() },
 ];
 const workspaceLinks = [
   { label: "Creator Studio", href: routes.creator.overview(), icon: "store" as const },
@@ -45,10 +50,12 @@ function maskEmail(email: string) {
 }
 
 export default function Navbar({ active = "home" }: NavbarProps) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"categories" | "company" | "more" | "programs" | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -58,14 +65,8 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   const [desktopMenu, setDesktopMenu] = useState<
     "categories" | "company" | "more" | "programs" | null
   >(null);
-  const [mobileMenus, setMobileMenus] = useState({
-    categories: false,
-    company: false,
-    more: false,
-    programs: false,
-  });
   const roleLabel = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : "User";
-  const mobileMenu = null;
+  const isProgramPage = pathname.startsWith("/program/");
   const mobileInput = useRef<HTMLInputElement>(null);
   const items = active === "products" ? products : apps;
   const results = useMemo(() => {
@@ -79,10 +80,8 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       : items.slice(0, 4);
   }, [items, search]);
   const showSuggestions = focused && Boolean(search.trim());
-  const toggleMobileMenu = (
-    menu: "categories" | "company" | "more" | "programs",
-  ) => {
-    setMobileMenus((current) => ({ ...current, [menu]: !current[menu] }));
+  const toggleMobileMenu = (menu: "categories" | "company" | "more" | "programs") => {
+    setMobilePanel((current) => (current === menu ? null : menu));
   };
   const goToResults = () => {
     setFocused(Boolean(search.trim()));
@@ -100,12 +99,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       setDesktopMenu(null);
       setAccountOpen(false);
       setMobileSearchOpen(false);
-      setMobileMenus({
-        categories: false,
-        company: false,
-        more: false,
-        programs: false,
-      });
+      setMobilePanel(null);
     };
     window.addEventListener("scroll", close, { passive: true });
     return () => window.removeEventListener("scroll", close);
@@ -218,9 +212,6 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                     {item.type}
                   </small>
                 </span>
-                <span className="text-[9px] text-amber-500">
-                  ★ {item.rating}
-                </span>
               </button>
             ))
           ) : (
@@ -239,7 +230,10 @@ export default function Navbar({ active = "home" }: NavbarProps) {
           <button
             type="button"
             aria-label="Open menu"
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setOpen(true);
+              if (isProgramPage) setMobilePanel("programs");
+            }}
             className="grid h-9 w-9 place-items-center rounded-lg text-xl text-slate-700 hover:bg-accent-light min-[1200px]:hidden"
           >
             ☰
@@ -273,7 +267,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                     desktopMenu === "categories" ? null : "categories",
                   )
                 }
-                className="flex items-center py-1 text-[11px] font-medium text-slate-700 hover:text-primary"
+                className={`flex items-center py-1 text-[11px] font-medium hover:text-primary ${desktopMenu === "categories" ? "text-primary" : "text-slate-700"}`}
               >
                 Categories <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "categories" ? "rotate-180" : ""}`} />
               </button>
@@ -350,7 +344,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                     desktopMenu === "programs" ? null : "programs",
                   )
                 }
-                className="flex items-center py-1 text-[11px] font-medium text-slate-700 hover:text-primary"
+                className={`flex items-center py-1 text-[11px] font-medium hover:text-primary ${isProgramPage || desktopMenu === "programs" ? "text-primary" : "text-slate-700"}`}
               >
                 Programs <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "programs" ? "rotate-180" : ""}`} />
               </button>
@@ -361,7 +355,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                       key={link.label}
                       href={link.href}
                       onClick={() => setDesktopMenu(null)}
-                      className="block rounded-lg px-3 py-2 text-[11px] text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
+                      className={`block rounded-lg px-3 py-2 text-[11px] no-underline hover:bg-accent-light hover:text-primary ${pathname === link.href || pathname.startsWith(`${link.href}/`) ? "font-semibold text-primary" : "text-slate-600"}`}
                     >
                       {link.label}
                     </Link>
@@ -486,7 +480,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
         />
       )}
       <aside
-        className={`fixed bottom-0 left-0 top-0 z-50 flex h-dvh max-h-dvh w-[85%] max-w-sm flex-col overflow-y-auto overscroll-contain bg-[#fafaff] p-5 pb-10 shadow-2xl transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:pan-y] ${open ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed bottom-0 left-0 top-0 z-50 flex h-dvh max-h-dvh w-[min(88vw,24rem)] flex-col overflow-hidden overscroll-contain bg-[#fafaff] p-5 pb-10 shadow-2xl transition-transform duration-300 sm:w-[22rem] md:w-[24rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:pan-y] ${open ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <Link
@@ -519,7 +513,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
               key={link.label}
               href={link.href}
               onClick={() => setOpen(false)}
-              className={`rounded-xl px-3 py-3 text-sm font-medium no-underline ${link.page === active ? "bg-accent-light text-primary" : "text-slate-700 hover:bg-accent-light hover:text-primary"}`}
+              className={`rounded-xl px-3 py-3 text-[16px] font-medium no-underline transition ${link.page === active ? "bg-[#f5e5d8] text-[#1e2a4a] shadow-sm" : "text-[#2f3b59] hover:bg-[#f4f6fb] hover:text-primary"}`}
             >
               {link.label}
             </Link>
@@ -527,88 +521,59 @@ export default function Navbar({ active = "home" }: NavbarProps) {
           <button
             type="button"
             onClick={() => toggleMobileMenu("categories")}
-            className={`flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-accent-light hover:text-primary [&>span]:hidden after:inline-block after:h-4 after:w-4 after:bg-current after:transition-transform after:[mask:url('/icons/down.svg')_center_/_contain_no-repeat] after:[-webkit-mask:url('/icons/down.svg')_center_/_contain_no-repeat] ${mobileMenus.categories ? "after:rotate-180" : ""}`}
+            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium text-[#2f3b59] hover:bg-accent-light hover:text-primary"
           >
-            Categories <span>{mobileMenu === "categories" ? "⌃" : "⌄"}</span>
+            Categories <PublicIcon name="right" className="h-4 w-4 text-slate-400" />
           </button>
-          {mobileMenus.categories && (
-            <div className="ml-3 border-l border-accent-light pl-2">
-              {categoryLinks.map((category) => (
-                <Link
-                  key={category}
-                  href={routes.digitalProducts()}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
-                >
-                  {category}
-                </Link>
-              ))}
-            </div>
-          )}
           <button
             type="button"
             onClick={() => toggleMobileMenu("company")}
-            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-accent-light hover:text-primary"
+            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium text-[#2f3b59] hover:bg-accent-light hover:text-primary"
           >
-            Company <PublicIcon name="down" className={`h-4 w-4 text-slate-400 transition-transform ${mobileMenus.company ? "rotate-180" : ""}`} />
+            Company <PublicIcon name="right" className="h-4 w-4 text-slate-400" />
           </button>
-          {mobileMenus.company && (
-            <div className="ml-3 border-l border-accent-light pl-2">
-              {companyLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
           <button
             type="button"
             onClick={() => toggleMobileMenu("more")}
-            className={`flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-accent-light hover:text-primary [&>span]:hidden after:inline-block after:h-4 after:w-4 after:bg-current after:transition-transform after:[mask:url('/icons/down.svg')_center_/_contain_no-repeat] after:[-webkit-mask:url('/icons/down.svg')_center_/_contain_no-repeat] ${mobileMenus.more ? "after:rotate-180" : ""}`}
+            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium text-[#2f3b59] hover:bg-accent-light hover:text-primary"
           >
-            More <span>{mobileMenu === "more" ? "⌃" : "⌄"}</span>
+            More <PublicIcon name="right" className="h-4 w-4 text-slate-400" />
           </button>
-          {mobileMenus.more && (
-            <div className="ml-3 border-l border-accent-light pl-2">
-              {moreLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
           <button
             type="button"
             onClick={() => toggleMobileMenu("programs")}
-            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-accent-light hover:text-primary"
+            className={`flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium hover:bg-[#f4f6fb] hover:text-primary ${active === "programs" || isProgramPage || mobilePanel === "programs" ? "text-primary" : "text-[#2f3b59]"}`}
           >
-            Programs <PublicIcon name="down" className={`h-4 w-4 text-slate-400 transition-transform ${mobileMenus.programs ? "rotate-180" : ""}`} />
+            Programs <PublicIcon name="right" className="h-4 w-4 text-slate-400" />
           </button>
-          {mobileMenus.programs && (
-            <div className="ml-3 border-l border-accent-light pl-2">
-              {programLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
+      <aside
+        className={`absolute bottom-0 left-0 right-0 top-[5.75rem] z-10 flex flex-col overflow-y-auto bg-[#fafaff] px-5 pb-10 pt-0 transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [touch-action:pan-y] ${mobilePanel ? "translate-x-0" : "-translate-x-full"}`}
+        aria-hidden={!mobilePanel}
+      >
+        <div className="flex items-center gap-3 border-b border-slate-200 py-2">
+          <button
+            type="button"
+            aria-label="Back to navigation"
+            onClick={() => setMobilePanel(null)}
+            className="grid h-9 w-9 place-items-center rounded-full bg-slate-200 text-xl text-slate-600"
+          >
+            ‹
+          </button>
+          <p className="text-base font-semibold text-[#1e2a4a]">
+            {mobilePanel === "categories" ? "Categories" : mobilePanel === "company" ? "Company" : mobilePanel === "more" ? "More" : "Programs"}
+          </p>
+        </div>
+        <div className="mt-6 flex flex-col gap-1">
+          {mobilePanel === "categories" && categoryLinks.map((category) => <Link key={category} href={routes.digitalProducts()} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{category}</Link>)}
+          {mobilePanel === "company" && companyLinks.map((link) => <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{link.label}</Link>)}
+          {mobilePanel === "more" && moreLinks.map((link) => <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{link.label}</Link>)}
+          {mobilePanel === "programs" && programLinks.map((link) => {
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            return <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className={`rounded-xl px-3 py-3 text-[16px] no-underline hover:bg-[#f4f6fb] hover:text-primary ${isActive ? "font-semibold text-primary" : "text-[#2f3b59]"}`}>{link.label}</Link>;
+          })}
+        </div>
+      </aside>
       </aside>
     </>
   );

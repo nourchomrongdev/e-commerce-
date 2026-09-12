@@ -109,6 +109,14 @@ CREATE TABLE "UserAccounts" (
 
     "PasswordHash" VARCHAR(255),
 
+    "RoleId" INT NOT NULL
+        REFERENCES "UsersRoles"("UserRoleId")
+        ON DELETE RESTRICT,
+
+    "ResetOtpHash" VARCHAR(64),
+
+    "ResetOtpExpiresAt" TIMESTAMPTZ,
+
     "Status" account_status NOT NULL
         DEFAULT 'active',
 
@@ -128,8 +136,31 @@ CREATE TABLE "UserAccounts" (
         CHECK (
             "PasswordHash" IS NULL
             OR btrim("PasswordHash") <> ''
+        ),
+
+    CONSTRAINT "CK_UserAccounts_ResetOtpHash_NotBlank"
+        CHECK (
+            "ResetOtpHash" IS NULL
+            OR btrim("ResetOtpHash") <> ''
         )
 );
+
+ALTER TABLE "UserAccounts"
+    ADD COLUMN IF NOT EXISTS "RoleId" INT,
+    ADD COLUMN IF NOT EXISTS "ResetOtpHash" VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS "ResetOtpExpiresAt" TIMESTAMPTZ;
+
+UPDATE "UserAccounts"
+SET "RoleId" = (
+    SELECT "UserRoleId"
+    FROM "UsersRoles"
+    WHERE "RoleName" = 'Buyer'
+    LIMIT 1
+)
+WHERE "RoleId" IS NULL;
+
+ALTER TABLE "UserAccounts"
+    ALTER COLUMN "RoleId" SET NOT NULL;
 
 
 /* =========================================================

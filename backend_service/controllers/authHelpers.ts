@@ -28,7 +28,7 @@ function authResponse(user) {
 }
 
 function findById(userId, transaction?: any) {
-  return UserAccount.findOne({ where: { UserId: userId, Status: true }, include: [{ model: UserInfo, as: "info" }, { model: UserRole, as: "role" }], transaction });
+  return UserAccount.findOne({ where: { UserId: userId, Status: "active" }, include: [{ model: UserInfo, as: "info" }, { model: UserRole, as: "role" }], transaction });
 }
 
 function findByToken(token) {

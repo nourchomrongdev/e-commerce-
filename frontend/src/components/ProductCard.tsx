@@ -2,7 +2,6 @@ export type Item = {
   name: string;
   type: string;
   icon: string;
-  rating: string;
   price?: string;
 };
 const colors = [
@@ -41,9 +40,6 @@ export default function ProductCard({
         {product && (
           <b className="mt-1 block text-[11px] text-slate-900">{item.price}</b>
         )}
-        <small className="mt-1 block text-[9px] text-slate-600">
-          {item.rating} <span className="text-secondary">★</span>
-        </small>
       </div>
       {product ? (
         <button className="absolute right-3 bottom-3 grid h-6 w-6 place-items-center rounded-lg bg-accent-light text-xs text-primary">

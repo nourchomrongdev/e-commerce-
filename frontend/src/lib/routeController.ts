@@ -48,6 +48,19 @@ export const routes = {
   dashboard: {
     home: () => "/dashboard",
   },
+  programs: {
+    creatorProgram: () => "/program/creatorprogram",
+    creatorProgramApply: () => "/program/creatorprogram/apply",
+    creatorProgramReview: () => "/program/creatorprogram/review",
+    affiliateProgram: () => "/program/affiliateprogram",
+    reviewerProgram: () => "/program/reviewerprogram",
+  },
+  legal: {
+    privacy: () => "/privacy-policy",
+    terms: () => "/terms",
+    refunds: () => "/refund-policy",
+    cookies: () => "/cookies-policy",
+  },
   buyer: {
     dashboard: () => "/dashboard/buyer/overview",
     purchases: () => "/dashboard/buyer/purchases",
@@ -55,6 +68,7 @@ export const routes = {
     licenses: () => "/dashboard/buyer/licenses",
     reviews: () => "/dashboard/buyer/reviews",
     account: () => "/dashboard/buyer/account",
+    creatorProgram: () => "/dashboard/buyer/account/become-creator",
   },
   affiliate: {
     dashboard: () => "/affiliate",
@@ -74,8 +88,11 @@ export const routes = {
   creator: {
     overview: () => "/creator/overview",
     storefronts: () => "/creator/storefront",
+    storefrontNew: () => "/creator/storefront/new",
     storefront: (storefrontName: string) =>
       `/creator/storefront/${encodeURIComponent(storefrontName)}`,
+    storefrontEdit: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/edit`,
     storefrontOverview: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/overview`,
     storefrontBranding: (storefrontName: string) =>
@@ -147,7 +164,7 @@ export const routes = {
   },
 } as const;
 
-export type PublicRouteKey = "home" | "products" | "creator";
+export type PublicRouteKey = "home" | "products" | "creator" | "programs";
 
 export const publicNavigation = [
   { href: routes.home(), label: "Home", page: "home" },

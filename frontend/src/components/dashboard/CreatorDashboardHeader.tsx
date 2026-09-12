@@ -7,12 +7,8 @@ import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
 
-const storefrontOptions = [
-  { name: "NourChomrong", products: 24, href: routes.creator.storefrontOverview("NourChomrong") },
-  { name: "DevCourses", products: 12, href: routes.creator.storefrontOverview("DevCourses") },
-  { name: "AI Resources", products: 7, href: routes.creator.storefrontOverview("AI Resources") },
-  { name: "DesignHub", products: 12, href: routes.creator.storefrontOverview("DesignHub") },
-] as const;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+type StorefrontOption = { name: string; products: number; href: string };
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
@@ -25,9 +21,10 @@ export default function CreatorDashboardHeader({
   const [notifications, setNotifications] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
+  const [storefrontOptions, setStorefrontOptions] = useState<StorefrontOption[]>([]);
   const [selectedStorefront, setSelectedStorefront] = useState<string>(() => {
-    if (typeof window === "undefined") return "NourChomrong";
-    return window.localStorage.getItem("creator-selected-storefront") ?? "NourChomrong";
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("creator-selected-storefront") ?? "";
   });
 
   useEffect(() => {
@@ -45,7 +42,7 @@ export default function CreatorDashboardHeader({
 
   useEffect(() => {
     const match = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/);
-    const currentStorefront = match && !["overview", "branding", "setting", "payment", "summary", "products", "orders", "verification"].includes(match[1])
+    const currentStorefront = match && !["overview", "branding", "setting", "payment", "summary", "products", "orders", "verification", "new"].includes(match[1])
       ? decodeURIComponent(match[1])
       : null;
 
@@ -64,7 +61,27 @@ export default function CreatorDashboardHeader({
   const isAffiliateContext = pathname === "/affiliate" || pathname.startsWith("/affiliate/") || pathname === "/creator/affiliate" || pathname.startsWith("/creator/affiliate/");
   const isReviewerContext = workspace === "reviewer";
   const isAdminContext = workspace === "admin";
-  const activeStorefrontName = isAllStoresOverview ? "All Stores Overview" : selectedStorefront;
+  const activeStorefrontName = isAllStoresOverview || !selectedStorefront ? "All Stores Overview" : selectedStorefront;
+
+  useEffect(() => {
+    if (isAffiliateContext || isReviewerContext || isAdminContext) return;
+
+    fetch(`${apiUrl}/creator/storefronts`)
+      .then((response) => response.json())
+      .then((data: { storefronts?: { displayName: string; products: number }[] }) => {
+        if (!data.storefronts) return;
+        setStorefrontOptions(data.storefronts.map(({ displayName, products }) => ({
+          name: displayName,
+          products,
+          href: routes.creator.storefrontOverview(displayName),
+        })));
+        if (data.storefronts.length === 0) {
+          setSelectedStorefront("");
+          window.localStorage.removeItem("creator-selected-storefront");
+        }
+      })
+      .catch(() => undefined);
+  }, [isAffiliateContext, isReviewerContext, isAdminContext]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6">
@@ -182,7 +199,7 @@ export default function CreatorDashboardHeader({
                 <div className="border-t border-gray-100" />
 
                 <Link
-                  href={`${routes.creator.storefronts()}/`}
+                  href={routes.creator.storefronts()}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
@@ -191,7 +208,7 @@ export default function CreatorDashboardHeader({
                 </Link>
 
                 <Link
-                  href={`${routes.creator.storefronts()}/`}
+                  href={routes.creator.storefrontNew()}
                   onClick={() => setStorefrontOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary transition hover:bg-blue-50"
                 >

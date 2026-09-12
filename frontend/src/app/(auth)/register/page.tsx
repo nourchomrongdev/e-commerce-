@@ -36,11 +36,11 @@ export default function RegisterPage() {
       <AuthField name="email" value={form.email} onChange={update("email")} label="Email address" type="email" placeholder="Enter your email" />
       <AuthField name="password" value={form.password} onChange={update("password")} label="Password" type="password" placeholder="Create a password" />
       <AuthField name="confirmPassword" value={form.confirmPassword} onChange={update("confirmPassword")} label="Confirm password" type="password" placeholder="Confirm your password" />
-      <label className="flex items-start gap-2 text-[10px] leading-4 text-muted"><input type="checkbox" required className="mt-0.5 accent-primary" />I agree to the <span className="text-primary">Terms of Service</span> and <span className="text-primary">Privacy Policy</span></label>
+      <label className="flex items-start gap-2 text-[10px] leading-4 text-muted"><input type="checkbox" required className="mt-0.5 accent-primary" />I agree to the <a href={routes.legal.terms()} className="text-primary underline">Terms and Conditions</a> and <a href={routes.legal.privacy()} className="text-primary underline">Privacy Policy</a></label>
       {error && <p role="alert" className="text-[10px] text-red-600">{error}</p>}
       <AuthButton>{loading ? "Creating account..." : "Create Account"}</AuthButton>
       <div className="flex items-center gap-3 text-[10px] text-muted-faint"><span className="h-px flex-1 bg-divider" />or continue with<span className="h-px flex-1 bg-divider" /></div>
-      <a href={`${apiUrl}/auth/google`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-control text-[10px] font-medium text-body no-underline transition hover:bg-surface-hover"><img src="/icons/google-icon-.svg" alt="" className="h-4 w-4" />Continue with Google</a>
+      <a href={`${apiUrl}/auth/google`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-control text-[10px] font-medium text-body no-underline transition hover:bg-surface-hover"><img src="/icons/google-icon-.svg" alt="" aria-hidden="true" className="h-4 w-4" />Continue with Google</a>
     </PreventSubmit>
   </AuthShell>;
 }

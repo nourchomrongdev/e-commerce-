@@ -1,4 +1,3 @@
-  ["Admin", "/admin", "Manage users, moderation, orders, licenses, and analytics.", "⌘", "from-secondary to-primary"],
 import Link from "next/link";
 import { routes } from "@/lib/routeController";
 

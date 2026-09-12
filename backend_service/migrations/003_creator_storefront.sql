@@ -1,10 +1,11 @@
 
 /* =========================================================
    003_creator_storefront.sql
-   Module: 03-creator-storefront
+   Creator profile and storefront schema aligned to the creator
+   program application form and marketplace storefront flow.
    ========================================================= */
 
-CREATE TABLE "CreatorProfiles" (
+CREATE TABLE IF NOT EXISTS "CreatorProfiles" (
     "CreatorProfileId" SERIAL PRIMARY KEY,
 
     "UUID" UUID NOT NULL
@@ -16,17 +17,12 @@ CREATE TABLE "CreatorProfiles" (
         ON DELETE CASCADE,
 
     "DisplayName" VARCHAR(150) NOT NULL,
-
     "Username" VARCHAR(100) NOT NULL UNIQUE,
-
+    "PhoneNumber" VARCHAR(50),
     "Bio" TEXT,
-
-    "AvatarUrl" TEXT,
-
-    "BannerUrl" TEXT,
-
     "WebsiteUrl" TEXT,
-
+    "AvatarUrl" TEXT,
+    "BannerUrl" TEXT,
     "SocialLinks" JSONB NOT NULL
         DEFAULT '{}'::jsonb,
 
@@ -49,8 +45,15 @@ CREATE TABLE "CreatorProfiles" (
         CHECK (btrim("Username") <> '')
 );
 
+ALTER TABLE "CreatorProfiles"
+    ADD COLUMN IF NOT EXISTS "PhoneNumber" VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS "Bio" TEXT,
+    ADD COLUMN IF NOT EXISTS "WebsiteUrl" TEXT,
+    ADD COLUMN IF NOT EXISTS "AvatarUrl" TEXT,
+    ADD COLUMN IF NOT EXISTS "BannerUrl" TEXT,
+    ADD COLUMN IF NOT EXISTS "SocialLinks" JSONB NOT NULL DEFAULT '{}'::jsonb;
 
-CREATE TABLE "Storefronts" (
+CREATE TABLE IF NOT EXISTS "Storefronts" (
     "StorefrontId" SERIAL PRIMARY KEY,
 
     "UUID" UUID NOT NULL
@@ -62,17 +65,11 @@ CREATE TABLE "Storefronts" (
         ON DELETE CASCADE,
 
     "StoreName" VARCHAR(150) NOT NULL,
-
     "StoreSlug" VARCHAR(150) NOT NULL UNIQUE,
-
     "Description" TEXT,
-
     "LogoUrl" TEXT,
-
     "BannerUrl" TEXT,
-
     "WebsiteUrl" TEXT,
-
     "ThemeSettings" JSONB NOT NULL
         DEFAULT '{}'::jsonb,
 
@@ -95,8 +92,7 @@ CREATE TABLE "Storefronts" (
         CHECK (btrim("StoreSlug") <> '')
 );
 
-
-CREATE TABLE "CreatorPayoutInfo" (
+CREATE TABLE IF NOT EXISTS "CreatorPayoutInfo" (
     "CreatorPayoutInfoId" SERIAL PRIMARY KEY,
 
     "UUID" UUID NOT NULL
@@ -108,11 +104,8 @@ CREATE TABLE "CreatorPayoutInfo" (
         ON DELETE CASCADE,
 
     "PayoutMethod" VARCHAR(50) NOT NULL,
-
     "AccountName" VARCHAR(255),
-
     "AccountIdentifier" TEXT,
-
     "Currency" CHAR(3) NOT NULL
         DEFAULT 'USD',
 
@@ -129,28 +122,53 @@ CREATE TABLE "CreatorPayoutInfo" (
         DEFAULT CURRENT_TIMESTAMP
 );
 
-
-CREATE INDEX "IX_Storefronts_IsPublished"
+CREATE INDEX IF NOT EXISTS "IX_Storefronts_IsPublished"
 ON "Storefronts" ("IsPublished");
 
-CREATE INDEX "IX_Storefronts_IsActive"
+CREATE INDEX IF NOT EXISTS "IX_Storefronts_IsActive"
 ON "Storefronts" ("IsActive");
 
-CREATE INDEX "IX_CreatorProfiles_IsVerified"
+CREATE INDEX IF NOT EXISTS "IX_CreatorProfiles_IsVerified"
 ON "CreatorProfiles" ("IsVerified");
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'TR_CreatorProfiles_SetUpdatedAt'
+    ) THEN
+        CREATE TRIGGER "TR_CreatorProfiles_SetUpdatedAt"
+        BEFORE UPDATE ON "CreatorProfiles"
+        FOR EACH ROW
+        EXECUTE FUNCTION set_updated_at();
+    END IF;
+END $$;
 
-CREATE TRIGGER "TR_CreatorProfiles_SetUpdatedAt"
-BEFORE UPDATE ON "CreatorProfiles"
-FOR EACH ROW
-EXECUTE FUNCTION set_updated_at();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'TR_Storefronts_SetUpdatedAt'
+    ) THEN
+        CREATE TRIGGER "TR_Storefronts_SetUpdatedAt"
+        BEFORE UPDATE ON "Storefronts"
+        FOR EACH ROW
+        EXECUTE FUNCTION set_updated_at();
+    END IF;
+END $$;
 
-CREATE TRIGGER "TR_Storefronts_SetUpdatedAt"
-BEFORE UPDATE ON "Storefronts"
-FOR EACH ROW
-EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER "TR_CreatorPayoutInfo_SetUpdatedAt"
-BEFORE UPDATE ON "CreatorPayoutInfo"
-FOR EACH ROW
-EXECUTE FUNCTION set_updated_at();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'TR_CreatorPayoutInfo_SetUpdatedAt'
+    ) THEN
+        CREATE TRIGGER "TR_CreatorPayoutInfo_SetUpdatedAt"
+        BEFORE UPDATE ON "CreatorPayoutInfo"
+        FOR EACH ROW
+        EXECUTE FUNCTION set_updated_at();
+    END IF;
+END $$;

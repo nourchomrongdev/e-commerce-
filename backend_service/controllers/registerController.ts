@@ -14,7 +14,7 @@ async function register(req, res) {
     const user = await sequelize.transaction(async (transaction) => {
       const info = await UserInfo.create({ FullName: name, Email: email }, { transaction });
       const role = await UserRole.findOne({ where: { RoleName: "Buyer" }, transaction });
-      const account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: await bcrypt.hash(password, 12), RoleId: role.UserRoleId, Status: true }, { transaction });
+      const account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: await bcrypt.hash(password, 12), RoleId: role.UserRoleId, Status: "active" }, { transaction });
       account.info = info;
       account.role = role;
       return account;
