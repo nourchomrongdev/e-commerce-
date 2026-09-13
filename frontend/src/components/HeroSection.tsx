@@ -50,7 +50,7 @@ export default function HeroSection({
             Explore Products&nbsp; 
             </Link>
             <Link
-              href={routes.creator.overview()}
+              href={routes.programs.creatorProgram()}
               className="flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-[11px] font-semibold text-primary no-underline shadow-sm ring-1 ring-accent-soft transition hover:bg-orange-50"
             >
               <PublicIcon name="user" className="text-primary" />

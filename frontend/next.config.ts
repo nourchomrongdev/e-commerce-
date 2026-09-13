@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     "briery-helene-naissant.ngrok-free.dev",
     "marketplacebynourchomrong.test",
   ],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;

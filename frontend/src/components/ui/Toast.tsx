@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import PublicIcon from "../icons/PublicIcon";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -10,6 +10,7 @@ export type ToastProps = {
   icon?: ReactNode;
   onClose?: () => void;
   className?: string;
+  duration?: number;
 };
 
 const variants: Record<ToastVariant, { container: string; icon: string; label: string }> = {
@@ -42,13 +43,33 @@ export default function Toast({
   icon,
   onClose,
   className = "",
+  duration,
 }: ToastProps) {
   const tone = variants[variant];
   const symbol = variant === "success" ? <PublicIcon name="check" /> : variant === "warning" ? <PublicIcon name="warning" /> : <PublicIcon name="warning"  />;
+  const [visible, setVisible] = useState(true);
+  const [progress, setProgress] = useState(100);
+
+  useEffect(() => {
+    if (!duration || duration <= 0) return;
+
+    const animationFrameId = window.requestAnimationFrame(() => setProgress(0));
+    const timeoutId = window.setTimeout(() => {
+      setVisible(false);
+      onClose?.();
+    }, duration);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [duration, onClose]);
+
+  if (!visible) return null;
 
   return (
     <div
-      className={`fixed right-5 top-24 z-[80] flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${tone.container} ${className}`}
+      className={`relative z-[60] flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${tone.container} ${className}`}
       role="alert"
     >
       <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${tone.icon}`} aria-hidden="true">
@@ -61,12 +82,22 @@ export default function Toast({
       {onClose && (
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            setVisible(false);
+            onClose();
+          }}
           aria-label="Close notification"
           className="shrink-0 text-lg leading-none opacity-60 transition hover:opacity-100"
         >
           <PublicIcon name="x" className="h-4 w-4" />
         </button>
+      )}
+      {duration && duration > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute bottom-0 left-0 h-0.5 bg-current opacity-50 transition-[width] ease-linear"
+          style={{ width: `${progress}%`, transitionDuration: `${duration}ms` }}
+        />
       )}
     </div>
   );

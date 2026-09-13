@@ -39,7 +39,9 @@ export default function BecomeCreatorPage() {
       return;
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/auth/me`, {
+    const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+
+    fetch(`${apiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(async (response) => {
       if (!response.ok) throw new Error("Unauthorized");

@@ -1,8 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import StorefrontHeader from "@/components/dashboard/StorefrontHeader";
 import PaymentMethodCard from "@/components/dashboard/PaymentMethodCard";
+import { Toast } from "@/components/ui";
+
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+
+const getStoredToastState = (key: string, fallback: boolean) => {
+  if (typeof window === "undefined") return fallback;
+  const storedValue = window.sessionStorage.getItem(key);
+  return storedValue === null ? fallback : storedValue === "true";
+};
+
+const clearStoredToastState = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem("storefront-branding-toast");
+  window.sessionStorage.removeItem("storefront-settings-toast");
+  window.sessionStorage.removeItem("storefront-payment-toast");
+};
 
 const storefrontData: Record<string, { displayName: string; type: string }> = {
   NourChomrong: { displayName: "NourChomrong", type: "Templates" },
@@ -14,6 +29,61 @@ const storefrontData: Record<string, { displayName: string; type: string }> = {
 const inputClassName =
   "w-full rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-xs text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c]";
 
+function getDetectedCardBrand(cardNumber: string) {
+  const digits = cardNumber.replace(/\D/g, "");
+
+  if (/^4/.test(digits)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(digits)) return "Mastercard";
+  if (/^3[47]/.test(digits)) return "Amex";
+  if (/^(6011|65|64[4-9])/.test(digits)) return "Discover";
+  if (/^3(?:0[0-5]|[68])/.test(digits)) return "Diners Club";
+  if (/^35(?:2[89]|[3-8][0-9])/.test(digits)) return "JCB";
+
+  return "Other";
+}
+
+function getCardFieldErrors({
+  cardNumber,
+  cardExpiry,
+  cardCvc,
+}: {
+  cardNumber: string;
+  cardExpiry: string;
+  cardCvc: string;
+}) {
+  const digits = cardNumber.replace(/\D/g, "");
+  const errors: Record<string, string> = {};
+
+  if (digits.length < 12 || digits.length > 19) {
+    errors.cardNumber = "Please enter a valid card number.";
+  }
+
+  if (!/^\d{2}\/\d{4}$/.test(cardExpiry.trim())) {
+    errors.cardExpiry = "Please enter the expiry date in MM/YYYY format.";
+  } else {
+    const [expiryMonthRaw, expiryYearRaw] = cardExpiry.trim().split("/");
+    const expiryMonth = Number(expiryMonthRaw);
+    const expiryYear = Number(expiryYearRaw);
+
+    if (
+      !Number.isInteger(expiryMonth) ||
+      expiryMonth < 1 ||
+      expiryMonth > 12 ||
+      !Number.isInteger(expiryYear) ||
+      expiryYear < 1900 ||
+      expiryYear > 9999
+    ) {
+      errors.cardExpiry = "Please enter a valid expiry date.";
+    }
+  }
+
+  if (!/^\d{3,4}$/.test(cardCvc.trim())) {
+    errors.cardCvc = "Please enter a valid CVC.";
+  }
+
+  return errors;
+}
+
 function PaymentField({
   id,
   label,
@@ -21,6 +91,8 @@ function PaymentField({
   onChange,
   type = "text",
   placeholder,
+  error,
+  disabled = false,
 }: {
   id: string;
   label: string;
@@ -28,6 +100,8 @@ function PaymentField({
   onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
+  error?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -43,8 +117,75 @@ function PaymentField({
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className={inputClassName}
+        disabled={disabled}
+        className={`${inputClassName} ${disabled ? "cursor-not-allowed bg-[#f3f6fb] text-[#ccc]" : ""} ${error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
       />
+      {error && (
+        <p className="mt-1 text-[10px] font-medium text-red-600">{error}</p>
+      )}
+    </div>
+  );
+}
+
+function CardNumberField({
+  value,
+  onChange,
+  error,
+  disabled = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  disabled?: boolean;
+}) {
+  const detectedBrand = getDetectedCardBrand(value);
+  const brandText =
+    detectedBrand === "Visa"
+      ? "VISA"
+      : detectedBrand === "Mastercard"
+        ? "MC"
+        : detectedBrand === "Amex"
+          ? "AMEX"
+          : detectedBrand === "Discover"
+            ? "DISC"
+            : detectedBrand === "Diners Club"
+              ? "DINERS"
+              : detectedBrand === "JCB"
+                ? "JCB"
+                : "CARD";
+
+  const showBrand = value.replace(/\D/g, "").length > 0;
+
+  return (
+    <div>
+      <label
+        htmlFor="card-number"
+        className="mb-2 block text-[11px] font-semibold text-[#33405d]"
+      >
+        Card number
+      </label>
+      <div className="relative">
+        <input
+          id="card-number"
+          type="text"
+          value={value}
+          placeholder="4242 4242 4242 4242"
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className={`${inputClassName} pr-14 ${disabled ? "cursor-not-allowed bg-[#f3f6fb] text-[#ccc]" : ""} ${error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
+        />
+
+        {showBrand && (
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <div className="rounded border border-[#dfe5f0] bg-[#f8fafc] px-2 py-1 text-[9px] font-bold tracking-[0.08em] text-[#1d2333]">
+              {brandText}
+            </div>
+          </div>
+        )}
+      </div>
+      {error && (
+        <p className="mt-1 text-[10px] font-medium text-red-600">{error}</p>
+      )}
     </div>
   );
 }
@@ -71,14 +212,15 @@ export default function StorefrontPaymentPage({
   const storefront =
     storefrontData[decodeURIComponent(storefrontName ?? "NourChomrong")] ||
     storefrontData.DevCourses;
-  const cardNumber = "•••• •••• •••• 4242";
-  const cardName = "NourChomrong";
-  const paypalEmail = "devcourses@gmail.com";
-  const [savedMethods, setSavedMethods] = useState<string[]>([
-    "Credit Card",
-    "PayPal",
-  ]);
-  const [primaryMethod, setPrimaryMethod] = useState("Credit Card");
+  const [savedMethods, setSavedMethods] = useState<string[]>([]);
+  const [primaryMethod, setPrimaryMethod] = useState("");
+  const [provider, setProvider] = useState("PayPal");
+  const [cardName, setCardName] = useState("");
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [stripeEmail, setStripeEmail] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
   const [activeMethodIndex, setActiveMethodIndex] = useState(0);
   const [flippedMethods, setFlippedMethods] = useState<Record<string, boolean>>(
     {},
@@ -87,10 +229,103 @@ export default function StorefrontPaymentPage({
   const [methodToAdd, setMethodToAdd] = useState("Credit Card");
   const [taxId, setTaxId] = useState("");
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
+  const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
+  const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const detectedCardBrand = getDetectedCardBrand(cardNumber);
+  const [brandingIncomplete, setBrandingIncomplete] = useState(false);
+  const [settingsIncomplete, setSettingsIncomplete] = useState(false);
 
-  const savePayment = () => {
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
+  useEffect(() => {
+    const handleBeforeUnload = () => clearStoredToastState();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  const hasIncompletePayment = savedMethods.length === 0 || !primaryMethod;
+
+  const persistPaymentSettings = async ({
+    nextMethods = savedMethods,
+    nextPrimaryMethod = primaryMethod,
+  }: {
+    nextMethods?: string[];
+    nextPrimaryMethod?: string;
+  } = {}) => {
+    setIsSaving(true);
+    const token = window.localStorage.getItem("marketplace-token");
+
+    const nextErrors = getCardFieldErrors({
+      cardNumber,
+      cardExpiry,
+      cardCvc,
+    });
+
+    setFieldErrors(nextErrors);
+    setPaymentFormError(null);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setPaymentFormError("Please correct the highlighted fields.");
+      setIsSaving(false);
+      return false;
+    }
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/creator/storefronts/${encodeURIComponent(storefront.displayName)}/payment`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            methods: nextMethods,
+            primaryMethod: nextPrimaryMethod || nextMethods[0] || "",
+            provider: "PayPal",
+            taxId,
+            paypalEmail,
+            stripeEmail,
+            cardNumber,
+            cardExpiry,
+            cardCvc,
+            cardBrand: detectedCardBrand,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.error || "Unable to save payment settings");
+      }
+
+      setFieldErrors({});
+      setPaymentFormError(null);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+      return true;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const savePayment = async () => {
+    if (hasIncompletePayment) {
+      setShowIncompletePaymentToast(true);
+      return;
+    }
+
+    try {
+      await persistPaymentSettings();
+    } catch (error) {
+      setSaved(false);
+      setPaymentFormError(
+        error instanceof Error ? error.message : "Unable to save payment settings",
+      );
+    }
   };
 
   const removePaymentMethod = (method: string) => {
@@ -107,18 +342,168 @@ export default function StorefrontPaymentPage({
     setFlippedMethods((methods) => ({ ...methods, [method]: false }));
   };
 
-  const addPaymentMethod = () => {
-    setSavedMethods((methods) =>
-      methods.includes(methodToAdd) ? methods : [...methods, methodToAdd],
-    );
-    if (!primaryMethod) setPrimaryMethod(methodToAdd);
-    setAddMethodOpen(false);
+  const formatCardNumber = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 16);
+    return digits.replace(/(.{4})/g, "$1 ").trim();
   };
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 6);
+
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 6)}`;
+  };
+
+  const addPaymentMethod = async () => {
+    const nextErrors = getCardFieldErrors({
+      cardNumber,
+      cardExpiry,
+      cardCvc,
+    });
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setPaymentFormError("Please correct the highlighted fields.");
+      return;
+    }
+
+    const nextMethods = savedMethods.includes(methodToAdd)
+      ? savedMethods
+      : [...savedMethods, methodToAdd];
+    const nextPrimaryMethod = primaryMethod || methodToAdd;
+
+    try {
+      const persisted = await persistPaymentSettings({
+        nextMethods,
+        nextPrimaryMethod,
+      });
+
+      if (!persisted) {
+        return;
+      }
+
+      setSavedMethods(nextMethods);
+      setPrimaryMethod(nextPrimaryMethod);
+      setActiveMethodIndex(Math.max(nextMethods.length - 1, 0));
+      setAddMethodOpen(false);
+    } catch (error) {
+      setSaved(false);
+      setPaymentFormError(
+        error instanceof Error ? error.message : "Unable to save payment settings",
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!storefrontName) return;
+    const token = window.localStorage.getItem("marketplace-token");
+    const decodedName = decodeURIComponent(storefrontName);
+    setIsLoading(true);
+
+    Promise.all([
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/payment`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) return {};
+          return data.payment || {};
+        }),
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/branding`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) return {};
+          return data.branding || {};
+        }),
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/settings`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) return {};
+          return data.settings || {};
+        }),
+    ])
+      .then(([payment, branding, settings]) => {
+        if (payment) {
+          setSavedMethods(Array.isArray(payment.methods) ? payment.methods : []);
+          setPrimaryMethod(payment.primaryMethod || "");
+          setProvider(payment.provider || "PayPal");
+          setTaxId(payment.taxId || "");
+          setCardName(payment.cardName || "");
+          setPaypalEmail(payment.paypalEmail || "");
+          setStripeEmail(payment.stripeEmail || "");
+          setCardNumber(payment.cardNumber || "");
+          setCardExpiry(payment.cardExpiry || "");
+          setCardCvc(payment.cardCvc || "");
+        }
+
+        setBrandingIncomplete(!String(branding.storeName ?? "").trim() || !String(branding.description ?? "").trim());
+        setSettingsIncomplete(
+          !String(settings.email ?? "").trim() ||
+            !String(settings.phone ?? "").trim() ||
+            !String(settings.country ?? "").trim() ||
+            !String(settings.timezone ?? "").trim() ||
+            !String(settings.language ?? "").trim(),
+        );
+      })
+      .catch(() => undefined)
+      .finally(() => setIsLoading(false));
+  }, [storefrontName]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+        <section className="min-w-0 rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:p-6">
+          <div className="h-5 w-40 animate-pulse rounded bg-[#edf0f5]" />
+          <div className="mt-3 h-3 w-72 animate-pulse rounded bg-[#f1f3f7]" />
+          <div className="mt-6 h-40 animate-pulse rounded-xl border border-[#e9edf6] bg-[#f9fafc]" />
+          <div className="mt-6 h-40 animate-pulse rounded-xl border border-[#e9edf6] bg-[#f9fafc]" />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-w-0 max-w-full overflow-x-hidden">
-      <StorefrontHeader storefront={storefront} activeTab="Payment" />
-
+      {hasIncompletePayment && (
+        <div className="mb-5 rounded-xl border border-[#f0d4a8] bg-[#fff7ed] px-4 py-3 text-sm text-[#7a4a08]">
+          Complete your payment setup: add at least one payment method and choose a primary method.
+        </div>
+      )}
+      <div className="fixed right-5 top-24 z-[60] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
+        {showIncompleteBrandingToast && brandingIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete branding data"
+            message="Add a store name and short description to finish your storefront."
+            onClose={() => {
+              setShowIncompleteBrandingToast(false);
+              window.sessionStorage.setItem("storefront-branding-toast", "false");
+            }}
+          />
+        )}
+        {showIncompleteSettingsToast && settingsIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete settings data"
+            message="Add your store email, phone, country, timezone, and language before saving settings."
+            onClose={() => {
+              setShowIncompleteSettingsToast(false);
+              window.sessionStorage.setItem("storefront-settings-toast", "false");
+            }}
+          />
+        )}
+        {showIncompletePaymentToast && hasIncompletePayment && (
+          <Toast
+            variant="warning"
+            title="Incomplete payment data"
+            message="Add at least one payment method and choose a primary method before saving."
+            onClose={() => {
+              setShowIncompletePaymentToast(false);
+              window.sessionStorage.setItem("storefront-payment-toast", "false");
+            }}
+          />
+        )}
+      </div>
       <section className="min-w-0 rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:p-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -142,13 +527,22 @@ export default function StorefrontPaymentPage({
                   Payment Methods
                 </h3>
                 <p className="mt-1 text-[11px] text-[#8993aa]">
-                  Saved Credit Card and PayPal accounts available for platform
-                  payments.
+                  Saved payment methods are managed through PayPal.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setAddMethodOpen((open) => !open)}
+                onClick={() => {
+                  if (!addMethodOpen) {
+                    // Clear form when opening modal to add new payment method
+                    setCardNumber("");
+                    setCardExpiry("");
+                    setCardCvc("");
+                    setFieldErrors({});
+                    setPaymentFormError(null);
+                  }
+                  setAddMethodOpen((open) => !open);
+                }}
                 className="rounded-lg bg-primary px-3 py-2 text-[10px] font-semibold text-white transition hover:opacity-90"
               >
                 Add payment
@@ -303,7 +697,7 @@ export default function StorefrontPaymentPage({
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/40 p-4"
           role="presentation"
-          onMouseDown={() => setAddMethodOpen(false)}
+          onMouseDown={() => !isSaving && setAddMethodOpen(false)}
         >
           <div
             role="dialog"
@@ -327,48 +721,109 @@ export default function StorefrontPaymentPage({
               </div>
               <button
                 type="button"
-                onClick={() => setAddMethodOpen(false)}
+                onClick={() => !isSaving && setAddMethodOpen(false)}
                 aria-label="Close add payment modal"
-                className="grid h-8 w-8 place-items-center rounded-lg text-lg text-[#8993aa] transition hover:bg-[#f3f6fb] hover:text-[#111b40]"
+                disabled={isSaving}
+                className={`grid h-8 w-8 place-items-center rounded-lg text-lg transition ${
+                  isSaving
+                    ? "cursor-not-allowed text-[#ccc]"
+                    : "text-[#8993aa] hover:bg-[#f3f6fb] hover:text-[#111b40]"
+                }`}
               >
                 ×
               </button>
             </div>
-            <div className="mt-5">
-              <label
-                htmlFor="add-payment-method"
-                className="mb-2 block text-[11px] font-semibold text-[#33405d]"
-              >
-                Payment type
-              </label>
-              <select
-                id="add-payment-method"
-                value={methodToAdd}
-                onChange={(event) => setMethodToAdd(event.target.value)}
-                className={inputClassName}
-              >
-                <option>Credit Card</option>
-                <option>PayPal</option>
-              </select>
+            <div className="mt-5 space-y-4">
+              <CardNumberField
+                value={cardNumber}
+                onChange={(value) => {
+                  setCardNumber(formatCardNumber(value));
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.cardNumber;
+                    return next;
+                  });
+                }}
+                error={fieldErrors.cardNumber}
+                disabled={isSaving}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <PaymentField
+                  id="card-expiry"
+                  label="Expiry date"
+                  value={cardExpiry}
+                  onChange={(value) => {
+                    setCardExpiry(formatExpiry(value));
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.cardExpiry;
+                      return next;
+                    });
+                  }}
+                  placeholder="00/0000"
+                  error={fieldErrors.cardExpiry}
+                  disabled={isSaving}
+                />
+                <PaymentField
+                  id="card-cvc"
+                  label="CVC"
+                  value={cardCvc}
+                  onChange={(value) => {
+                    setCardCvc(value);
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.cardCvc;
+                      return next;
+                    });
+                  }}
+                  placeholder="123"
+                  error={fieldErrors.cardCvc}
+                  disabled={isSaving}
+                />
+              </div>
             </div>
+
+            {isSaving && (
+              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] leading-5 text-blue-700 flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full border-2 border-blue-700 border-t-transparent animate-spin" />
+                Saving payment method...
+              </div>
+            )}
+
+            {paymentFormError && !isSaving && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[11px] leading-5 text-red-700">
+                {paymentFormError}
+              </div>
+            )}
+
             <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-[11px] leading-5 text-blue-700">
-              The platform securely processes buyer payments. No payouts are
-              created from this action.
+              The platform securely processes buyer payments through PayPal.
+              No payouts are created from this action.
             </div>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={() => setAddMethodOpen(false)}
-                className="rounded-lg border border-[#e0e5ef] px-4 py-2.5 text-xs font-semibold text-[#33405d] transition hover:bg-[#f7f9fd]"
+                onClick={() => !isSaving && setAddMethodOpen(false)}
+                disabled={isSaving}
+                className={`rounded-lg border border-[#e0e5ef] px-4 py-2.5 text-xs font-semibold transition ${
+                  isSaving
+                    ? "cursor-not-allowed bg-[#f3f6fb] text-[#ccc]"
+                    : "text-[#33405d] hover:bg-[#f7f9fd]"
+                }`}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={addPaymentMethod}
-                className="rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-white transition hover:opacity-90"
+                disabled={isSaving}
+                className={`rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition ${
+                  isSaving
+                    ? "cursor-not-allowed bg-[#ff9933cc]"
+                    : "bg-primary hover:opacity-90"
+                }`}
               >
-                Add method
+                {isSaving ? "Saving..." : "Add method"}
               </button>
             </div>
           </div>

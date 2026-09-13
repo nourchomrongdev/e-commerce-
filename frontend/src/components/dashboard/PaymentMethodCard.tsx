@@ -12,6 +12,14 @@ type PaymentMethodCardProps = {
   onRemove: () => void;
 };
 
+function maskCardNumber(cardNumber: string): string {
+  const digits = cardNumber.replace(/\D/g, "");
+  if (digits.length < 4) return cardNumber;
+  const first4 = digits.slice(0, 4);
+  const last4 = digits.slice(-4);
+  return `${first4} **** **** ${last4}`;
+}
+
 function PrimaryControl({
   method,
   isPrimary,
@@ -55,7 +63,7 @@ export default function PaymentMethodCard({
   onSetPrimary,
   onRemove,
 }: PaymentMethodCardProps) {
-  const isCard = method === "Credit Card";
+  const isCard = method === "Credit Card" || method === "Debit Card";
   const frontBackground = isCard
     ? "from-[#5b4bd8] via-[#4431a9] to-[#24175f]"
     : "from-[#0879b9] via-[#075b9d] to-[#06366b]";
@@ -113,7 +121,7 @@ export default function PaymentMethodCard({
             {isCard ? (
               <>
                 <p className="mt-6 text-base font-semibold tracking-[0.16em] sm:text-xl sm:tracking-[0.2em]">
-                  {cardNumber}
+                  {maskCardNumber(cardNumber)}
                 </p>
                 <div className="flex flex-wrap items-end justify-between gap-2 text-[9px] text-white/70">
                   <span>VISA</span>

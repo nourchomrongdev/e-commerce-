@@ -5,7 +5,7 @@ import PublicIcon from "@/components/icons/PublicIcon";
 import Link from "next/link";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 const accents = ["from-[#7c5cf3] to-[#4f46e5]", "from-[#ff8a3d] to-[#ff5a1f]", "from-[#19b5a5] to-[#0ea5a4]", "from-[#ec4899] to-[#db2777]"];
 
 type Storefront = {
@@ -22,7 +22,11 @@ export default function StorefrontPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`${apiUrl}/creator/storefronts`)
+    const token = window.localStorage.getItem("marketplace-token");
+
+    fetch(`${apiUrl}/creator/storefronts`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load storefronts");
         return response.json();
@@ -62,8 +66,9 @@ export default function StorefrontPage() {
         <div className="px-4 pb-6 sm:px-6 lg:px-8">
           {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</p>}
           {loading && <p className="py-12 text-center text-sm text-[#8993aa]">Loading storefronts...</p>}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {storefronts.map(
+          {!loading && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {storefronts.map(
               ({ displayName: name, type, products, revenue, isPublished }, index) => (
                 <div
                   key={name}
@@ -99,17 +104,6 @@ export default function StorefrontPage() {
                         </p>
                       </div>
 
-                      <Link
-                        href={`/creator/storefront/${encodeURIComponent(name)}/edit`}
-                        type="button"
-                        aria-label={`More options for ${name}`}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white shadow-sm backdrop-blur-md transition hover:bg-white/20"
-                      >
-                        <PublicIcon
-                          name="edit"
-                          className="h-5 w-5"
-                        />
-                      </Link>
                     </div>
                   </div>
 
@@ -159,48 +153,50 @@ export default function StorefrontPage() {
                         </div>
                       </div>
 
-                      <Link
-                        href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
-                        className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
-                      >
-                        Open Store
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Link
+                          href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
+                          className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
+                        >
+                          Open Store
 
-                        <PublicIcon
-                          name="arrow-right"
-                          className="ml-2 h-3 w-3"
-                        />
-                      </Link>
+                          <PublicIcon
+                            name="arrow-right"
+                            className="ml-2 h-3 w-3"
+                          />
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ),
-            )}
+              )
+              )}
 
-            {/* Create New Storefront */}
-            <Link
-              href="/creator/storefront/new"
-              className="group flex min-h-[270px] min-w-0 flex-col items-center justify-center rounded-2xl border border-dashed border-[#cfd6e5] bg-[#fafbfe] p-5 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.02] hover:shadow-[0_12px_30px_rgba(17,27,64,0.06)] sm:p-6"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14">
-                <PublicIcon
-                  name="add"
-                  className="h-5 w-5 sm:h-6 sm:w-6"
-                />
-              </div>
+              <Link
+                href="/creator/storefront/new"
+                className="group flex min-h-[270px] min-w-0 flex-col items-center justify-center rounded-2xl border border-dashed border-[#cfd6e5] bg-[#fafbfe] p-5 text-center transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:bg-primary/[0.02] hover:shadow-[0_12px_30px_rgba(17,27,64,0.06)] sm:p-6"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105 sm:h-14 sm:w-14">
+                  <PublicIcon
+                    name="add"
+                    className="h-5 w-5 sm:h-6 sm:w-6"
+                  />
+                </div>
 
-              <h3 className="mt-4 text-base font-bold text-[#111b40]">
-                Create New Storefront
-              </h3>
+                <h3 className="mt-4 text-base font-bold text-[#111b40]">
+                  Create New Storefront
+                </h3>
 
-              <p className="mt-2 max-w-[200px] text-xs leading-5 text-[#7a859d]">
-                Start selling your digital products in minutes.
-              </p>
+                <p className="mt-2 max-w-[200px] text-xs leading-5 text-[#7a859d]">
+                  Start selling your digital products in minutes.
+                </p>
 
-              <span className="mt-5 rounded-lg border border-[#e1e5ee] bg-white px-4 py-2 text-xs font-semibold text-[#263252] shadow-sm transition group-hover:border-primary group-hover:text-primary">
-                Create Storefront
-              </span>
-            </Link>
-          </div>
+                <span className="mt-5 rounded-lg border border-[#e1e5ee] bg-white px-4 py-2 text-xs font-semibold text-[#263252] shadow-sm transition group-hover:border-primary group-hover:text-primary">
+                  Create Storefront
+                </span>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
     </div>

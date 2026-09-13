@@ -1,0 +1,9 @@
+"use client";
+
+import Link from "next/link";
+import AppBrand, { APP_NAME } from "@/components/AppBrand";
+import PublicIcon from "@/components/icons/PublicIcon";
+
+export default function BuyerDashboardHeader({ onMenuOpen }: { onMenuOpen: () => void }) {
+  return <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6"><div className="flex h-20 w-full items-center gap-3"><button type="button" onClick={onMenuOpen} aria-label="Toggle buyer navigation" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-heading hover:bg-accent-light lg:hidden">☰</button><Link href="/" className="flex min-w-0 items-center no-underline"><AppBrand name={APP_NAME} textClassName="text-base sm:text-xl" logoClassName="h-8 w-8" /></Link><div className="ml-auto flex items-center gap-3"><label className="relative hidden sm:block"><span className="sr-only">Search marketplace</span><PublicIcon name="search" className="absolute left-3 top-2.5 h-4 w-4 text-muted-soft" /><input placeholder="Search anything..." className="h-10 w-64 rounded-lg border border-border-control bg-white pl-9 pr-3 text-xs outline-none placeholder:text-muted-soft focus:border-primary" /></label><button type="button" aria-label="Notifications" className="relative grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-accent-light"><PublicIcon name="notification" className="h-5 w-5" /><span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" /></button><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#2879c7] text-xs font-bold text-white">B</span><span className="hidden text-left sm:block"><strong className="block text-[11px] text-heading">Buyer</strong><small className="block text-[9px] text-muted">Customer</small></span></div></div></div></header>;
+}

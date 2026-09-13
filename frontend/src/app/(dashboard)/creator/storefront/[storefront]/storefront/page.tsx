@@ -1,7 +1,6 @@
 "use client";
 
 import PublicIcon from "@/components/icons/PublicIcon";
-import StorefrontHeader from "@/components/dashboard/StorefrontHeader";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -109,12 +108,6 @@ export default function StorefrontDetailPage({
 
   return (
     <div className="w-full">
-      <StorefrontHeader
-        storefront={storefront}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
       {/* Content */}
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         {/* Left Column - Store Information */}

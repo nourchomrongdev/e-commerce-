@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
 
@@ -13,15 +14,27 @@ type StorefrontHeaderProps = {
   };
   activeTab: string;
   onTabChange?: (tab: string) => void;
+  incompleteTabs?: {
+    Branding?: boolean;
+    Settings?: boolean;
+    Payment?: boolean;
+  };
 };
 
 export default function StorefrontHeader({
   storefront,
   activeTab,
   onTabChange,
+  incompleteTabs,
 }: StorefrontHeaderProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const storefrontPath = routes.creator.storefront(storefront.displayName);
   const storefrontOverviewPath = routes.creator.storefrontOverview(storefront.displayName);
+  const isEditMode = searchParams.get("edit") === "true";
+  const withEditMode = (path: string) => (isEditMode ? `${path}${path.includes("?") ? "&" : "?"}edit=true` : path);
+  const editStorePath = routes.creator.storefrontEdit(storefront.displayName);
+  const editStoreLabel = isEditMode ? "Done Editing" : "Edit Detail";
 
   return (
     <div className="mb-5 w-full rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
@@ -46,44 +59,52 @@ export default function StorefrontHeader({
             >
               View Store
             </Link>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f58b2b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95"
+            <Link
+              href={editStorePath}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f58b2b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 no-underline"
             >
               <PublicIcon name="edit" className="h-4 w-4" />
-              Edit Store
-            </button>
+              {editStoreLabel}
+            </Link>
           </div>
         </header>
 
         <nav className="mt-5 flex min-w-0 max-w-full gap-6 overflow-x-auto border-b border-[#edf0f5] pb-0" aria-label="Storefront settings">
           {tabs.map((tab) => {
+            const isIncomplete = tab === "Branding" ? incompleteTabs?.Branding : tab === "Settings" ? incompleteTabs?.Settings : tab === "Payment" ? incompleteTabs?.Payment : false;
             const className = `shrink-0 px-0 pb-3 pt-2 text-[1.05rem] font-medium no-underline transition ${
               activeTab === tab
                 ? "border-b-2 border-[#3d5af1] text-[#3d5af1]"
                 : "text-[#757d8f] hover:text-[#1f2433]"
             }`;
 
+            const tabLabel = (
+              <>
+                {tab}
+                {isIncomplete && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-[#f58b2b] align-middle" aria-label={`${tab} needs completion`} />}
+              </>
+            );
+
             if (tab === "Overview") {
               return (
                 <Link key={tab} href={storefrontOverviewPath} className={className}>
-                  {tab}
+                  {tabLabel}
                 </Link>
               );
             }
 
             if (tab === "Branding") {
               return (
-                <Link key={tab} href={routes.creator.storefrontBranding(storefront.displayName)} className={className}>
-                  {tab}
+                <Link key={tab} href={withEditMode(routes.creator.storefrontBranding(storefront.displayName))} className={className}>
+                  {tabLabel}
                 </Link>
               );
             }
 
             if (tab === "Settings") {
               return (
-                <Link key={tab} href={routes.creator.storefrontSetting(storefront.displayName)} className={className}>
-                  {tab}
+                <Link key={tab} href={withEditMode(routes.creator.storefrontSetting(storefront.displayName))} className={className}>
+                  {tabLabel}
                 </Link>
               );
             }
@@ -91,7 +112,7 @@ export default function StorefrontHeader({
             if (tab === "Payment") {
               return (
                 <Link key={tab} href={routes.creator.storefrontPayment(storefront.displayName)} className={className}>
-                  {tab}
+                  {tabLabel}
                 </Link>
               );
             }
@@ -99,7 +120,7 @@ export default function StorefrontHeader({
             if (tab === "Summary") {
               return (
                 <Link key={tab} href={routes.creator.storefrontSummary(storefront.displayName)} className={className}>
-                  {tab}
+                  {tabLabel}
                 </Link>
               );
             }
@@ -112,14 +133,14 @@ export default function StorefrontHeader({
                   onClick={() => onTabChange(tab)}
                   className={className}
                 >
-                  {tab}
+                  {tabLabel}
                 </button>
               );
             }
 
             return (
               <Link key={tab} href={storefrontOverviewPath} className={className}>
-                {tab}
+                {tabLabel}
               </Link>
             );
           })}

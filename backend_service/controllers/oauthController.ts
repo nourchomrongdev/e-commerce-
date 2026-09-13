@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
-const { sequelize, UserRole, UserInfo, UserAccount, OAuthAccount } = require("../models");
+const { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount } = require("../models");
 const { authResponse, findById, normaliseEmail, requireDatabase } = require("./authHelpers");
 const { sendSecurityEmail } = require("../services/mailService");
 
@@ -75,6 +75,11 @@ async function googleCallback(req, res) {
           const role = await UserRole.findOne({ where: { RoleName: "Buyer" }, transaction });
           const username = await googleUsername(profile.name, profile.email, profile.sub, transaction);
           account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: null, RoleId: role.UserRoleId, Status: "active" }, { transaction });
+          await UserAccountRole.findOrCreate({
+            where: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+            defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+            transaction,
+          });
         }
         await OAuthAccount.create({ Provider: "google", ProviderAccountId: profile.sub, ProviderEmail: profile.email, UserId: account.UserId }, { transaction });
         return findById(account.UserId, transaction);

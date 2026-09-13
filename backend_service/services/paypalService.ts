@@ -80,4 +80,29 @@ function capturePayPalOrder(paypalOrderId) {
   });
 }
 
-module.exports = { createPayPalOrder, capturePayPalOrder };
+async function setupPaymentToken({ cardNumber, cardExpiry, cardCvc, cardName }) {
+  // Validate card through PayPal by creating a setup token
+  // This confirms the card is valid before storing it
+  const [expiryMonth, expiryYear] = cardExpiry.split("/");
+  
+  // Convert 4-digit year to 2-digit year if needed (2031 -> 31)
+  const twoDigitYear = expiryYear.length === 4 ? expiryYear.slice(-2) : expiryYear;
+  
+  const cardData: any = {
+    number: cardNumber.replace(/\s/g, ""),
+    expire_month: expiryMonth,
+    expire_year: twoDigitYear,
+    cvv: cardCvc,
+  };
+
+  return paypalRequest("/v3/vault/setup-tokens", {
+    method: "POST",
+    body: JSON.stringify({
+      payment_source: {
+        card: cardData,
+      },
+    }),
+  });
+}
+
+module.exports = { createPayPalOrder, capturePayPalOrder, setupPaymentToken };

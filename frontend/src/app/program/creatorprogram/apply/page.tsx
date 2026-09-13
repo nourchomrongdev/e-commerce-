@@ -9,7 +9,7 @@ import PhoneInput from "react-phone-number-input";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { Button, InputText, Textarea } from "@/components/ui";
+import { Button, InputText, Textarea, Toast } from "@/components/ui";
 import { routes } from "@/lib/routeController";
 
 type CountryOption = { value?: string; label?: string; divider?: boolean };
@@ -141,15 +141,15 @@ function ImageCropEditor({ source, title, aspect, onCropped, onClose }: { source
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#111b40]/55 p-4" role="dialog" aria-modal="true" aria-labelledby="image-crop-title">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[var(--creator-page-overlay)] p-4" role="dialog" aria-modal="true" aria-labelledby="image-crop-title">
       <div className="w-full max-w-[620px] overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[#edf0f5] px-5 py-4">
-          <h2 id="image-crop-title" className="text-sm font-bold text-[#111b40]">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close crop dialog" className="grid h-8 w-8 place-items-center rounded-lg text-lg text-[#78839a] hover:bg-[#f4f6fa]">×</button>
+        <div className="flex items-center justify-between border-b border-[var(--creator-page-divider)] px-5 py-4">
+          <h2 id="image-crop-title" className="text-sm font-bold text-[var(--creator-page-ink)]">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close crop dialog" className="grid h-8 w-8 place-items-center rounded-lg text-lg text-[var(--creator-page-soft-muted)] hover:bg-[var(--creator-page-subtle-bg)]">×</button>
         </div>
         <div className="p-5">
           <div
-            className="relative h-[min(68vw,420px)] overflow-hidden rounded-xl bg-[#1f2937] outline-none focus:ring-2 focus:ring-primary"
+            className="relative h-[min(68vw,420px)] overflow-hidden rounded-xl bg-[var(--creator-page-dark)] outline-none focus:ring-2 focus:ring-primary"
             tabIndex={0}
             aria-label="Image crop area. Drag with mouse or touch. Use arrow keys to move. Use mouse wheel or pinch to zoom."
             onKeyDown={(event) => {
@@ -166,7 +166,7 @@ function ImageCropEditor({ source, title, aspect, onCropped, onClose }: { source
           </div>
           <p className="mt-3 text-center text-[11px] text-muted">Drag to move. Arrow keys move precisely. Mouse wheel or two-finger pinch zooms on touch devices.</p>
         </div>
-        <div className="flex justify-end gap-3 border-t border-[#edf0f5] px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-[#e1e5ee] px-5 py-2.5 text-xs font-semibold text-[#33405d] hover:border-primary hover:text-primary">Cancel</button><button type="button" onClick={saveCrop} disabled={!area} className="rounded-lg bg-primary px-5 py-2.5 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50">Save crop</button></div>
+        <div className="flex justify-end gap-3 border-t border-[var(--creator-page-divider)] px-5 py-4"><button type="button" onClick={onClose} className="rounded-lg border border-[var(--creator-page-cancel-border)] px-5 py-2.5 text-xs font-semibold text-[var(--creator-page-cancel-text)] hover:border-primary hover:text-primary">Cancel</button><button type="button" onClick={saveCrop} disabled={!area} className="rounded-lg bg-primary px-5 py-2.5 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50">Save crop</button></div>
       </div>
     </div>
   );
@@ -178,7 +178,7 @@ function ImageField({ label, value, onChange }: { label: string; value: string; 
   return (
     <label className="space-y-1">
       <span className="text-xs font-semibold text-body">{label} <span className="font-normal text-muted-soft">(optional)</span></span>
-      <span className="block rounded-lg border border-[#dcdcea] bg-white p-2">
+      <span className="block rounded-lg border border-[var(--creator-page-border)] bg-white p-2">
         {value ? <img src={value} alt={`${label} preview`} className={isAvatar ? "mx-auto mb-2 h-32 w-32 rounded-full object-cover" : "mb-2 h-32 w-full rounded-md object-cover"} /> : <span className={isAvatar ? "mx-auto mb-2 flex h-32 w-32 items-center justify-center rounded-full bg-surface-control text-center text-xs text-muted" : "mb-2 flex h-32 items-center justify-center rounded-md bg-surface-control text-xs text-muted"}>No image selected</span>}
         <input type="file" accept="image/*" onChange={(event) => onChange(event.currentTarget.files?.[0])} className="block w-full text-xs text-muted file:mr-2 file:rounded-md file:border-0 file:bg-accent-light file:px-2 file:py-1.5 file:text-xs file:font-semibold file:text-primary" />
       </span>
@@ -203,6 +203,10 @@ export default function CreatorProgramApplyPage() {
   const [bannerSource, setBannerSource] = useState("");
   const [socialLinksOpen, setSocialLinksOpen] = useState(false);
   const [selectedSocials, setSelectedSocials] = useState<string[]>([]);
+  const [socialPicker, setSocialPicker] = useState("");
+  const [socialErrors, setSocialErrors] = useState<Record<string, string>>({});
+  const [submitNotice, setSubmitNotice] = useState<{ variant: "success" | "error"; message: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [socialLinks, setSocialLinks] = useState({
     instagram: "",
@@ -213,27 +217,44 @@ export default function CreatorProgramApplyPage() {
   });
 
   useEffect(() => {
-    const token = window.localStorage.getItem("marketplace-token");
-    const redirectToLogin = () => {
-      const next = encodeURIComponent(routes.programs.creatorProgramApply());
-      router.replace(`${routes.auth.login()}?next=${next}`);
+    const clearSession = () => {
+      window.localStorage.removeItem("marketplace-token");
+      window.localStorage.removeItem("marketplace-user");
+      window.localStorage.removeItem("current-user");
+      window.localStorage.removeItem("creator-program-application");
     };
 
+    const token = window.localStorage.getItem("marketplace-token");
+
     if (!token) {
-      redirectToLogin();
+      clearSession();
+      const next = encodeURIComponent(routes.programs.creatorProgramApply());
+      router.replace(`${routes.auth.login()}?next=${next}`);
+      setAuthChecking(false);
       return;
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/auth/me`, {
+    const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+
+    fetch(`${apiUrl}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(async (response) => {
       if (!response.ok) throw new Error("Unauthorized");
       const result = await response.json();
-      setAccountFullName(result.user?.name || result.user?.fullName || "");
-      setUsername(result.user?.username || "");
+      const user = result.user ?? {};
+      const hasExistingCreatorApplication = Boolean(window.localStorage.getItem("creator-program-application"));
+      if (user.role === "creator" || hasExistingCreatorApplication) {
+        router.replace(routes.programs.creatorProgramReview());
+        return;
+      }
+      setAccountFullName(user.name || user.fullName || "");
+      setUsername(user.username || "");
     }).catch(() => {
-      window.localStorage.removeItem("marketplace-token");
-      redirectToLogin();
+      clearSession();
+      const next = encodeURIComponent(routes.programs.creatorProgramApply());
+      router.replace(`${routes.auth.login()}?next=${next}`);
+      setAccountFullName("");
+      setUsername("");
     }).finally(() => {
       setAuthChecking(false);
     });
@@ -251,13 +272,80 @@ export default function CreatorProgramApplyPage() {
   };
 
   const addSocialNetwork = (network: string) => {
-    if (!network || selectedSocials.includes(network)) return;
-    setSelectedSocials((current) => [...current, network]);
+    const nextNetwork = typeof network === "string" ? network.trim() : "";
+    if (!nextNetwork || selectedSocials.includes(nextNetwork)) return;
+    setSelectedSocials((current) => [...current, nextNetwork]);
   };
 
+  const handleSocialSelect = (value: string | null | undefined) => {
+    const nextNetwork = typeof value === "string" ? value.trim() : "";
+    if (!nextNetwork) return;
+    const isValidOption = socialNetworkOptions.some(({ key }) => key === nextNetwork);
+    if (!isValidOption) return;
+    addSocialNetwork(nextNetwork);
+    setSocialPicker("");
+  };
+
+  const detectSocialNetworkFromUrl = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const urlText = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+    try {
+      const url = new URL(urlText);
+      const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+      const directMatch = socialNetworkOptions.find(({ key }) => {
+        if (key === "x") return host.includes("x.com") || host.includes("twitter.com") || host.includes("t.co");
+        if (key === "youtube") return host.includes("youtube.com") || host.includes("youtu.be");
+        return host.includes(`${key}.com`) || host.includes(`${key}.co`);
+      });
+      return directMatch?.key ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const updateSocialLink = (network: string, rawValue: string | null | undefined) => {
+    const safeNetwork = typeof network === "string" ? network.trim() : "";
+    if (!safeNetwork) return;
+    const nextValueFromUser = typeof rawValue === "string" ? rawValue : "";
+    const normalizedValue = nextValueFromUser.trim();
+    const normalizedUrl = !normalizedValue ? "" : /^https?:\/\//i.test(normalizedValue) ? normalizedValue : `https://${normalizedValue}`;
+    const detectedNetwork = detectSocialNetworkFromUrl(normalizedUrl);
+
+    if (normalizedValue && !detectedNetwork) {
+      setSocialErrors((current) => ({ ...current, [safeNetwork]: "Please enter a valid social profile URL." }));
+      setSocialLinks((current) => ({ ...current, [safeNetwork]: normalizedValue }));
+      return;
+    }
+
+    setSocialErrors((current) => ({ ...current, [safeNetwork]: "" }));
+
+    if (detectedNetwork && detectedNetwork !== safeNetwork) {
+      setSelectedSocials((current) => {
+        const withoutCurrent = current.filter((item) => item !== safeNetwork);
+        return withoutCurrent.includes(detectedNetwork) ? withoutCurrent : [...withoutCurrent, detectedNetwork];
+      });
+      setSocialLinks((current) => {
+        const updated = { ...current };
+        delete updated[safeNetwork as keyof typeof updated];
+        updated[detectedNetwork as keyof typeof updated] = normalizedUrl;
+        return updated;
+      });
+      setSocialErrors((current) => ({ ...current, [detectedNetwork]: "", [safeNetwork]: "" }));
+      return;
+    }
+
+    setSocialLinks((current) => ({
+      ...current,
+      [safeNetwork]: normalizedUrl,
+    }));
+  };
 
   const submitApplication = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const formData = new FormData(event.currentTarget);
     const website = String(formData.get("websiteUrl") || "").trim();
     const phoneNumber = String(formData.get("phone") || "").trim();
@@ -283,12 +371,18 @@ export default function CreatorProgramApplyPage() {
 
     const token = window.localStorage.getItem("marketplace-token");
     if (!token) {
-      setErrors({ application: "Please sign in before applying to become a creator." });
+      const message = "Please sign in before applying to become a creator.";
+      setErrors({ application: message });
+      setSubmitNotice({ variant: "error", message });
       return;
     }
 
+    setIsSubmitting(true);
+    setSubmitNotice(null);
+
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api"}/creator-program/apply`, {
+      const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+      const response = await fetch(`${apiUrl}/creator-program/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -303,12 +397,21 @@ export default function CreatorProgramApplyPage() {
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result.error || "Unable to submit your application.");
+        const message = result.error || "Unable to submit your application.";
+        setErrors({ application: message });
+        setSubmitNotice({ variant: "error", message });
+        return;
       }
+      const successMessage = "Your creator application has been submitted successfully.";
       window.localStorage.setItem("creator-program-application", JSON.stringify({ status: "Under review", submittedAt: new Date().toISOString() }));
+      setSubmitNotice({ variant: "success", message: successMessage });
       router.push(routes.programs.creatorProgramReview());
     } catch (error) {
-      setErrors({ application: error instanceof Error ? error.message : "Unable to submit your application." });
+      const message = error instanceof Error ? error.message : "Unable to submit your application.";
+      setErrors({ application: message });
+      setSubmitNotice({ variant: "error", message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -336,79 +439,107 @@ export default function CreatorProgramApplyPage() {
     }, 200);
   };
 
-  if (authChecking) {
-    return (
-      <main className="min-h-screen bg-[#f5f5fb] text-body">
-        <Navbar active="programs" />
-        <div className="mx-auto flex max-w-[760px] items-center justify-center px-4 pb-12 pt-20 text-sm text-muted">
-          Checking your account access...
-        </div>
-        <PublicFooter />
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-[#f5f5fb] text-body">
+    <main className="min-h-screen bg-[var(--creator-page-bg)] text-slate-800">
+      {submitNotice && (
+        <Toast
+          variant={submitNotice.variant}
+          message={submitNotice.message}
+          onClose={() => setSubmitNotice(null)}
+        />
+      )}
       <Navbar active="programs" />
-      <div className="mx-auto max-w-[760px] px-4 pb-12 pt-6 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <Link href={routes.programs.creatorProgram()} className="text-xs font-semibold text-primary no-underline hover:underline">← Creator Program</Link>
-          <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Application</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-heading">Apply to become a creator</h1>
-          <p className="mt-2 text-sm text-muted">Tell us about your store, products, and audience. Only information needed to review your application is requested.</p>
+      <div className="mx-auto max-w-[1100px] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <Link href={routes.programs.creatorProgram()} className="inline-flex items-center gap-2 text-sm font-semibold text-primary no-underline hover:underline">
+            <span aria-hidden="true">←</span>
+            <span>Creator Program</span>
+          </Link>
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Application</p>
+          <h1 className="mt-3 text-[42px] font-extrabold leading-[1.02] tracking-[-2px] text-[var(--creator-page-ink)] sm:text-[54px] lg:text-[60px]">Apply to become a creator</h1>
+          <p className="mt-4 max-w-[980px] text-[18px] leading-8 text-slate-500">
+            Tell us about your store, products, and audience. Only information needed to review your application is requested.
+          </p>
         </div>
 
-        <form onSubmit={submitApplication} noValidate className="border-y border-[#e2e2ed] py-6 sm:py-8">
-          <FieldError id="application-error" message={errors.application} />
-          <div className="space-y-1">
-            <label htmlFor="full-name" className="text-xs font-semibold text-body">Full name</label>
-            <InputText id="full-name" name="fullName" value={accountFullName} readOnly aria-describedby="full-name-help" className="cursor-not-allowed bg-surface-control text-muted" placeholder="Account full name" />
-            <p id="full-name-help" className="text-[11px] text-muted">Full name comes from your account and cannot be changed here. Update it from your account settings.</p>
+        {authChecking && (
+          <div className="mb-4 inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" />
+            Checking your account access...
           </div>
-          <div className="mt-4 space-y-1">
-            <label htmlFor="username" className="text-xs font-semibold text-body">Username</label>
-            <InputText id="username" name="username" value={username} autoComplete="username" placeholder="Your username" invalid={Boolean(errors.username)} aria-invalid={Boolean(errors.username)} aria-describedby="username-error" onChange={(event) => { setUsername(event.currentTarget.value); scheduleFieldCheck("username", event.currentTarget.value); }} />
+        )}
+
+<div className="h-px w-full bg-[var(--creator-page-border)]" />
+
+        <form onSubmit={submitApplication} noValidate aria-busy={isSubmitting} className={`pt-8 sm:pt-10 ${authChecking || isSubmitting ? "pointer-events-none opacity-80" : ""}`}>
+          <FieldError id="application-error" message={errors.application} />
+
+          <div className="space-y-1">
+            <label htmlFor="full-name" className="text-[15px] font-semibold text-[var(--creator-page-label)]">Full name</label>
+            <InputText id="full-name" name="fullName" value={accountFullName} readOnly disabled={isSubmitting} aria-describedby="full-name-help" className="mt-2 cursor-not-allowed border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)] text-[var(--creator-page-input-text)]" placeholder="Account full name" />
+            <p id="full-name-help" className="mt-2 text-[12px] text-slate-500">Full name comes from your account and cannot be changed here. Update it from your account settings.</p>
+          </div>
+
+          <div className="mt-5 space-y-1">
+            <label htmlFor="username" className="text-[15px] font-semibold text-[var(--creator-page-label)]">Username</label>
+            <InputText id="username" name="username" value={username} autoComplete="username" placeholder="Your username" invalid={Boolean(errors.username)} aria-invalid={Boolean(errors.username)} aria-describedby="username-error" className="mt-2 border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)]" disabled={isSubmitting} onChange={(event) => {
+              const nextValue = event.currentTarget.value.replace(/\s+/g, "_");
+              setUsername(nextValue);
+              scheduleFieldCheck("username", nextValue);
+            }} />
             <FieldError id="username-error" message={errors.username} />
           </div>
-          <div className="mt-4 space-y-1">
-            <label htmlFor="phone" className="text-xs font-semibold text-body">Phone number <span className="font-normal text-muted-soft">(optional)</span></label>
-            <PhoneInput
-              id="phone"
-              name="phone"
-              international
-              defaultCountry="KH"
-              countryCallingCodeEditable
-              countrySelectComponent={CountryPicker}
-              value={phone}
-              onChange={(value) => setPhone(value || "")}
-              placeholder="Enter phone number"
-              className="creator-phone-input"
-            />
+
+          <div className="mt-5 space-y-1">
+            <label htmlFor="phone" className="text-[15px] font-semibold text-[var(--creator-page-label)]">Phone number <span className="font-normal text-slate-500">(optional)</span></label>
+            <div className="mt-2">
+              <PhoneInput
+                id="phone"
+                name="phone"
+                international
+                defaultCountry="KH"
+                countryCallingCodeEditable
+                countrySelectComponent={CountryPicker}
+                value={phone}
+                onChange={(value) => setPhone(value || "")}
+                placeholder="Enter phone number"
+                className="creator-phone-input"
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
-          <div className="mt-4 space-y-1">
-            <label htmlFor="bio" className="text-xs font-semibold text-body">Bio</label>
-            <Textarea id="bio" name="bio" rows={4} placeholder="Tell buyers about you and your work." invalid={Boolean(errors.bio)} aria-invalid={Boolean(errors.bio)} aria-describedby="bio-error" onChange={(event) => scheduleFieldCheck("bio", event.currentTarget.value)} />
+
+          <div className="mt-5 space-y-1">
+            <label htmlFor="bio" className="text-[15px] font-semibold text-[var(--creator-page-label)]">Bio</label>
+            <Textarea id="bio" name="bio" rows={4} placeholder="Tell buyers about you and your work." invalid={Boolean(errors.bio)} aria-invalid={Boolean(errors.bio)} aria-describedby="bio-error" className="mt-2 border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)]" disabled={isSubmitting} onChange={(event) => scheduleFieldCheck("bio", event.currentTarget.value)} />
             <FieldError id="bio-error" message={errors.bio} />
           </div>
-          <div className="mt-4 space-y-1">
-            <label htmlFor="website-url" className="text-xs font-semibold text-body">Website URL <span className="font-normal text-muted-soft">(optional)</span></label>
-            <InputText id="website-url" name="websiteUrl" type="url" placeholder="https://yourwebsite.com" invalid={Boolean(errors.website)} aria-invalid={Boolean(errors.website)} aria-describedby="website-error" onChange={(event) => scheduleFieldCheck("website", event.currentTarget.value)} />
+
+          <div className="mt-5 space-y-1">
+            <label htmlFor="website-url" className="text-[15px] font-semibold text-[var(--creator-page-label)]">Website URL <span className="font-normal text-slate-500">(optional)</span></label>
+            <InputText id="website-url" name="websiteUrl" type="url" placeholder="https://yourwebsite.com" invalid={Boolean(errors.website)} aria-invalid={Boolean(errors.website)} aria-describedby="website-error" className="mt-2 border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)]" disabled={isSubmitting} onChange={(event) => scheduleFieldCheck("website", event.currentTarget.value)} />
             <FieldError id="website-error" message={errors.website} />
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <ImageField label="Avatar image" value={avatarUrl} onChange={(file) => readImage(file, setAvatarSource)} />
             <ImageField label="Banner image" value={bannerUrl} onChange={(file) => readImage(file, setBannerSource)} />
           </div>
           {avatarSource && <ImageCropEditor source={avatarSource} title="Crop avatar image" aspect={1} onCropped={setAvatarUrl} onClose={() => setAvatarSource("")} />}
           {bannerSource && <ImageCropEditor source={bannerSource} title="Crop banner image" aspect={16 / 6} onCropped={setBannerUrl} onClose={() => setBannerSource("")} />}
-          <div className="mt-4 space-y-3">
-            <button type="button" aria-pressed={socialLinksOpen} onClick={() => setSocialLinksOpen((open) => !open)} className="flex w-full items-center justify-between rounded-lg border border-[#dcdcea] bg-white/40 px-3 py-2.5 text-left text-xs font-semibold text-body hover:border-primary">
-              <span>Social links <span className="font-normal text-muted-soft">(optional)</span></span>
+
+          <div className="mt-5 space-y-3">
+            <button type="button" aria-pressed={socialLinksOpen} onClick={() => setSocialLinksOpen((open) => !open)} className="flex w-full items-center justify-between rounded-lg border border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)] px-3 py-2.5 text-left text-xs font-semibold text-[var(--creator-page-label)] hover:border-primary">
+              <span>Social links <span className="font-normal text-slate-500">(optional)</span></span>
               <span className={`relative h-5 w-9 rounded-full transition ${socialLinksOpen ? "bg-primary" : "bg-slate-300"}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${socialLinksOpen ? "translate-x-4" : "translate-x-0.5"}`} /></span>
             </button>
             {socialLinksOpen && <div className="space-y-3">
-              <select defaultValue="" onChange={(event) => { addSocialNetwork(event.currentTarget.value); event.currentTarget.value = ""; }} className="select-chevron w-fit min-w-48 rounded-lg border border-[#dcdcea] bg-white px-3 py-2 text-xs text-body focus:border-primary focus:outline-none">
+              <select
+                value={socialPicker}
+                onChange={(event) => handleSocialSelect(event.currentTarget?.value ?? "")}
+                disabled={isSubmitting}
+                className="select-chevron w-fit min-w-48 rounded-lg border border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)] px-3 py-2 text-xs text-[var(--creator-page-label)] focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 <option value="">Add more social links...</option>
                 {socialNetworkOptions.filter(({ key }) => !selectedSocials.includes(key)).map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
               </select>
@@ -416,23 +547,65 @@ export default function CreatorProgramApplyPage() {
                 {selectedSocials.map((network) => {
                   const option = socialNetworkOptions.find(({ key }) => key === network);
                   if (!option) return null;
+                  const socialValue = socialLinks[network as keyof typeof socialLinks] ?? "";
+                  const logoFile = socialLogoFiles[network];
+                  const logoSrc = logoFile ? `/logos/${logoFile}` : "";
+
                   return <div key={network} className="flex items-end gap-2">
-                    <label className="min-w-0 flex-1 space-y-1"><span className="text-xs text-muted">{option.label}</span><span className="relative block"><InputText className="pr-12" value={socialLinks[network as keyof typeof socialLinks]} onChange={(event) => setSocialLinks((current) => ({ ...current, [network]: event.currentTarget.value }))} type="url" placeholder={option.placeholder} /><span className="pointer-events-none absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-white shadow-sm"><img src={`/logos/${socialLogoFiles[network]}`} alt="" className="h-4 w-4 object-contain" /></span></span></label>
-                    <button type="button" aria-label={`Remove ${option.label}`} onClick={() => { setSelectedSocials((current) => current.filter((item) => item !== network)); setSocialLinks((current) => ({ ...current, [network]: "" })); }} className="mb-1 grid h-9 w-9 place-items-center rounded-md text-muted hover:bg-status-danger-surface hover:text-status-danger"><PublicIcon name="x" className="h-4 w-4" /></button>
+                    <label className="min-w-0 flex-1 space-y-1">
+                      <span className="text-xs text-slate-500">{option.label}</span>
+                      <span className="relative block">
+                        <InputText
+                          className="pr-12 border-[var(--creator-page-border)] bg-[var(--creator-page-input-bg)]"
+                          value={socialValue}
+                          disabled={isSubmitting}
+                          onChange={(event) => updateSocialLink(network, event?.currentTarget?.value ?? "")}
+                          type="url"
+                          placeholder={option.placeholder}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-white shadow-sm">
+                          {logoSrc ? <img src={logoSrc} alt="" className="h-4 w-4 object-contain" /> : null}
+                        </span>
+                      </span>
+                      {socialErrors[network] ? <span className="mt-1 block text-xs text-red-500">{socialErrors[network]}</span> : null}
+                    </label>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${option.label}`}
+                      disabled={isSubmitting}
+                      onClick={() => {
+                        setSelectedSocials((current) => current.filter((item) => item !== network));
+                        setSocialLinks((current) => {
+                          const nextLinks = { ...current };
+                          delete nextLinks[network as keyof typeof nextLinks];
+                          return nextLinks;
+                        });
+                        setSocialErrors((current) => {
+                          const nextErrors = { ...current };
+                          delete nextErrors[network];
+                          return nextErrors;
+                        });
+                      }}
+                      className="mb-1 grid h-9 w-9 place-items-center rounded-md text-slate-500 hover:bg-status-danger-surface hover:text-status-danger"
+                    >
+                      <PublicIcon name="x" className="h-4 w-4" />
+                    </button>
                   </div>;
                 })}
               </div>
             </div>}
             <FieldError id="image-error" message={errors.image} />
           </div>
-          <label className="mt-5 flex items-start gap-3 border-y border-[#e2e2ed] py-3 text-xs leading-5 text-muted">
-            <input type="checkbox" name="consent" aria-invalid={Boolean(errors.consent)} aria-describedby="consent-error" onChange={(event) => scheduleFieldCheck("consent", event.currentTarget.checked)} className="mt-1 h-4 w-4 shrink-0 accent-primary" />
+
+          <label className="mt-6 flex items-start gap-3 border-t border-[var(--creator-page-border)] pt-4 text-sm leading-6 text-slate-600">
+            <input type="checkbox" name="consent" aria-invalid={Boolean(errors.consent)} aria-describedby="consent-error" disabled={isSubmitting} onChange={(event) => scheduleFieldCheck("consent", event.currentTarget.checked)} className="mt-1 h-4 w-4 shrink-0 accent-primary disabled:cursor-not-allowed" />
             <span>I agree to the <Link href={routes.legal.terms()} className="text-primary underline">Terms and Conditions</Link> and acknowledge the <Link href={routes.legal.privacy()} className="text-primary underline">Privacy Policy</Link>.</span>
           </label>
           <FieldError id="consent-error" message={errors.consent} />
-          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Link href={routes.programs.creatorProgram()} className="inline-flex items-center justify-center rounded-lg border border-border-control px-4 py-2.5 text-xs font-semibold text-body no-underline hover:bg-surface-control">Cancel</Link>
-            <Button type="submit" size="sm">Submit application</Button>
+
+          <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Link href={routes.programs.creatorProgram()} className={`inline-flex items-center justify-center rounded-lg border border-[var(--creator-page-border)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--creator-page-label)] no-underline hover:bg-slate-50 ${isSubmitting ? "pointer-events-none opacity-60" : ""}`} aria-disabled={isSubmitting}>Cancel</Link>
+            <Button type="submit" size="sm" className="!px-5 !py-3 !text-[12px] !font-semibold" disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit application"}</Button>
           </div>
         </form>
       </div>

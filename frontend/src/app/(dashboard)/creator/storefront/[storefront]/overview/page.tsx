@@ -1,7 +1,25 @@
+"use client";
+
 import Link from "next/link";
-import StorefrontHeader from "@/components/dashboard/StorefrontHeader";
+import { useEffect, useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { Toast } from "@/components/ui";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
+
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+
+const getStoredToastState = (key: string, fallback: boolean) => {
+  if (typeof window === "undefined") return fallback;
+  const storedValue = window.sessionStorage.getItem(key);
+  return storedValue === null ? fallback : storedValue === "true";
+};
+
+const clearStoredToastState = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem("storefront-branding-toast");
+  window.sessionStorage.removeItem("storefront-settings-toast");
+  window.sessionStorage.removeItem("storefront-payment-toast");
+};
 
 const storefrontData: Record<string, { displayName: string; type: string; description: string }> = {
   NourChomrong: {
@@ -33,25 +51,117 @@ const overviewCards = [
   { label: "Conversion", value: "3.4%", detail: "Avg. on public storefront", icon: "up", tone: "bg-[#f7f2ff] text-violet-700" },
 ];
 
-const recentItems = [
-  { name: "Laravel API Mastery", status: "Published", sales: "128 sales" },
-  { name: "React Code Course", status: "Published", sales: "96 sales" },
-  { name: "Vue.js for Beginners", status: "Draft", sales: "Waiting review" },
-];
-
-export default async function StorefrontOverviewPage({
+export default function StorefrontOverviewPage({
   params,
 }: {
   params: Promise<{ storefront: string }>;
 }) {
-  const { storefront: storefrontParam } = await params;
-  const storefront =
-    storefrontData[decodeURIComponent(storefrontParam)] || storefrontData.NourChomrong;
+  const [storefrontParam, setStorefrontParam] = useState("");
+  const [storefront, setStorefront] = useState(storefrontData.NourChomrong);
+  const [stats, setStats] = useState({ products: 0, revenue: 0, orders: 0, conversion: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [recentItems, setRecentItems] = useState<{ name: string; status: string; sales: string }[]>([]);
+  const [brandingIncomplete, setBrandingIncomplete] = useState(false);
+  const [settingsIncomplete, setSettingsIncomplete] = useState(false);
+  const [paymentIncomplete, setPaymentIncomplete] = useState(false);
+  const [showBrandingToast, setShowBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
+  const [showSettingsToast, setShowSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
+  const [showPaymentToast, setShowPaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
+
+  useEffect(() => {
+    const handleBeforeUnload = () => clearStoredToastState();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve(params).then(({ storefront: nextName }) => {
+      const decodedName = decodeURIComponent(nextName);
+      setStorefrontParam(decodedName);
+      const token = window.localStorage.getItem("marketplace-token");
+      setIsLoading(true);
+
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/overview`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((response) => response.json())
+        .then((data) => { if (data.storefront) setStorefront({ displayName: data.storefront.displayName, type: data.storefront.type, description: data.storefront.description }); if (data.stats) setStats(data.stats); if (data.recentProducts) setRecentItems(data.recentProducts); })
+        .catch(() => undefined);
+
+      Promise.all([
+        fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/branding`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) return {};
+            return data.branding || {};
+          }),
+        fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/settings`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) return {};
+            return data.settings || {};
+          }),
+        fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/payment`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(async (response) => {
+            const data = await response.json();
+            if (!response.ok) return {};
+            return data.payment || {};
+          }),
+      ])
+        .then(([branding, settings, payment]) => {
+          const nextBrandingIncomplete = !String(branding?.storeName ?? "").trim() || !String(branding?.description ?? "").trim();
+          const nextSettingsIncomplete = !String(settings?.email ?? "").trim() || !String(settings?.phone ?? "").trim() || !String(settings?.country ?? "").trim() || !String(settings?.timezone ?? "").trim() || !String(settings?.language ?? "").trim();
+          const nextPaymentIncomplete = !Array.isArray(payment?.methods) || payment.methods.length === 0 || !String(payment?.primaryMethod ?? "").trim();
+
+          setBrandingIncomplete(nextBrandingIncomplete);
+          setSettingsIncomplete(nextSettingsIncomplete);
+          setPaymentIncomplete(nextPaymentIncomplete);
+          setShowBrandingToast((current) => (nextBrandingIncomplete ? current : false));
+          setShowSettingsToast((current) => (nextSettingsIncomplete ? current : false));
+          setShowPaymentToast((current) => (nextPaymentIncomplete ? current : false));
+        })
+        .catch(() => undefined);
+    });
+  }, [params]);
 
   return (
     <div className="w-full">
-      <StorefrontHeader storefront={storefront} activeTab="Overview" />
-
+      <div className="fixed right-5 top-24 z-[80] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
+        {showBrandingToast && brandingIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete branding data"
+            message="Add a store name and short description to finish your storefront."
+            onClose={() => {
+              setShowBrandingToast(false);
+              window.sessionStorage.setItem("storefront-branding-toast", "false");
+            }}
+          />
+        )}
+        {showSettingsToast && settingsIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete settings data"
+            message="Add your store email, phone, country, timezone, and language before saving settings."
+            onClose={() => {
+              setShowSettingsToast(false);
+              window.sessionStorage.setItem("storefront-settings-toast", "false");
+            }}
+          />
+        )}
+        {showPaymentToast && paymentIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete payment data"
+            message="Add at least one payment method and choose a primary method before saving."
+            onClose={() => {
+              setShowPaymentToast(false);
+              window.sessionStorage.setItem("storefront-payment-toast", "false");
+            }}
+          />
+        )}
+      </div>
       <section className="rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -67,12 +177,14 @@ export default async function StorefrontOverviewPage({
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {overviewCards.map(({ label, value, detail, icon, tone }) => (
+          {overviewCards.map(({ label, value, detail, icon, tone }) => {
+            const liveValue = label === "Products" ? String(stats.products) : label === "Revenue" ? `$${Number(stats.revenue).toFixed(2)}` : label === "Orders" ? String(stats.orders) : `${Number(stats.conversion).toFixed(1)}%`;
+            return (
             <article key={label} className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8993aa]">{label}</p>
-                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{label === "Revenue" ? formatCompactCurrency(value) : value}</p>
+                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{stats.products || stats.revenue || stats.orders || stats.conversion ? liveValue : label === "Revenue" ? formatCompactCurrency(value) : value}</p>
                 </div>
                 <span className={`grid h-10 w-10 place-items-center rounded-lg ${tone}`}>
                   <PublicIcon name={icon as any} className="h-5 w-5" />
@@ -80,7 +192,8 @@ export default async function StorefrontOverviewPage({
               </div>
               <p className="mt-3 text-[10px] text-[#76829d]">{detail}</p>
             </article>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">

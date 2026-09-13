@@ -8,6 +8,30 @@
   --storefront-teal: #19b5a5;
   --storefront-pink: #ec4899;
   --storefront-navy: #111b40;
+
+  --creator-page-bg: #f3f5f7;
+  --creator-page-ink: #111827;
+  --creator-page-heading: #0f172a;
+  --creator-page-text-soft: #475467;
+  --creator-page-border: #e7edf5;
+  --creator-page-card-border: #e5e7eb;
+  --creator-page-review-panel: #f8fafc;
+  --creator-page-review-note: #f3f7f6;
+
+  --creator-review-border: #e7edf5;
+  --creator-review-panel: #f7fbf9;
+  --creator-review-subpanel: #f8f9fb;
+  --creator-review-success-bg: #dff7eb;
+  --creator-review-success-text: #1c9a67;
+  --creator-review-success-border: #cfead9;
+  --creator-review-warning-bg: #fff7ed;
+  --creator-review-warning-text: #d97706;
+  --creator-review-warning-border: #f2ddd0;
+  --creator-review-info-bg: #edf5ff;
+  --creator-review-info-text: #2563eb;
+  --creator-review-info-border: #dbeafe;
+  --creator-review-note-bg: #f3fff8;
+  --creator-review-note-text: #1a8d61;
 }
 
 @theme {
@@ -589,4 +613,9 @@ button.hidden.shrink-0.xl\:inline-flex {
   background: transparent;
   color: inherit;
   outline: 0;
+  font: inherit;
+}
+
+.creator-phone-input .PhoneInputInput::placeholder {
+  color: var(--color-muted-faint);
 }

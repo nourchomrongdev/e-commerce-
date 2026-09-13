@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { UserRole, UserInfo, UserAccount } = require("../models");
+const { UserRole, UserInfo, UserAccount, UserAccountRole, CreatorProfile } = require("../models");
 
 const jwtSecret = process.env.JWT_SECRET || "local-development-secret-change-me";
 
@@ -14,12 +14,22 @@ function normaliseEmail(email) {
 }
 
 function toUser(user) {
+  const roles = (user.roles || [])
+    .map((userRole) => userRole.role?.RoleName || userRole.RoleName)
+    .filter(Boolean)
+    .map((role) => String(role).toLowerCase());
+  const primaryRole = String(user.role?.RoleName || user.RoleName || "").toLowerCase();
+
+  if (primaryRole && !roles.includes(primaryRole)) roles.unshift(primaryRole);
+
   return {
     id: user.UserId,
     name: user.info?.FullName || user.FullName,
     username: user.Username || null,
     email: user.info?.Email || user.Email,
-    role: (user.role?.RoleName || user.RoleName).toLowerCase(),
+    role: primaryRole,
+    roles,
+    isVerified: Boolean(user.creatorProfile?.IsVerified),
   };
 }
 
@@ -28,7 +38,16 @@ function authResponse(user) {
 }
 
 function findById(userId, transaction?: any) {
-  return UserAccount.findOne({ where: { UserId: userId, Status: "active" }, include: [{ model: UserInfo, as: "info" }, { model: UserRole, as: "role" }], transaction });
+  return UserAccount.findOne({
+    where: { UserId: userId, Status: "active" },
+    include: [
+      { model: UserInfo, as: "info" },
+      { model: UserRole, as: "role" },
+      { model: UserAccountRole, as: "roles", include: [{ model: UserRole, as: "role" }] },
+      { model: CreatorProfile, as: "creatorProfile" },
+    ],
+    transaction,
+  });
 }
 
 function findByToken(token) {

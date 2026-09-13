@@ -7,7 +7,7 @@ type AppBrandProps = {
   showTagline?: boolean;
 };
 
-export const APP_NAME = "MarketPlace";
+export const APP_NAME = "KhmerDigital";
 
 export default function AppBrand({
   name = APP_NAME,
@@ -18,16 +18,16 @@ export default function AppBrand({
   showTagline = false,
 }: AppBrandProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-2.5 ${className}`}>
       <img
         src="/icon.png"
         alt={`${name} logo`}
-        className={`h-10 w-10 shrink-0 rounded-lg object-cover ${logoClassName}`}
+        className={`h-10 w-10 shrink-0 rounded-lg object-cover bg-white ${logoClassName}`}
       />
 
       <div className="min-w-0">
         <span
-          className={`block truncate font-bold tracking-tight text-slate-900 ${textClassName}`}
+          className={`block truncate font-extrabold uppercase tracking-[0.08em] text-primary ${textClassName || "text-[20px] sm:text-[22px]"}`}
         >
           {name}
         </span>

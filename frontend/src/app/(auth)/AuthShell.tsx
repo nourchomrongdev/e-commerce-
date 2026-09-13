@@ -39,6 +39,7 @@ export function AuthField({
   name,
   value,
   onChange,
+  error,
 }: {
   label: string;
   type?: HTMLInputTypeAttribute;
@@ -48,46 +49,69 @@ export function AuthField({
   name?: string;
   value?: string;
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const password = type === "password";
+
+  const requiredMessage = (() => {
+    if (type === "email") return "Please enter a valid email address, for example name@example.com.";
+    const normalizedLabel = label.toLowerCase();
+    if (normalizedLabel.includes("full name")) return "Please enter your full name.";
+    if (normalizedLabel.includes("username")) return "Please choose a username.";
+    if (normalizedLabel.includes("password") && normalizedLabel.includes("confirm")) return "Please confirm your password.";
+    if (normalizedLabel.includes("password")) return "Please enter a password.";
+    return `Please enter your ${label.toLowerCase()}.`;
+  })();
+
+  const displayError = error || "";
+
   return (
-    <label className="block text-[10px] font-medium text-body">
-      {label}
-      <span className="relative mt-1.5 block">
-        <input
-          required={required}
-          name={name}
-          value={value}
-          onChange={onChange}
-          type={password && showPassword ? "text" : type}
-          inputMode={inputMode}
-          placeholder={placeholder}
-          className="h-10 w-full rounded-lg border border-border-control bg-white px-3 text-xs text-body outline-none transition placeholder:text-muted-faint focus:border-primary focus:ring-2 focus:ring-orange-100"
-        />
-        {password && (
-          <button
-            type="button"
-            onClick={() => setShowPassword((visible) => !visible)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-soft"
-          >
-            <PublicIcon
-              name={showPassword ? "eye" : "eye-closed"}
-              className="h-4 w-4"
-            />
-          </button>
-        )}
-      </span>
-    </label>
+    <div>
+      <label className="block text-[10px] font-medium text-body">
+        {label}
+        <span className="relative mt-1.5 block">
+          <input
+            required={required}
+            name={name}
+            value={value}
+            onChange={onChange}
+            type={password && showPassword ? "text" : type}
+            inputMode={inputMode}
+            placeholder={placeholder}
+            aria-invalid={Boolean(displayError)}
+            className={`h-10 w-full rounded-lg border bg-white px-3 text-xs text-body outline-none transition placeholder:text-muted-faint focus:ring-2 focus:ring-orange-100 ${displayError ? "border-orange-400 focus:border-orange-500 focus:ring-orange-100" : "border-border-control focus:border-primary"}`}
+          />
+          {password && (
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-soft"
+            >
+              <PublicIcon
+                name={showPassword ? "eye" : "eye-closed"}
+                className="h-4 w-4"
+              />
+            </button>
+          )}
+        </span>
+      </label>
+
+      {displayError ? (
+        <p className="mt-2 text-[10px] font-medium text-red-500">{displayError}</p>
+      ) : null}
+    </div>
   );
 }
 
-export function AuthButton({ children }: { children: ReactNode }) {
+export function AuthButton({ children, disabled = false }: { children: ReactNode; disabled?: boolean }) {
   return (
     <button
       type="submit"
-      className="h-10 w-full rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(245,126,31,0.2)] transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-orange-200"
+      disabled={disabled}
+      aria-disabled={disabled}
+      className="h-10 w-full rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(245,126,31,0.2)] transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-primary/60 disabled:shadow-none"
     >
       {children}
     </button>
@@ -105,6 +129,7 @@ export function PreventSubmit({
 }) {
   return (
     <form
+      noValidate
       onSubmit={onSubmit ?? ((event) => event.preventDefault())}
       className="min-w-0 w-full space-y-4"
     >

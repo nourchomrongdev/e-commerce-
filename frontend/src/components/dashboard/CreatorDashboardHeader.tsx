@@ -7,21 +7,37 @@ import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 type StorefrontOption = { name: string; products: number; href: string };
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
   workspace = "creator",
+  storefrontOpen = false,
+  onStorefrontToggle = () => undefined,
+  sidebarOpen = false,
 }: {
   onMenuOpen: () => void;
   workspace?: "creator" | "reviewer" | "admin";
+  storefrontOpen?: boolean;
+  onStorefrontToggle?: (next: boolean) => void;
+  sidebarOpen?: boolean;
 }) {
   const pathname = usePathname();
   const [notifications, setNotifications] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [storefrontOptions, setStorefrontOptions] = useState<StorefrontOption[]>([]);
+  const [isBurgerMenuVisible, setIsBurgerMenuVisible] = useState(false);
+
+  useEffect(() => {
+    const updateBurgerVisibility = () => setIsBurgerMenuVisible(window.innerWidth < 1024);
+    updateBurgerVisibility();
+
+    window.addEventListener("resize", updateBurgerVisibility);
+    return () => window.removeEventListener("resize", updateBurgerVisibility);
+  }, []);
+
+  const shouldShowStorefrontSelector = !isBurgerMenuVisible;
   const [selectedStorefront, setSelectedStorefront] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem("creator-selected-storefront") ?? "";
@@ -32,13 +48,13 @@ export default function CreatorDashboardHeader({
 
     const closeMenus = () => {
       setAccountOpen(false);
-      setStorefrontOpen(false);
+      onStorefrontToggle(false);
       setNotifications(false);
     };
 
     window.addEventListener("scroll", closeMenus, { passive: true });
     return () => window.removeEventListener("scroll", closeMenus);
-  }, [accountOpen, storefrontOpen, notifications]);
+  }, [accountOpen, storefrontOpen, notifications, onStorefrontToggle]);
 
   useEffect(() => {
     const match = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/);
@@ -66,8 +82,16 @@ export default function CreatorDashboardHeader({
   useEffect(() => {
     if (isAffiliateContext || isReviewerContext || isAdminContext) return;
 
-    fetch(`${apiUrl}/creator/storefronts`)
-      .then((response) => response.json())
+    const token = window.localStorage.getItem("marketplace-token");
+    if (!token) return;
+
+    fetch(`${apiUrl}/creator/storefronts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load storefronts");
+        return response.json();
+      })
       .then((data: { storefronts?: { displayName: string; products: number }[] }) => {
         if (!data.storefronts) return;
         setStorefrontOptions(data.storefronts.map(({ displayName, products }) => ({
@@ -88,7 +112,10 @@ export default function CreatorDashboardHeader({
       <div className="flex h-20 w-full items-center gap-2 sm:gap-3">
         <button
           type="button"
-          onClick={onMenuOpen}
+          onClick={() => {
+            onStorefrontToggle(false);
+            onMenuOpen();
+          }}
           aria-label="Toggle dashboard navigation"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-[#111b40] hover:bg-accent-light lg:hidden"
         >
@@ -102,17 +129,17 @@ export default function CreatorDashboardHeader({
           <AppBrand
             name={APP_NAME}
             className="min-w-0"
-            textClassName="truncate text-base sm:text-xl"
-            logoClassName="h-8 w-8"
+            textClassName="truncate text-[20px] font-black tracking-[0.06em] sm:text-[22px]"
+            logoClassName="h-10 w-10 sm:h-11 sm:w-11"
           />
         </Link>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          {!isAffiliateContext && !isReviewerContext && !isAdminContext && <div className="relative hidden sm:block">
+          {!isAffiliateContext && !isReviewerContext && !isAdminContext && shouldShowStorefrontSelector && <div className="relative hidden sm:block">
             <button
               type="button"
-              onClick={() => setStorefrontOpen((prev) => !prev)}
-              className="inline-flex max-w-[220px] items-center justify-center gap-2 rounded-lg border border-[#e9edf6] bg-[#f4f7ff] px-2 py-2 text-primary shadow-sm transition hover:bg-[#edf3ff] sm:max-w-none sm:px-3.5"
+              onClick={() => onStorefrontToggle(!storefrontOpen)}
+              className="inline-flex max-w-[220px] items-center justify-center gap-2 rounded-lg bg-[#f4f7ff] px-2 py-2 text-primary shadow-sm transition hover:bg-[#edf3ff] sm:max-w-none sm:px-3.5"
             >
               <PublicIcon
                 name="store"
@@ -149,7 +176,7 @@ export default function CreatorDashboardHeader({
                   onClick={() => {
                     setSelectedStorefront("All Stores Overview");
                     window.localStorage.removeItem("creator-selected-storefront");
-                    setStorefrontOpen(false);
+                    onStorefrontToggle(false);
                   }}
                   className={`flex items-center gap-3 px-4 py-3 transition ${isAllStoresOverview ? "bg-blue-50" : "hover:bg-gray-50"}`}
                 >
@@ -176,7 +203,7 @@ export default function CreatorDashboardHeader({
                       href={href}
                       onClick={() => {
                         setSelectedStorefront(name);
-                        setStorefrontOpen(false);
+                        onStorefrontToggle(false);
                       }}
                       className={`flex items-center gap-3 px-4 py-3 transition ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
                     >
@@ -200,7 +227,7 @@ export default function CreatorDashboardHeader({
 
                 <Link
                   href={routes.creator.storefronts()}
-                  onClick={() => setStorefrontOpen(false)}
+                  onClick={() => onStorefrontToggle(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                 >
                   <PublicIcon name="settings" className="h-5 w-5 text-gray-500" />
@@ -209,7 +236,7 @@ export default function CreatorDashboardHeader({
 
                 <Link
                   href={routes.creator.storefrontNew()}
-                  onClick={() => setStorefrontOpen(false)}
+                  onClick={() => onStorefrontToggle(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-primary transition hover:bg-blue-50"
                 >
                   <span className="text-lg leading-none">+</span>

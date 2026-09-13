@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { sequelize, UserRole, UserInfo, UserAccount } = require("../models");
+const { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole } = require("../models");
 const { authResponse, requireDatabase } = require("./authHelpers");
 
 async function register(req, res) {
@@ -15,6 +15,11 @@ async function register(req, res) {
       const info = await UserInfo.create({ FullName: name, Email: email }, { transaction });
       const role = await UserRole.findOne({ where: { RoleName: "Buyer" }, transaction });
       const account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: await bcrypt.hash(password, 12), RoleId: role.UserRoleId, Status: "active" }, { transaction });
+      await UserAccountRole.findOrCreate({
+        where: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+        defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+        transaction,
+      });
       account.info = info;
       account.role = role;
       return account;

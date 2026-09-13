@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { routes } from "@/lib/routeController";
 import AuthShell, { AuthButton, AuthField, PreventSubmit } from "../AuthShell";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 
 export default function OtpPage() {
   const router = useRouter();
@@ -18,15 +18,26 @@ export default function OtpPage() {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
-    setEmail(window.sessionStorage.getItem("password-reset-email") || "");
-    setMaskedEmail(window.sessionStorage.getItem("password-reset-masked-email") || "");
-  }, []);
+    const storedEmail = window.sessionStorage.getItem("password-reset-email") || "";
+    const storedMaskedEmail = window.sessionStorage.getItem("password-reset-masked-email") || "";
+
+    if (!storedEmail) {
+      router.replace(routes.auth.forgotPassword());
+      return;
+    }
+
+    setEmail(storedEmail);
+    setMaskedEmail(storedMaskedEmail);
+  }, [router]);
 
   useEffect(() => {
     if (resendSeconds === 0) return;
     const timer = window.setInterval(() => setResendSeconds((current) => Math.max(0, current - 1)), 1000);
     return () => window.clearInterval(timer);
   }, [resendSeconds]);
+
+  const otpValue = digits.join("");
+  const submitDisabled = !/^\d{6}$/.test(otpValue) || !email;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,7 +93,7 @@ export default function OtpPage() {
         </span>
       </label>
       {error && <p role="alert" className="text-[10px] text-red-600">{error}</p>}
-      <AuthButton>Continue</AuthButton>
+      <AuthButton disabled={submitDisabled}>Continue</AuthButton>
       <button type="button" onClick={resendCode} disabled={resendSeconds > 0 || resending} className="w-full text-[10px] font-semibold text-primary disabled:cursor-not-allowed disabled:text-muted-faint">{resending ? "Sending..." : resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : "Resend code"}</button>
     </PreventSubmit>
   </AuthShell>;

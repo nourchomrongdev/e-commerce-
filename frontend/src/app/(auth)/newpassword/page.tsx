@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { routes } from "@/lib/routeController";
 import AuthShell, { AuthButton, AuthField, AuthLink, PreventSubmit } from "../AuthShell";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 
 export default function NewPasswordPage() {
   const router = useRouter();
@@ -17,9 +17,24 @@ export default function NewPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setEmail(window.sessionStorage.getItem("password-reset-email") || "");
-    setOtp(window.sessionStorage.getItem("password-reset-otp") || "");
-  }, []);
+    const storedEmail = window.sessionStorage.getItem("password-reset-email") || "";
+    const storedOtp = window.sessionStorage.getItem("password-reset-otp") || "";
+
+    if (!storedEmail) {
+      router.replace(routes.auth.forgotPassword());
+      return;
+    }
+
+    if (!storedOtp) {
+      router.replace(routes.auth.otp());
+      return;
+    }
+
+    setEmail(storedEmail);
+    setOtp(storedOtp);
+  }, [router]);
+
+  const submitDisabled = loading || !email || !/^\d{6}$/.test(otp) || password.length < 8 || password !== confirmation;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
@@ -44,7 +59,7 @@ export default function NewPasswordPage() {
       <AuthField name="password" value={password} onChange={(event) => setPassword(event.target.value)} label="New password" type="password" placeholder="Enter a new password" />
       <AuthField name="confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} label="Confirm password" type="password" placeholder="Confirm your new password" />
       {error && <p role="alert" className="text-[10px] text-red-600">{error}</p>}
-      <AuthButton>{loading ? "Saving..." : "Change Password"}</AuthButton>
+      <AuthButton disabled={submitDisabled}>{loading ? "Saving..." : "Change Password"}</AuthButton>
     </PreventSubmit>
   </AuthShell>;
 }

@@ -1,29 +1,23 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import StorefrontHeader from "@/components/dashboard/StorefrontHeader";
+import { Toast } from "@/components/ui";
 
-const storefrontData: Record<string, { displayName: string; type: string; description: string }> = {
-  NourChomrong: {
-    displayName: "NourChomrong",
-    type: "Templates",
-    description: "Professional templates and design resources for modern websites",
-  },
-  DevCourses: {
-    displayName: "DevCourses",
-    type: "Digital Products",
-    description: "Online courses and resources for developers to level up their skills",
-  },
-  "AI Resources": {
-    displayName: "AI Resources",
-    type: "Bundles",
-    description: "AI tools and learning bundles for everyone",
-  },
-  DesignHub: {
-    displayName: "DesignHub",
-    type: "UI Kits",
-    description: "Beautiful UI kits and design systems",
-  },
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+
+const getStoredToastState = (key: string, fallback: boolean) => {
+  if (typeof window === "undefined") return fallback;
+  const storedValue = window.sessionStorage.getItem(key);
+  return storedValue === null ? fallback : storedValue === "true";
+};
+
+const clearStoredToastState = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem("storefront-branding-toast");
+  window.sessionStorage.removeItem("storefront-settings-toast");
+  window.sessionStorage.removeItem("storefront-payment-toast");
 };
 
 const brandColors = [
@@ -52,37 +46,194 @@ export default function StorefrontBrandingPage({
     }
   }, [params]);
 
-  const storefront =
-    storefrontData[decodeURIComponent(storefrontName ?? "NourChomrong")] || storefrontData.DevCourses;
-  const [storeName, setStoreName] = useState(storefront.displayName);
-  const [description, setDescription] = useState(storefront.description);
+  const [storefront, setStorefront] = useState<{ displayName: string; type: string; description: string } | null>(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [storeName, setStoreName] = useState("");
+  const [description, setDescription] = useState("");
   const [accentColor, setAccentColor] = useState("#5b6ef5");
   const [bannerEnabled, setBannerEnabled] = useState(true);
   const [bannerImage, setBannerImage] = useState("");
   const [saved, setSaved] = useState(false);
+  const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
+  const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
+  const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
+  const [isLoading, setIsLoading] = useState(true);
+  const [settingsIncomplete, setSettingsIncomplete] = useState(false);
+  const [paymentIncomplete, setPaymentIncomplete] = useState(false);
+
+  const hasIncompleteBranding = !storeName.trim() || !description.trim();
+
+  useEffect(() => {
+    const handleBeforeUnload = () => clearStoredToastState();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIsEditMode(searchParams.get("edit") === "true");
+  }, [searchParams]);
+
+  const editToggleHref = isEditMode ? pathname : `${pathname}?edit=true`;
+
+  useEffect(() => {
+    if (!storefrontName) return;
+    const token = window.localStorage.getItem("marketplace-token");
+    const decodedName = decodeURIComponent(storefrontName);
+
+    Promise.all([
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/branding`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to load storefront branding");
+        }
+        return data;
+      }),
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) return {};
+        return data.settings || {};
+      }),
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/payment`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) return {};
+        return data.payment || {};
+      }),
+    ])
+      .then(([brandingData, settingsData, paymentData]) => {
+        const { branding, storefront: loadedStorefront } = brandingData;
+        if (!branding || !loadedStorefront) return;
+
+        setStorefront({
+          displayName: loadedStorefront.displayName,
+          type: loadedStorefront.type,
+          description: loadedStorefront.description,
+        });
+        setStoreName(branding.storeName ?? loadedStorefront.displayName);
+        setDescription(branding.description ?? loadedStorefront.description);
+        setAccentColor(branding.accentColor ?? "#5b6ef5");
+        setBannerEnabled(branding.bannerEnabled ?? true);
+        setBannerImage(branding.bannerImage ?? "");
+
+        setSettingsIncomplete(
+          !String(settingsData.email ?? "").trim() ||
+            !String(settingsData.phone ?? "").trim() ||
+            !String(settingsData.country ?? "").trim() ||
+            !String(settingsData.timezone ?? "").trim() ||
+            !String(settingsData.language ?? "").trim(),
+        );
+        setPaymentIncomplete(
+          !Array.isArray(paymentData.methods) ||
+            paymentData.methods.length === 0 ||
+            !String(paymentData.primaryMethod ?? "").trim(),
+        );
+      })
+      .catch(() => setStorefront(null))
+      .finally(() => setIsLoading(false));
+  }, [storefrontName]);
+
+  if (isLoading || !storefront) {
+    const loadingStorefront = { displayName: decodeURIComponent(storefrontName ?? "Storefront"), type: "", description: "" };
+    return (
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+        <section className="mt-5 min-w-0 rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+          <div className="h-5 w-40 animate-pulse rounded bg-[#edf0f5]" />
+          <div className="mt-3 h-3 w-72 animate-pulse rounded bg-[#f1f3f7]" />
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <div className="h-32 animate-pulse rounded-xl bg-[#f5f6fa]" />
+            <div className="h-32 animate-pulse rounded-xl bg-[#f5f6fa]" />
+          </div>
+          {!isLoading && <p className="mt-5 text-sm text-red-600">Unable to load this storefront from the database.</p>}
+        </section>
+      </div>
+    );
+  }
 
   const saveBranding = () => {
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
+    if (hasIncompleteBranding) {
+      setShowIncompleteBrandingToast(true);
+      return;
+    }
+
+    const token = window.localStorage.getItem("marketplace-token");
+    fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(storefront.displayName)}/branding`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ storeName, description, accentColor, bannerEnabled, bannerImage }) })
+      .then((response) => { if (!response.ok) throw new Error("Unable to save branding"); setSaved(true); window.setTimeout(() => setSaved(false), 2200); })
+      .catch(() => setSaved(false));
   };
 
   return (
     <div className="w-full min-w-0 max-w-full overflow-x-hidden">
-      <StorefrontHeader storefront={storefront} activeTab="Branding" />
-
+      {hasIncompleteBranding && (
+        <div className="mb-5 rounded-xl border border-[#f0d4a8] bg-[#fff7ed] px-4 py-3 text-sm text-[#7a4a08]">
+          Complete your branding details: add a store name and short description.
+        </div>
+      )}
+      <div className="fixed right-5 top-24 z-[80] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
+        {showIncompleteBrandingToast && hasIncompleteBranding && (
+          <Toast
+            variant="warning"
+            title="Incomplete branding data"
+            message="Add a store name and short description to finish your storefront."
+            onClose={() => {
+              setShowIncompleteBrandingToast(false);
+              window.sessionStorage.setItem("storefront-branding-toast", "false");
+            }}
+          />
+        )}
+        {showIncompleteSettingsToast && settingsIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete settings data"
+            message="Add your store email, phone, country, timezone, and language before saving settings."
+            onClose={() => {
+              setShowIncompleteSettingsToast(false);
+              window.sessionStorage.setItem("storefront-settings-toast", "false");
+            }}
+          />
+        )}
+        {showIncompletePaymentToast && paymentIncomplete && (
+          <Toast
+            variant="warning"
+            title="Incomplete payment data"
+            message="Add at least one payment method and choose a primary method before saving."
+            onClose={() => {
+              setShowIncompletePaymentToast(false);
+              window.sessionStorage.setItem("storefront-payment-toast", "false");
+            }}
+          />
+        )}
+      </div>
       <div className="space-y-5">
         <section className="min-w-0 rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:p-6">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-[#111b40]">Brand identity</h2>
               <p className="mt-1 text-xs text-[#8993aa]">
                 Shape how customers recognize your storefront.
               </p>
             </div>
-            <span className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700 sm:mt-0">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Brand is live
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Brand is live
+              </span>
+              <Link
+                href={editToggleHref}
+                className="inline-flex items-center justify-center rounded-lg border border-[#dfe3ee] bg-white px-3.5 py-2 text-[11px] font-semibold text-[#263252] transition hover:border-primary hover:text-primary"
+              >
+                {isEditMode ? "Done Editing" : "Edit Branding"}
+              </Link>
+            </div>
           </div>
 
           <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[1.05fr_0.95fr]">
@@ -94,8 +245,9 @@ export default function StorefrontBrandingPage({
                 <input
                   id="store-name"
                   value={storeName}
+                  disabled={!isEditMode}
                   onChange={(event) => setStoreName(event.target.value)}
-                  className="block w-full max-w-full rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-sm text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c] sm:px-3.5"
+                  className="block w-full max-w-full rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-sm text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c] disabled:cursor-not-allowed disabled:bg-[#f3f5f8] disabled:text-[#7b8194] sm:px-3.5"
                 />
               </div>
 
@@ -107,8 +259,9 @@ export default function StorefrontBrandingPage({
                   id="store-description"
                   rows={3}
                   value={description}
+                  disabled={!isEditMode}
                   onChange={(event) => setDescription(event.target.value)}
-                  className="block w-full max-w-full resize-none rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-sm leading-6 text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c] sm:px-3.5"
+                  className="block w-full max-w-full resize-none rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-sm leading-6 text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c] disabled:cursor-not-allowed disabled:bg-[#f3f5f8] disabled:text-[#7b8194] sm:px-3.5"
                 />
                 <p className="mt-1.5 text-[11px] text-[#8993aa]">
                   Shown below your store name on your public storefront.
@@ -126,8 +279,9 @@ export default function StorefrontBrandingPage({
                     role="switch"
                     aria-checked={bannerEnabled}
                     aria-label="Toggle store banner"
+                    disabled={!isEditMode}
                     onClick={() => setBannerEnabled((enabled) => !enabled)}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${bannerEnabled ? "bg-primary" : "bg-[#dce2ee]"}`}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${bannerEnabled ? "bg-primary" : "bg-[#dce2ee]"} ${!isEditMode ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${bannerEnabled ? "left-6" : "left-1"}`} />
                   </button>
@@ -140,7 +294,7 @@ export default function StorefrontBrandingPage({
                     </label>
                     <label
                       htmlFor="store-banner-image"
-                      className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-[#dce2ee] bg-white px-3 py-5 text-center text-xs font-medium text-[#33405d] transition hover:border-primary hover:bg-[#fffaf7]"
+                      className={`flex items-center justify-center rounded-lg border border-dashed border-[#dce2ee] bg-white px-3 py-5 text-center text-xs font-medium text-[#33405d] transition ${isEditMode ? "cursor-pointer hover:border-primary hover:bg-[#fffaf7]" : "cursor-not-allowed opacity-60"}`}
                     >
                       {bannerImage ? "Replace banner image" : "Choose banner image"}
                     </label>
@@ -148,6 +302,7 @@ export default function StorefrontBrandingPage({
                       id="store-banner-image"
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
+                      disabled={!isEditMode}
                       className="sr-only"
                       onChange={(event) => {
                         const file = event.target.files?.[0];
@@ -174,7 +329,8 @@ export default function StorefrontBrandingPage({
                   </div>
                   <button
                     type="button"
-                    className="w-full shrink-0 rounded-lg border border-[#e0e5ef] bg-white px-3 py-2 text-xs font-medium text-[#33405d] transition hover:bg-[#f3f6fb] sm:w-auto"
+                    disabled={!isEditMode}
+                    className={`w-full shrink-0 rounded-lg border border-[#e0e5ef] bg-white px-3 py-2 text-xs font-medium text-[#33405d] transition ${isEditMode ? "hover:bg-[#f3f6fb]" : "cursor-not-allowed opacity-60"} sm:w-auto`}
                   >
                     Choose file
                   </button>
@@ -190,8 +346,9 @@ export default function StorefrontBrandingPage({
                     aria-label="Brand color"
                     type="color"
                     value={accentColor}
+                    disabled={!isEditMode}
                     onChange={(event) => setAccentColor(event.target.value)}
-                    className="h-11 w-11 cursor-pointer rounded-lg border-0 bg-transparent p-0"
+                    className={`h-11 w-11 rounded-lg border-0 bg-transparent p-0 ${isEditMode ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                   />
                   <div>
                     <p className="text-xs font-semibold text-[#263252]">Primary accent</p>
@@ -204,8 +361,9 @@ export default function StorefrontBrandingPage({
                       key={color.name}
                       type="button"
                       aria-label={`Use ${color.name} as brand color`}
+                      disabled={!isEditMode}
                       onClick={() => setAccentColor(color.value)}
-                      className={`h-8 w-8 rounded-lg border-2 transition ${accentColor === color.value ? "border-storefront-navy ring-2 ring-[#dfe4f0]" : "border-white shadow-sm"}`}
+                      className={`h-8 w-8 rounded-lg border-2 transition ${accentColor === color.value ? "border-storefront-navy ring-2 ring-[#dfe4f0]" : "border-white shadow-sm"} ${!isEditMode ? "cursor-not-allowed opacity-60" : ""}`}
                       style={{ backgroundColor: color.token }}
                     />
                   ))}
@@ -247,7 +405,8 @@ export default function StorefrontBrandingPage({
             <button
               type="button"
               onClick={saveBranding}
-              className="rounded-lg bg-primary px-5 py-2.5 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(255,103,0,0.18)] transition hover:opacity-90"
+              disabled={!isEditMode}
+              className={`rounded-lg bg-primary px-5 py-2.5 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(255,103,0,0.18)] transition ${isEditMode ? "hover:opacity-90" : "cursor-not-allowed opacity-60"}`}
             >
               Save branding
             </button>

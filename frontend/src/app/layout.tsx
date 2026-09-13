@@ -12,10 +12,13 @@ const roboto = Roboto({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | MarketPlace',
-    default: 'MarketPlace',
+    template: '%s | KhmerDigital',
+    default: 'KhmerDigital',
   },
   description: "Discover apps and digital products from independent creators.",
+  icons: {
+    icon: '/icon.png',
+  },
 };
 
 export default function RootLayout({
