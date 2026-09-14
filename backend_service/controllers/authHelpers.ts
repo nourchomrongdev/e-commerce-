@@ -37,8 +37,34 @@ function authResponse(user) {
   return { token: jwt.sign({ sub: user.UserId, role: user.role?.RoleName || user.RoleName }, jwtSecret, { expiresIn: "1d" }), user: toUser(user) };
 }
 
-function findById(userId, transaction?: any) {
-  return UserAccount.findOne({
+async function ensureCreatorRoleForUser(user, transaction?: any) {
+  if (!user || !user.creatorProfile?.IsVerified) return user;
+
+  const roleNames = [String(user.role?.RoleName || user.RoleName || ""), ...(Array.isArray(user.roles) ? user.roles.map((link) => String(link.role?.RoleName || link.RoleName || "")) : [])]
+    .filter(Boolean)
+    .map((role) => role.toLowerCase());
+
+  if (roleNames.includes("creator")) return user;
+
+  const [creatorRole] = await UserRole.findOrCreate({
+    where: { RoleName: "Creator" },
+    defaults: { RoleName: "Creator" },
+    transaction,
+  });
+
+  await UserAccountRole.findOrCreate({
+    where: { UserId: user.UserId, UserRoleId: creatorRole.UserRoleId },
+    defaults: { UserId: user.UserId, UserRoleId: creatorRole.UserRoleId, CreatedAt: new Date() },
+    transaction,
+  });
+
+  user.role = creatorRole;
+  user.roles = Array.isArray(user.roles) ? [...user.roles, { role: creatorRole }] : [{ role: creatorRole }];
+  return user;
+}
+
+async function findById(userId, transaction?: any) {
+  const user = await UserAccount.findOne({
     where: { UserId: userId, Status: "active" },
     include: [
       { model: UserInfo, as: "info" },
@@ -48,6 +74,9 @@ function findById(userId, transaction?: any) {
     ],
     transaction,
   });
+
+  if (!user) return null;
+  return ensureCreatorRoleForUser(user, transaction);
 }
 
 function findByToken(token) {
@@ -55,4 +84,4 @@ function findByToken(token) {
   return findById(payload.sub);
 }
 
-module.exports = { authResponse, findById, findByToken, normaliseEmail, requireDatabase, toUser, jwtSecret };
+module.exports = { authResponse, ensureCreatorRoleForUser, findById, findByToken, normaliseEmail, requireDatabase, toUser, jwtSecret };

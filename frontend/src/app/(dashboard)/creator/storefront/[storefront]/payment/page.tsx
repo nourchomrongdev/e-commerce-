@@ -42,6 +42,43 @@ function getDetectedCardBrand(cardNumber: string) {
   return "Other";
 }
 
+function validateSandboxCard(cardNumber: string, expiry: string, cvv: string) {
+  const digits = cardNumber.replace(/\D/g, "");
+
+  if (digits.length < 12 || digits.length > 19) {
+    return "Invalid card number length.";
+  }
+
+  if (!/^\d{2}\/\d{4}$/.test(expiry.trim())) {
+    return "Expiry must be in MM/YYYY format.";
+  }
+
+  const [expiryMonthRaw, expiryYearRaw] = expiry.trim().split("/");
+  const expiryMonth = Number(expiryMonthRaw);
+  const expiryYear = Number(expiryYearRaw);
+
+  if (!Number.isInteger(expiryMonth) || expiryMonth < 1 || expiryMonth > 12) {
+    return "Expiry month is invalid.";
+  }
+
+  if (!Number.isInteger(expiryYear) || expiryYear < 1900 || expiryYear > 9999) {
+    return "Expiry year is invalid.";
+  }
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
+    return "Card is expired.";
+  }
+
+  if (!/^\d{3,4}$/.test(cvv.trim())) {
+    return "CVV must be 3 or 4 digits.";
+  }
+
+  return "valid";
+}
+
 function getCardFieldErrors({
   cardNumber,
   cardExpiry,
@@ -51,34 +88,19 @@ function getCardFieldErrors({
   cardExpiry: string;
   cardCvc: string;
 }) {
-  const digits = cardNumber.replace(/\D/g, "");
   const errors: Record<string, string> = {};
+  const validationResult = validateSandboxCard(cardNumber, cardExpiry, cardCvc);
 
-  if (digits.length < 12 || digits.length > 19) {
-    errors.cardNumber = "Please enter a valid card number.";
-  }
-
-  if (!/^\d{2}\/\d{4}$/.test(cardExpiry.trim())) {
-    errors.cardExpiry = "Please enter the expiry date in MM/YYYY format.";
-  } else {
-    const [expiryMonthRaw, expiryYearRaw] = cardExpiry.trim().split("/");
-    const expiryMonth = Number(expiryMonthRaw);
-    const expiryYear = Number(expiryYearRaw);
-
-    if (
-      !Number.isInteger(expiryMonth) ||
-      expiryMonth < 1 ||
-      expiryMonth > 12 ||
-      !Number.isInteger(expiryYear) ||
-      expiryYear < 1900 ||
-      expiryYear > 9999
-    ) {
-      errors.cardExpiry = "Please enter a valid expiry date.";
+  if (validationResult !== "valid") {
+    if (validationResult.includes("card number") || validationResult.includes("Invalid")) {
+      errors.cardNumber = validationResult;
     }
-  }
-
-  if (!/^\d{3,4}$/.test(cardCvc.trim())) {
-    errors.cardCvc = "Please enter a valid CVC.";
+    if (validationResult.includes("Expiry") || validationResult.includes("expired")) {
+      errors.cardExpiry = validationResult;
+    }
+    if (validationResult.includes("CVV")) {
+      errors.cardCvc = validationResult;
+    }
   }
 
   return errors;

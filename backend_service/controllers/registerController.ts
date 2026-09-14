@@ -17,7 +17,7 @@ async function register(req, res) {
       const account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: await bcrypt.hash(password, 12), RoleId: role.UserRoleId, Status: "active" }, { transaction });
       await UserAccountRole.findOrCreate({
         where: { UserId: account.UserId, UserRoleId: role.UserRoleId },
-        defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+        defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId, CreatedAt: new Date() },
         transaction,
       });
       account.info = info;

@@ -29,7 +29,7 @@ if (sequelize) {
   Storefront.belongsTo(CreatorProfile, { foreignKey: "CreatorProfileId", as: "creatorProfile" });
   CreatorProfile.hasOne(CreatorPayoutInfo, { foreignKey: "CreatorProfileId", as: "payoutInfo" });
   CreatorPayoutInfo.belongsTo(CreatorProfile, { foreignKey: "CreatorProfileId", as: "creatorProfile" });
-  CreatorProfile.hasOne(CardInfo, { foreignKey: "CreatorProfileId", as: "cardInfo" });
+  CreatorProfile.hasMany(CardInfo, { foreignKey: "CreatorProfileId", as: "cardInfo" });
   CardInfo.belongsTo(CreatorProfile, { foreignKey: "CreatorProfileId", as: "creatorProfile" });
   Storefront.hasMany(Product, { foreignKey: "StorefrontId", as: "products" });
   Product.belongsTo(Storefront, { foreignKey: "StorefrontId", as: "storefront" });

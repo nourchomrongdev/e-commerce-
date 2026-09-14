@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Toast } from "@/components/ui";
 import { routes } from "@/lib/routeController";
@@ -30,6 +30,8 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState("Checking creator account…");
   const [storefrontName, setStorefrontName] = useState<string | null>(null);
   const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
   const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
@@ -121,14 +123,56 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       });
   }, [isStorefrontRoute, pathname, storefrontIndex]);
 
+  const redirectTimerRef = useRef<number | null>(null);
+  const unauthorizedMessageTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     const token = window.localStorage.getItem("marketplace-token");
-    const redirectToLogin = () => {
+    const redirectToLogin = (message = "Creator access required. Please log in or register a creator.") => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+      if (unauthorizedMessageTimerRef.current !== null) {
+        window.clearTimeout(unauthorizedMessageTimerRef.current);
+      }
+
+      setAuthorized(false);
+      setRedirectingToLogin(true);
+      setRedirectMessage("Checking creator account…");
+
       const next = encodeURIComponent(pathname || routes.creator.overview());
       window.localStorage.removeItem("marketplace-token");
       window.localStorage.removeItem("marketplace-user");
       window.localStorage.removeItem("current-user");
-      router.replace(`${routes.auth.login()}?next=${next}`);
+
+      unauthorizedMessageTimerRef.current = window.setTimeout(() => {
+        setRedirectMessage(message);
+      }, 1500);
+
+      redirectTimerRef.current = window.setTimeout(() => {
+        router.replace(`${routes.auth.login()}?next=${next}`);
+      }, 6000);
+    };
+
+    const redirectToCreatorProgram = (message = "No creator access. Please apply for a creator program.") => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+      if (unauthorizedMessageTimerRef.current !== null) {
+        window.clearTimeout(unauthorizedMessageTimerRef.current);
+      }
+
+      setAuthorized(false);
+      setRedirectingToLogin(true);
+      setRedirectMessage("Checking creator account…");
+
+      unauthorizedMessageTimerRef.current = window.setTimeout(() => {
+        setRedirectMessage(message);
+      }, 1500);
+
+      redirectTimerRef.current = window.setTimeout(() => {
+        router.replace("http://localhost:3000/program/creatorprogram");
+      }, 6000);
     };
 
     if (!token) {
@@ -147,14 +191,25 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       const isVerified = Boolean(user.isVerified);
 
       if (!(role === "creator" || roles.includes("creator")) || !isVerified) {
-        router.replace(routes.programs.creatorProgramReview());
+        redirectToCreatorProgram();
         return;
       }
 
       setAuthorized(true);
+      setRedirectingToLogin(false);
+      setRedirectMessage("Checking creator access…");
     }).catch(() => {
       redirectToLogin();
     });
+
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+      if (unauthorizedMessageTimerRef.current !== null) {
+        window.clearTimeout(unauthorizedMessageTimerRef.current);
+      }
+    };
   }, [pathname, router]);
 
   const toggleSidebar = () => {
@@ -168,12 +223,12 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     setMenuOpen((isOpen) => !isOpen);
   };
 
-  if (!authorized) {
+  if (!authorized || redirectingToLogin) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background text-[#111b40]">
         <div className="flex items-center gap-3">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#e9edf6] border-t-primary" aria-label="Checking access" />
-          <span className="text-sm font-medium text-[#1f2d52]">Checking creator access…</span>
+          <span className="text-sm font-medium text-[#1f2d52]">{redirectMessage}</span>
         </div>
       </main>
     );

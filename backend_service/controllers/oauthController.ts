@@ -77,7 +77,7 @@ async function googleCallback(req, res) {
           account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: null, RoleId: role.UserRoleId, Status: "active" }, { transaction });
           await UserAccountRole.findOrCreate({
             where: { UserId: account.UserId, UserRoleId: role.UserRoleId },
-            defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+            defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId, CreatedAt: new Date() },
             transaction,
           });
         }

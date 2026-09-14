@@ -4,7 +4,13 @@ type PayPalError = Error & { statusCode?: number; details?: unknown };
 
 function requirePayPalConfig() {
   if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
-    const error = new Error("PayPal is not configured.") as PayPalError;
+    const error = new Error("PayPal is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the backend environment.") as PayPalError;
+    error.statusCode = 503;
+    throw error;
+  }
+
+  if (!String(paypalBaseUrl).includes("sandbox")) {
+    const error = new Error("Sandbox mode is required for local testing. PAYPAL_API_BASE_URL must use https://api-m.sandbox.paypal.com.") as PayPalError;
     error.statusCode = 503;
     throw error;
   }
@@ -22,11 +28,14 @@ async function getAccessToken() {
     body: "grant_type=client_credentials",
   });
 
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`PayPal token request failed with status ${response.status}.`);
+    const error = new Error(data?.error_description || data?.message || `PayPal token request failed with status ${response.status}.`) as PayPalError;
+    error.statusCode = response.status;
+    error.details = data;
+    throw error;
   }
 
-  const data = await response.json();
   return data.access_token;
 }
 
@@ -81,18 +90,23 @@ function capturePayPalOrder(paypalOrderId) {
 }
 
 async function setupPaymentToken({ cardNumber, cardExpiry, cardCvc, cardName }) {
-  // Validate card through PayPal by creating a setup token
-  // This confirms the card is valid before storing it
-  const [expiryMonth, expiryYear] = cardExpiry.split("/");
-  
-  // Convert 4-digit year to 2-digit year if needed (2031 -> 31)
-  const twoDigitYear = expiryYear.length === 4 ? expiryYear.slice(-2) : expiryYear;
-  
+  if (!cardNumber || !cardExpiry || !cardCvc) {
+    const error = new Error("Card number, expiry date, and CVV are required.") as PayPalError;
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [expiryMonth, expiryYear] = String(cardExpiry).split("/");
+  const cleanedExpiryMonth = String(expiryMonth || "").trim();
+  const cleanedExpiryYear = String(expiryYear || "").trim();
+  const twoDigitYear = cleanedExpiryYear.length === 4 ? cleanedExpiryYear.slice(-2) : cleanedExpiryYear;
+
   const cardData: any = {
-    number: cardNumber.replace(/\s/g, ""),
-    expire_month: expiryMonth,
+    number: String(cardNumber).replace(/\s/g, ""),
+    expire_month: cleanedExpiryMonth,
     expire_year: twoDigitYear,
-    cvv: cardCvc,
+    cvv: String(cardCvc).trim(),
+    name: String(cardName || "Test Buyer").trim() || "Test Buyer",
   };
 
   return paypalRequest("/v3/vault/setup-tokens", {

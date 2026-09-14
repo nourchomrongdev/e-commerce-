@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { Button, Toast } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { routes } from "@/lib/routeController";
 
 const benefits = [
@@ -55,15 +55,13 @@ export default function CreatorProgramPage() {
     if (window.localStorage.getItem("marketplace-token")) return;
 
     event.preventDefault();
+    sessionStorage.setItem("creator-login-message", "Please log in or register an account to apply for a creator program.");
     router.push(`${routes.auth.login()}?next=${encodeURIComponent(destination)}`);
   };
 
   return (
     <main className="min-h-screen overflow-hidden bg-[var(--creator-page-bg)] text-slate-800">
       <Navbar active="programs" />
-      {typeof window !== "undefined" && !window.localStorage.getItem("marketplace-token") && (
-        <Toast variant="warning" duration={3000} message="Please login first before becoming a creator program member." />
-      )}
       <div className="mx-auto max-w-[1120px] px-4 pb-12 pt-10 sm:px-6 lg:px-8">
         <section className="relative overflow-hidden pb-10 pt-8 sm:pb-14 sm:pt-10">
           <div className="relative z-10 max-w-3xl px-0 sm:px-0 lg:px-0">

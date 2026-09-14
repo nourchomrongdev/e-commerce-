@@ -16,12 +16,29 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
-  const creatorRedirect = next === routes.programs.creatorProgramApply() || next === routes.programs.creatorProgramReview();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [loginMessage, setLoginMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const validationTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => {
+    const storedMessage = sessionStorage.getItem("creator-login-message");
+    if (storedMessage) {
+      setLoginMessage(storedMessage);
+      sessionStorage.removeItem("creator-login-message");
+    }
+
+    if (!next || !next.startsWith("/")) return;
+
+    sessionStorage.setItem("auth-redirect", next);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("next");
+    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", cleanUrl);
+  }, [next, searchParams]);
 
   useEffect(() => {
     const errorCode = searchParams.get("error");
@@ -69,7 +86,9 @@ function LoginPageContent() {
       if (!response.ok) throw new Error(data.error || "Unable to sign in.");
       window.localStorage.setItem("marketplace-token", data.token);
 
-      const destination = next && next.startsWith("/") ? next : routes.home();
+      const redirectedTarget = sessionStorage.getItem("auth-redirect") || (next && next.startsWith("/") ? next : "");
+      const destination = redirectedTarget || routes.home();
+      sessionStorage.removeItem("auth-redirect");
       router.push(destination);
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Unable to sign in."); }
     finally { setLoading(false); }
@@ -77,11 +96,11 @@ function LoginPageContent() {
 
   return (
       <>
-        {creatorRedirect && (
+        {loginMessage && (
           <Toast
             variant="warning"
-            duration={3000}
-            message="Please sign in first to continue to the creator program."
+            message={loginMessage}
+            onClose={() => undefined}
           />
         )}
         <AuthShell title="Sign in to your account" illustration="login" footer={<p className="text-[10px] text-muted">New to MarketPlace? <AuthLink href={routes.auth.register()}>Create an account →</AuthLink></p>}>

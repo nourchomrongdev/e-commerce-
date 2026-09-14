@@ -68,37 +68,39 @@ export default function Toast({
   if (!visible) return null;
 
   return (
-    <div
-      className={`relative z-[60] flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${tone.container} ${className}`}
-      role="alert"
-    >
-      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${tone.icon}`} aria-hidden="true">
-        {icon ?? symbol}
-      </span>
-      <div className="min-w-0 flex-1 text-xs">
-        <p className="font-semibold">{title ?? tone.label}</p>
-        <div className="mt-0.5 leading-5 opacity-90">{message}</div>
+    <div className="pointer-events-none fixed right-4 top-4 z-[100]">
+      <div
+        className={`pointer-events-auto relative flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border px-4 py-3 shadow-lg ${tone.container} ${className}`}
+        role="alert"
+      >
+        <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${tone.icon}`} aria-hidden="true">
+          {icon ?? symbol}
+        </span>
+        <div className="min-w-0 flex-1 text-xs">
+          <p className="font-semibold">{title ?? tone.label}</p>
+          <div className="mt-0.5 leading-5 opacity-90">{message}</div>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={() => {
+              setVisible(false);
+              onClose();
+            }}
+            aria-label="Close notification"
+            className="shrink-0 text-lg leading-none opacity-60 transition hover:opacity-100"
+          >
+            <PublicIcon name="x" className="h-4 w-4" />
+          </button>
+        )}
+        {duration && duration > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 h-0.5 bg-current opacity-50 transition-[width] ease-linear"
+            style={{ width: `${progress}%`, transitionDuration: `${duration}ms` }}
+          />
+        )}
       </div>
-      {onClose && (
-        <button
-          type="button"
-          onClick={() => {
-            setVisible(false);
-            onClose();
-          }}
-          aria-label="Close notification"
-          className="shrink-0 text-lg leading-none opacity-60 transition hover:opacity-100"
-        >
-          <PublicIcon name="x" className="h-4 w-4" />
-        </button>
-      )}
-      {duration && duration > 0 && (
-        <span
-          aria-hidden="true"
-          className="absolute bottom-0 left-0 h-0.5 bg-current opacity-50 transition-[width] ease-linear"
-          style={{ width: `${progress}%`, transitionDuration: `${duration}ms` }}
-        />
-      )}
     </div>
   );
 }

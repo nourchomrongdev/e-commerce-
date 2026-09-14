@@ -17,7 +17,7 @@ async function ensureCreatorRoleForUser(userId, transaction) {
 
   await UserAccountRole.findOrCreate({
     where: { UserId: user.UserId, UserRoleId: creatorRole[0].UserRoleId },
-    defaults: { UserId: user.UserId, UserRoleId: creatorRole[0].UserRoleId },
+    defaults: { UserId: user.UserId, UserRoleId: creatorRole[0].UserRoleId, CreatedAt: new Date() },
     transaction,
   });
 

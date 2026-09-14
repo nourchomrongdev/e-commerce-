@@ -4,7 +4,7 @@ const { UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, Crea
 const authRoutes = require("./authRoutes");
 const { createPaymentOrder, capturePaymentOrder } = require("../controllers/paymentController");
 const { applyCreatorProgram, approveCreatorProfile } = require("../controllers/creatorProgramController");
-const { findByToken } = require("../controllers/authHelpers");
+const { ensureCreatorRoleForUser, findByToken } = require("../controllers/authHelpers");
 const { deleteEncryptedImage, readEncryptedImage, saveEncryptedImage } = require("../services/encryptedImageService");
 const { setupPaymentToken } = require("../services/paypalService");
 
@@ -45,6 +45,23 @@ function decryptSensitiveValue(value) {
   return value;
 }
 
+function isKnownPayPalSandboxCardNumber(cardNumber) {
+  const digits = String(cardNumber || "").replace(/\D/g, "");
+  const approvedSandboxNumbers = new Set([
+    "4111111111111111",
+    "4242424242424242",
+    "4005519200000004",
+    "5555555555554444",
+    "5555555555554444",
+    "378282246310005",
+    "371449635398431",
+    "6011111111111117",
+    "6011000990139424",
+  ]);
+
+  return approvedSandboxNumbers.has(digits);
+}
+
 async function requireUser(req, res, next) {
   const authorization = req.headers.authorization || "";
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -70,10 +87,11 @@ async function requireCreatorAccess(req, res, next) {
     const user = await findByToken(token);
     if (!user) return res.status(401).json({ error: "User account is unavailable." });
 
-    let role = String(user.role?.RoleName || user.RoleName || "").toLowerCase();
-    const isVerified = Boolean(user.creatorProfile?.IsVerified);
+    const verifiedUser = await ensureCreatorRoleForUser(user);
+    let role = String(verifiedUser.role?.RoleName || verifiedUser.RoleName || "").toLowerCase();
+    const isVerified = Boolean(verifiedUser.creatorProfile?.IsVerified);
     let roleLinks = await UserAccountRole.findAll({
-      where: { UserId: user.UserId },
+      where: { UserId: verifiedUser.UserId },
       include: [{ model: UserRole, as: "role" }],
     });
     const hasCreatorRole = roleLinks.some((link) => String(link.role?.RoleName || "").toLowerCase() === "creator");
@@ -84,10 +102,11 @@ async function requireCreatorAccess(req, res, next) {
         defaults: { RoleName: "Creator" },
       });
       await UserAccountRole.findOrCreate({
-        where: { UserId: user.UserId, UserRoleId: creatorRole[0].UserRoleId },
-        defaults: { UserId: user.UserId, UserRoleId: creatorRole[0].UserRoleId },
+        where: { UserId: verifiedUser.UserId, UserRoleId: creatorRole[0].UserRoleId },
+        defaults: { UserId: verifiedUser.UserId, UserRoleId: creatorRole[0].UserRoleId, CreatedAt: new Date() },
       });
       roleLinks = [...roleLinks, { role: creatorRole[0] }];
+      role = "creator";
     }
 
     const hasCreatorAccess = role === "creator" || roleLinks.some((link) => String(link.role?.RoleName || "").toLowerCase() === "creator");
@@ -447,6 +466,26 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
   const cardExpiry = String(payment.cardExpiry || "").trim();
   const cardCvc = String(payment.cardCvc || "").trim();
   const cardBrand = String(payment.cardBrand || "").trim();
+
+  if (provider === "PayPal" && cardNumber) {
+    try {
+      const expiryMonth = String(cardExpiry).split("/")[0]?.trim();
+      const expiryYear = String(cardExpiry).split("/")[1]?.trim();
+      const tokenResult = await setupPaymentToken({
+        cardNumber,
+        cardExpiry: `${expiryMonth}/${expiryYear}`,
+        cardCvc,
+        cardName,
+      });
+
+      if (!tokenResult?.id) {
+        return res.status(400).json({ error: "PayPal sandbox rejected this card." });
+      }
+    } catch (error) {
+      const message = error?.details?.message || error?.message || "PayPal sandbox rejected this card.";
+      return res.status(400).json({ error: message });
+    }
+  }
 
   const payout = await CreatorPayoutInfo.findOne({ where: { CreatorProfileId: profile.CreatorProfileId } });
   
