@@ -6,6 +6,7 @@ const { sendSecurityEmail } = require("../services/mailService");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
 const oauthStates = new Set();
+const paypalOauthStates = new Set();
 
 function googleConfigError() {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return "Google OAuth is not configured.";
@@ -15,6 +16,19 @@ function googleConfigError() {
     if (callbackUrl.protocol !== "http:" && callbackUrl.protocol !== "https:") throw new Error("Invalid protocol");
   } catch {
     return "GOOGLE_CALLBACK_URL must be a valid HTTP(S) URL.";
+  }
+  return null;
+}
+
+function paypalConfigError() {
+  if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) return "PayPal OAuth is not configured.";
+
+  const callbackUrl = process.env.PAYPAL_REDIRECT_URL || "http://localhost:5000/api/auth/paypal/callback";
+  try {
+    const parsedUrl = new URL(callbackUrl);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") throw new Error("Invalid protocol");
+  } catch {
+    return "PAYPAL_REDIRECT_URL must be a valid HTTP(S) URL.";
   }
   return null;
 }
@@ -43,6 +57,113 @@ function googleStart(req, res) {
   oauthStates.add(state);
   setTimeout(() => oauthStates.delete(state), 10 * 60 * 1000);
   return res.redirect(googleClient.generateAuthUrl({ access_type: "offline", prompt: "select_account", scope: ["openid", "email", "profile"], state }));
+}
+
+function paypalStart(req, res) {
+  const configurationError = paypalConfigError();
+  if (configurationError) return res.status(503).json({ error: configurationError });
+
+  const state = crypto.randomBytes(32).toString("hex");
+  paypalOauthStates.add(state);
+  setTimeout(() => paypalOauthStates.delete(state), 10 * 60 * 1000);
+
+  const redirectUri = process.env.PAYPAL_REDIRECT_URL || "http://localhost:5000/api/auth/paypal/callback";
+  const paypalUrl = new URL("https://www.sandbox.paypal.com/connect");
+  paypalUrl.searchParams.set("flowEntry", "static");
+  paypalUrl.searchParams.set("client_id", process.env.PAYPAL_CLIENT_ID);
+  paypalUrl.searchParams.set("scope", "openid email profile");
+  paypalUrl.searchParams.set("redirect_uri", redirectUri);
+  paypalUrl.searchParams.set("response_type", "code");
+  paypalUrl.searchParams.set("state", state);
+
+  return res.redirect(paypalUrl.toString());
+}
+
+async function ensureOAuthUserForPayPal({ email, name, providerAccountId }, transaction) {
+  let oauthAccount = await OAuthAccount.findOne({ where: { Provider: "paypal", ProviderAccountId: providerAccountId }, transaction });
+  let user = oauthAccount ? await findById(oauthAccount.UserId, transaction) : null;
+
+  if (user) return user;
+
+  const existingInfo = await UserInfo.findOne({ where: { Email: normaliseEmail(email) }, include: [{ model: UserAccount, as: "account" }], transaction });
+  let account;
+
+  if (existingInfo?.account) {
+    account = existingInfo.account;
+    if (!account.Username) {
+      account.Username = await googleUsername(name, email, providerAccountId, transaction);
+      await account.save({ transaction });
+    }
+  } else {
+    const info = existingInfo || await UserInfo.create({ FullName: name || email, Email: normaliseEmail(email) }, { transaction });
+    const role = await UserRole.findOne({ where: { RoleName: "Buyer" }, transaction });
+    const username = await googleUsername(name, email, providerAccountId, transaction);
+    account = await UserAccount.create({ UserInfoId: info.UserInfoId, Username: username, PasswordHash: null, RoleId: role.UserRoleId, Status: "active" }, { transaction });
+    await UserAccountRole.findOrCreate({
+      where: { UserId: account.UserId, UserRoleId: role.UserRoleId },
+      defaults: { UserId: account.UserId, UserRoleId: role.UserRoleId, CreatedAt: new Date() },
+      transaction,
+    });
+  }
+
+  await OAuthAccount.findOrCreate({
+    where: { Provider: "paypal", ProviderAccountId: providerAccountId },
+    defaults: { Provider: "paypal", ProviderAccountId: providerAccountId, ProviderEmail: email, UserId: account.UserId },
+    transaction,
+  });
+
+  return findById(account.UserId, transaction);
+}
+
+async function paypalCallback(req, res) {
+  const { code, state } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  if (!code || typeof state !== "string" || !paypalOauthStates.delete(state)) return res.status(400).send("Invalid PayPal OAuth callback.");
+  if (!requireDatabase(res, sequelize)) return;
+
+  try {
+    const redirectUri = process.env.PAYPAL_REDIRECT_URL || "http://localhost:5000/api/auth/paypal/callback";
+    const tokenResponse = await fetch("https://api-m.sandbox.paypal.com/v1/oauth2/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: String(code),
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json().catch(() => ({}));
+    if (!tokenResponse.ok) {
+      throw new Error(tokenData?.error_description || tokenData?.message || "PayPal token exchange failed.");
+    }
+
+    const userInfoResponse = await fetch("https://api-m.sandbox.paypal.com/v1/identity/openidconnect/userinfo?schema=openid", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const userInfo = await userInfoResponse.json().catch(() => ({}));
+    if (!userInfo?.email) throw new Error("PayPal did not return a usable identity.");
+
+    const user = await sequelize.transaction(async (transaction) => ensureOAuthUserForPayPal({
+      email: userInfo.email,
+      name: userInfo.name || userInfo.given_name || userInfo.email,
+      providerAccountId: userInfo.user_id || userInfo.sub || userInfo.email,
+    }, transaction));
+
+    await sendSecurityEmail({
+      to: normaliseEmail(userInfo.email),
+      subject: "New PayPal login to your Digital Products Marketplace account",
+      text: "A successful PayPal login was detected. If this was not you, secure your PayPal account immediately.",
+    });
+
+    return res.redirect(`${frontendUrl}/oauth/callback#token=${encodeURIComponent(authResponse(user).token)}`);
+  } catch (error) {
+    console.error("PayPal OAuth failed", error);
+    return res.redirect(`${frontendUrl}/login?error=paypal-sign-in-failed`);
+  }
 }
 
 async function googleCallback(req, res) {
@@ -98,4 +219,4 @@ async function googleCallback(req, res) {
   }
 }
 
-module.exports = { googleStart, googleCallback };
+module.exports = { googleStart, googleCallback, paypalStart, paypalCallback };

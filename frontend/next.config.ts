@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "172.26.80.1",
     "briery-helene-naissant.ngrok-free.dev",
     "marketplacebynourchomrong.test",
+    "10.205.246.241"
   ],
   typescript: {
     ignoreBuildErrors: true,

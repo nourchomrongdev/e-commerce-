@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import PublicIcon, { type PublicIconName, type PublicIconSidebarName } from "@/components/icons/PublicIcon";
 import ProductPagination from "@/components/products/ProductPagination";
 import { Badge } from "@/components/ui";
@@ -14,6 +15,7 @@ const products = ["Premium UI Kit", "Music Pack Vol 1", "3D Icon Set", "Video LU
 const dates = ["May 11, 2025", "May 10, 2025", "May 9, 2025", "May 8, 2025", "May 7, 2025"];
 const withActions = (rows: string[][]) => rows.map((row) => [...row, "Actions"]);
 const email = (name: string) => `${name.toLowerCase().replace(" ", ".")}@example.com`;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
 const pages: Partial<Record<AdminSection, PageConfig>> = {
   users: { title: "Users", description: "Manage marketplace users, roles, and account status.", metrics: [["Total Users", "12,458", "+12.3%", "user"], ["Active Users", "9,842", "+10.1%", "user"], ["Suspended Users", "320", "-2.1%", "shield-minus"], ["New This Month", "1,245", "+6.5%", "user"]], columns: ["User", "Email", "Role", "Status", "Joined Date", "Actions"], filters: ["All Roles", "All Status"], rows: withActions(people.map((name, index) => [name, email(name), index % 2 ? "Customer" : "Creator", index === 3 ? "Suspended" : "Active", dates[index]])) },
@@ -60,13 +62,38 @@ export default function AdminTablePage({ section }: { section: AdminSection }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [databaseRows, setDatabaseRows] = useState<string[][] | null>(null);
   const pageSize = 3;
-  const rows = page.rows.filter((row) => row.join(" ").toLowerCase().includes(search.toLowerCase()) && (filter === "All" || row.includes(filter)));
+
+  useEffect(() => {
+    if (section !== "products") return;
+    const token = window.localStorage.getItem("marketplace-token");
+    fetch(`${apiUrl}/admin/products`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load products.");
+        return response.json();
+      })
+      .then((data: { products?: { name: string; storefrontId: number; price: number; status: string; updatedAt: string }[] }) => {
+        setDatabaseRows((data.products ?? []).map((product) => [
+          product.name,
+          `Storefront #${product.storefrontId}`,
+          "Database category",
+          `$${product.price.toFixed(2)}`,
+          product.status.charAt(0).toUpperCase() + product.status.slice(1),
+          new Date(product.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          "Actions",
+        ]));
+      })
+      .catch(() => setDatabaseRows([]));
+  }, [section]);
+
+  const sourceRows = section === "products" && databaseRows !== null ? databaseRows : page.rows;
+  const rows = sourceRows.filter((row) => row.join(" ").toLowerCase().includes(search.toLowerCase()) && (filter === "All" || row.includes(filter)));
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const activePage = Math.min(currentPage, totalPages);
   const visibleRows = rows.slice((activePage - 1) * pageSize, activePage * pageSize);
   return <div className="mx-auto w-full max-w-[1400px]">
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="mb-1 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">Administration</p><h1 className="text-2xl font-bold tracking-tight text-heading sm:text-[28px]">{page.title}</h1><p className="mt-1 text-sm text-muted">{page.description}</p></div>{["users", "roles"].includes(section) && <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover"><PublicIcon name="add" className="h-3.5 w-3.5" /> Add {section === "users" ? "User" : "Role"}</button>}</header>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="mb-1 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">Administration</p><h1 className="text-2xl font-bold tracking-tight text-heading sm:text-[28px]">{page.title}</h1><p className="mt-1 text-sm text-muted">{page.description}</p></div>{section === "products" ? <Link href="/admin/products/new" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover"><PublicIcon name="add" className="h-3.5 w-3.5" /> Add Product</Link> : ["users", "roles"].includes(section) && <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover"><PublicIcon name="add" className="h-3.5 w-3.5" /> Add {section === "users" ? "User" : "Role"}</button>}</header>
     {page.metrics.length > 0 && <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{page.metrics.map(([label, value, change, icon]) => <article key={label} className="rounded-xl border border-border bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><p className="text-[10px] font-semibold text-muted-soft">{label}</p><span className="grid h-8 w-8 place-items-center rounded-lg bg-orange-50 text-primary"><PublicIcon name={icon} className="h-4 w-4" /></span></div><p className="mt-2 text-xl font-bold text-heading">{value}</p><p className={`mt-1 text-[9px] font-semibold ${change.startsWith("-") ? "text-status-danger" : "text-status-success"}`}>{change}</p></article>)}</div>}
     <section className={`${page.metrics.length > 0 ? "mt-5" : "mt-6"} overflow-visible rounded-2xl border border-border bg-white shadow-sm`}><div className="flex flex-col gap-3 border-b border-divider px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div className="flex flex-1 flex-wrap gap-2"><label className="relative min-w-[14rem] flex-1 sm:max-w-[18rem]"><span className="sr-only">Search {page.title}</span><PublicIcon name="search" className="absolute left-3 top-2.5 h-4 w-4 text-muted-faint" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${page.title.toLowerCase()}...`} className="h-9 w-full rounded-lg border border-border-control pl-9 pr-3 text-xs text-body outline-none placeholder:text-muted-faint focus:border-primary focus:ring-2 focus:ring-orange-100" /></label>{page.filters.map((name) => <select key={name} aria-label={name} value={filter} onChange={(event) => setFilter(event.target.value)} className="select-chevron h-9 rounded-lg border border-border-control bg-white px-3 pr-9 text-[10px] text-body outline-none transition hover:border-primary focus:border-primary focus:ring-2 focus:ring-orange-100"><option value="All">{name}</option><option>Active</option><option>Inactive</option><option>Verified</option><option>Pending</option><option>Approved</option><option>Resolved</option><option>Rejected</option><option>Suspended</option></select>)}</div></div>
       <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs"><thead className="bg-surface-muted text-[10px] font-medium uppercase tracking-[0.08em] text-muted"><tr>{page.columns.map((column) => <th key={column} className="px-4 py-3 font-medium">{column}</th>)}</tr></thead><tbody>{visibleRows.map((row, rowIndex) => <tr key={`${row[0]}-${rowIndex}`} className="border-t border-divider text-body transition hover:bg-surface-hover">{row.map((value, valueIndex) => <td key={`${value}-${valueIndex}`} className={`px-4 py-3 ${valueIndex === 0 ? "font-medium text-body-strong" : "text-[10px] text-muted"}`}>{page.columns[valueIndex] === "Actions" ? <button type="button" aria-label={`More actions for ${row[0]}`} className="grid h-7 w-7 place-items-center rounded-md border border-border-action text-muted transition hover:border-primary hover:bg-accent-light hover:text-primary"><PublicIcon name="ellipsis-vertical" className="h-3.5 w-3.5" /></button> : ["Active", "Approved", "Resolved", "Verified"].includes(value) ? <Badge tone="success">{value}</Badge> : ["Pending", "In Review"].includes(value) ? <Badge tone="warning">{value}</Badge> : ["Inactive", "Suspended", "Expired", "Revoked", "Rejected"].includes(value) ? <Badge tone="danger">{value}</Badge> : value}</td>)}</tr>)}</tbody></table>{rows.length === 0 && <p className="px-6 py-12 text-center text-sm text-muted">No matching results.</p>}</div>

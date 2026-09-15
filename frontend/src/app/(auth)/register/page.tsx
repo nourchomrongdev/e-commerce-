@@ -94,6 +94,7 @@ export default function RegisterPage() {
       <AuthButton disabled={submitDisabled}>{loading ? "Creating account..." : "Create Account"}</AuthButton>
       <div className="flex items-center gap-3 text-[10px] text-muted-faint"><span className="h-px flex-1 bg-divider" />or continue with<span className="h-px flex-1 bg-divider" /></div>
       <a href={`${apiUrl}/auth/google`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-control text-[10px] font-medium text-body no-underline transition hover:bg-surface-hover"><img src="/icons/google-icon-.svg" alt="" aria-hidden="true" className="h-4 w-4" />Continue with Google</a>
+      <a href={`${apiUrl}/auth/paypal`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#1d4ed8] text-[10px] font-medium text-[#1d4ed8] no-underline transition hover:bg-[#eff6ff]"><img src="/icons/paypal-icon.svg" alt="" aria-hidden="true" className="h-4 w-4" />Continue with PayPal</a>
     </PreventSubmit>
   </AuthShell>;
 }

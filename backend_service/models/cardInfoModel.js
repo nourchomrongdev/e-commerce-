@@ -5,6 +5,7 @@ module.exports = sequelize?.define("CardInfo", {
   CardInfoId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, field: "CardInfoId" },
   UUID: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, field: "UUID" },
   CreatorProfileId: { type: DataTypes.INTEGER, allowNull: false, field: "CreatorProfileId" },
+  StorefrontId: { type: DataTypes.INTEGER, allowNull: true, field: "StorefrontId" },
   CardName: { type: DataTypes.STRING(255), field: "CardName" },
   CardNumber: { type: DataTypes.TEXT, field: "CardNumber" },
   CardExpiry: { type: DataTypes.TEXT, field: "CardExpiry" },

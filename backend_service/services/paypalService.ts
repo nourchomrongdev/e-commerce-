@@ -96,16 +96,27 @@ async function setupPaymentToken({ cardNumber, cardExpiry, cardCvc, cardName }) 
     throw error;
   }
 
-  const [expiryMonth, expiryYear] = String(cardExpiry).split("/");
-  const cleanedExpiryMonth = String(expiryMonth || "").trim();
-  const cleanedExpiryYear = String(expiryYear || "").trim();
-  const twoDigitYear = cleanedExpiryYear.length === 4 ? cleanedExpiryYear.slice(-2) : cleanedExpiryYear;
+  const [expiryMonthRaw, expiryYearRaw] = String(cardExpiry).split("/");
+  const expiryMonth = String(expiryMonthRaw || "").trim();
+  const expiryYear = String(expiryYearRaw || "").trim();
+
+  if (!/^\d{1,2}$/.test(expiryMonth) || Number(expiryMonth) < 1 || Number(expiryMonth) > 12) {
+    const error = new Error("Card expiry month is invalid.") as PayPalError;
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const normalizedYear = expiryYear.length === 2 ? `20${expiryYear}` : expiryYear;
+  if (!/^\d{4}$/.test(normalizedYear)) {
+    const error = new Error("Card expiry year is invalid.") as PayPalError;
+    error.statusCode = 400;
+    throw error;
+  }
 
   const cardData: any = {
     number: String(cardNumber).replace(/\s/g, ""),
-    expire_month: cleanedExpiryMonth,
-    expire_year: twoDigitYear,
-    cvv: String(cardCvc).trim(),
+    expiry: `${normalizedYear}-${String(expiryMonth).padStart(2, "0")}`,
+    security_code: String(cardCvc).trim(),
     name: String(cardName || "Test Buyer").trim() || "Test Buyer",
   };
 

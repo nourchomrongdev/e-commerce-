@@ -1,11 +1,12 @@
 const express = require("express");
 const crypto = require("crypto");
-const { UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, Order, OrderItem } = require("../models");
+const { sequelize, UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, Order, OrderItem } = require("../models");
 const authRoutes = require("./authRoutes");
 const { createPaymentOrder, capturePaymentOrder } = require("../controllers/paymentController");
 const { applyCreatorProgram, approveCreatorProfile } = require("../controllers/creatorProgramController");
 const { ensureCreatorRoleForUser, findByToken } = require("../controllers/authHelpers");
 const { deleteEncryptedImage, readEncryptedImage, saveEncryptedImage } = require("../services/encryptedImageService");
+const { saveProductFile } = require("../services/productFileService");
 const { setupPaymentToken } = require("../services/paypalService");
 
 const router = express.Router();
@@ -45,21 +46,23 @@ function decryptSensitiveValue(value) {
   return value;
 }
 
-function isKnownPayPalSandboxCardNumber(cardNumber) {
+function isValidCardNumber(cardNumber) {
   const digits = String(cardNumber || "").replace(/\D/g, "");
-  const approvedSandboxNumbers = new Set([
-    "4111111111111111",
-    "4242424242424242",
-    "4005519200000004",
-    "5555555555554444",
-    "5555555555554444",
-    "378282246310005",
-    "371449635398431",
-    "6011111111111117",
-    "6011000990139424",
-  ]);
+  if (!/^\d{13,19}$/.test(digits)) return false;
 
-  return approvedSandboxNumbers.has(digits);
+  let sum = 0;
+  let shouldDouble = false;
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    let digit = Number(digits[index]);
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
 }
 
 async function requireUser(req, res, next) {
@@ -236,8 +239,72 @@ router.get("/health", (req, res) => {
   res.json({ status: "ok", service: "marketplace-api" });
 });
 
-router.get("/products", (req, res) => {
-  res.json({ products });
+router.get("/products", async (req, res) => {
+  try {
+    const databaseProducts = await Product.findAll({ order: [["CreatedAt", "DESC"]] });
+    return res.json({ products: databaseProducts.map(serializeProduct) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load products." });
+  }
+});
+
+function serializeProduct(product) {
+  return {
+    id: product.ProductId,
+    name: product.ProductName,
+    slug: product.Slug,
+    description: product.Description || "",
+    productType: product.ProductType,
+    price: Number(product.Price || 0),
+    currency: product.Currency || "USD",
+    status: String(product.Status || "draft").toLowerCase(),
+    storefrontId: product.StorefrontId,
+    createdAt: product.CreatedAt,
+    updatedAt: product.UpdatedAt,
+  };
+}
+
+router.get("/admin/products", requireAdmin, async (req, res) => {
+  try {
+    const databaseProducts = await Product.findAll({ order: [["CreatedAt", "DESC"]] });
+    return res.json({ products: databaseProducts.map(serializeProduct) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load products." });
+  }
+});
+
+router.post("/admin/products", requireAdmin, async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const slug = await uniqueProductSlug(req.body.slug || name);
+    const price = Number(req.body.price);
+    let storefrontId = Number(req.body.storefrontId);
+    let categoryId = Number(req.body.categoryId);
+    if (!storefrontId) {
+      const [storefronts] = await sequelize.query('SELECT "StorefrontId" FROM "Storefronts" ORDER BY "CreatedAt" ASC LIMIT 1');
+      storefrontId = Number(storefronts[0]?.StorefrontId);
+    }
+    if (!categoryId) categoryId = await resolveCategoryId(req.body.categoryName);
+    if (!name || !slug || !Number.isFinite(price) || price < 0 || !storefrontId || !categoryId) {
+      return res.status(400).json({ error: "Name, price, storefront, and category are required." });
+    }
+    const created = await Product.create({
+      StorefrontId: storefrontId,
+      CategoryId: categoryId,
+      ProductName: name,
+      Slug: slug,
+      Description: String(req.body.description || "").trim(),
+      ProductType: String(req.body.productType || "Digital Download"),
+      Price: price,
+      Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(),
+      Status: String(req.body.status || "draft").toLowerCase(),
+      CreatedAt: new Date(),
+      UpdatedAt: new Date(),
+    });
+    return res.status(201).json({ product: serializeProduct(created) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to create product." });
+  }
 });
 
 router.get("/marketplace", (req, res) => {
@@ -267,6 +334,110 @@ async function databaseStorefront(req) {
   return { profile, storefront };
 }
 
+function serializePreview(preview) {
+  return {
+    id: preview.ProductPreviewId,
+    type: preview.PreviewType,
+    title: preview.Title || "",
+    url: preview.PreviewUrl,
+    sortOrder: preview.SortOrder,
+    isActive: preview.IsActive,
+  };
+}
+
+async function resolveCategoryId(categoryName) {
+  const normalizedName = String(categoryName || "Uncategorized").trim() || "Uncategorized";
+  const [existing] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE lower("CategoryName") = lower(:categoryName) LIMIT 1', { replacements: { categoryName: normalizedName } });
+  if (existing[0]?.CategoryId) return Number(existing[0].CategoryId);
+  const slug = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "uncategorized";
+  await sequelize.query('INSERT INTO "Categories" ("CategoryName", "Slug", "Description") VALUES (:categoryName, :slug, :description) ON CONFLICT ("Slug") DO NOTHING', { replacements: { categoryName: normalizedName, slug, description: `${normalizedName} products` } });
+  const [created] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE "Slug" = :slug LIMIT 1', { replacements: { slug } });
+  return Number(created[0]?.CategoryId || 0);
+}
+
+async function uniqueProductSlug(requestedSlug) {
+  const baseSlug = String(requestedSlug || "product").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/(^-|-$)/g, "") || "product";
+  let candidate = baseSlug;
+  let suffix = 2;
+  while (await Product.count({ where: { Slug: candidate } })) {
+    candidate = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+async function creatorProduct(req) {
+  const { storefront } = await databaseStorefront(req);
+  if (!storefront) return { storefront: null, product: null };
+  const product = await Product.findOne({ where: { ProductId: req.params.productId, StorefrontId: storefront.StorefrontId } });
+  return { storefront, product };
+}
+
+router.post("/creator/storefronts/:storefrontName/products", async (req, res) => {
+  try {
+    const { storefront } = await databaseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const name = String(req.body.name || "").trim();
+    const price = Number(req.body.price || 0);
+    if (!name || !Number.isFinite(price) || price < 0) return res.status(400).json({ error: "Product name and a valid price are required." });
+    const categoryId = Number(req.body.categoryId || await resolveCategoryId(req.body.categoryName));
+    const slug = await uniqueProductSlug(req.body.slug || name);
+    const now = new Date();
+    const product = await Product.create({ StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
+    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName).map((file) => ({ ProductId: product.ProductId, FileName: String(file.fileName).slice(0, 255), StorageKey: String(file.storageKey), FileSize: Number(file.fileSize || 0), MimeType: String(file.mimeType || "application/octet-stream"), CreatedAt: now })) : [];
+    if (files.length) await ProductFile.bulkCreate(files);
+    const previews = Array.isArray(req.body.previews) ? req.body.previews.filter((preview) => preview?.url).map((preview, index) => ({ ProductId: product.ProductId, PreviewType: String(preview.type || "image"), Title: String(preview.title || "").trim(), PreviewUrl: String(preview.url), SortOrder: Number(preview.sortOrder ?? index), CreatedAt: now })) : [];
+    if (previews.some((preview) => preview.PreviewUrl.length > 8 * 1024 * 1024)) return res.status(400).json({ error: "Preview images must be smaller than 8 MB." });
+    const createdPreviews = previews.length ? await ProductPreview.bulkCreate(previews) : [];
+    return res.status(201).json({ product: serializeProduct(product), previews: createdPreviews.map(serializePreview) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to create product." });
+  }
+});
+
+router.post("/creator/storefronts/:storefrontName/product-files", async (req, res) => {
+  try {
+    const { storefront } = await databaseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const file = await saveProductFile(req.body.data, req.body.fileName, req.body.mimeType);
+    return res.status(201).json({ file });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to upload product file." });
+  }
+});
+
+router.get("/creator/storefronts/:storefrontName/products/:productId/previews", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const previews = await ProductPreview.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["SortOrder", "ASC"]] });
+  return res.json({ previews: previews.map(serializePreview) });
+});
+
+router.post("/creator/storefronts/:storefrontName/products/:productId/previews", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const url = String(req.body.url || "");
+  if (!url || url.length > 8 * 1024 * 1024) return res.status(400).json({ error: "A preview image smaller than 8 MB is required." });
+  const preview = await ProductPreview.create({ ProductId: product.ProductId, PreviewType: String(req.body.type || "image"), Title: String(req.body.title || "").trim(), PreviewUrl: url, SortOrder: Number(req.body.sortOrder || 0), CreatedAt: new Date() });
+  return res.status(201).json({ preview: serializePreview(preview) });
+});
+
+router.put("/creator/storefronts/:storefrontName/products/:productId/previews/:previewId", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const preview = await ProductPreview.findOne({ where: { ProductPreviewId: req.params.previewId, ProductId: product.ProductId } });
+  if (!preview) return res.status(404).json({ error: "Preview not found." });
+  await preview.update({ PreviewType: req.body.type ?? preview.PreviewType, Title: req.body.title ?? preview.Title, PreviewUrl: req.body.url ?? preview.PreviewUrl, SortOrder: req.body.sortOrder ?? preview.SortOrder, IsActive: req.body.isActive ?? preview.IsActive });
+  return res.json({ preview: serializePreview(preview) });
+});
+
+router.delete("/creator/storefronts/:storefrontName/products/:productId/previews/:previewId", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const deleted = await ProductPreview.destroy({ where: { ProductPreviewId: req.params.previewId, ProductId: product.ProductId } });
+  return deleted ? res.status(204).send() : res.status(404).json({ error: "Preview not found." });
+});
+
 function serializeStorefront(storefront) {
   if (!storefront) return null;
   return {
@@ -292,7 +463,7 @@ router.get("/creator/storefronts", async (req, res) => {
 
 router.get("/creator/storefronts/:storefrontName", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
-  if (!storefront || storefront.StoreName !== decodeURIComponent(req.params.storefrontName)) return res.status(404).json({ error: "Storefront not found" });
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   return res.json({ storefront: serializeStorefront(storefront) });
 });
 
@@ -314,21 +485,21 @@ router.post("/creator/storefronts", async (req, res) => {
 
 router.put("/creator/storefronts/:storefrontName", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
-  if (!storefront || storefront.StoreName !== decodeURIComponent(req.params.storefrontName)) return res.status(404).json({ error: "Storefront not found" });
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   await storefront.update({ StoreName: String(req.body.storeName ?? storefront.StoreName).trim(), Description: String(req.body.description ?? storefront.Description).trim(), LogoUrl: req.body.logoUrl ?? storefront.LogoUrl, IsPublished: req.body.isPublished ?? storefront.IsPublished });
   return res.json({ storefront: serializeStorefront(storefront) });
 });
 
 router.delete("/creator/storefronts/:storefrontName", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
-  if (!storefront || storefront.StoreName !== decodeURIComponent(req.params.storefrontName)) return res.status(404).json({ error: "Storefront not found" });
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   await storefront.destroy();
   return res.status(204).send();
 });
 
 router.get("/creator/storefronts/:storefrontName/overview", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
-  if (!storefront || storefront.StoreName !== decodeURIComponent(req.params.storefrontName)) return res.status(404).json({ error: "Storefront not found" });
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   const productCount = await Product.count({ where: { StorefrontId: storefront.StorefrontId } });
   const revenue = Number(await OrderItem.sum("TotalAmount", { where: { StorefrontId: storefront.StorefrontId } })) || 0;
   const orders = await OrderItem.count({ distinct: true, col: "OrderId", where: { StorefrontId: storefront.StorefrontId } });
@@ -367,7 +538,10 @@ router.get("/creator/storefronts/:storefrontName/payment", async (req, res) => {
   const { profile, storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   const payout = await CreatorPayoutInfo.findOne({ where: { CreatorProfileId: profile.CreatorProfileId } });
-  const allCards = await CardInfo.findAll({ where: { CreatorProfileId: profile.CreatorProfileId } });
+  const allCards = await CardInfo.findAll({
+    where: { CreatorProfileId: profile.CreatorProfileId, StorefrontId: storefront.StorefrontId },
+    order: [["CreatedAt", "ASC"]],
+  });
 
   let paymentDetails = { methods: [], taxId: "", cardName: "", paypalEmail: "", stripeEmail: "", stripeAccountId: "", cardNumber: "", cardExpiry: "", cardCvc: "", cardBrand: "", provider: "PayPal" };
   let savedCards = [];
@@ -467,24 +641,95 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
   const cardCvc = String(payment.cardCvc || "").trim();
   const cardBrand = String(payment.cardBrand || "").trim();
 
-  if (provider === "PayPal" && cardNumber) {
-    try {
-      const expiryMonth = String(cardExpiry).split("/")[0]?.trim();
-      const expiryYear = String(cardExpiry).split("/")[1]?.trim();
-      const tokenResult = await setupPaymentToken({
-        cardNumber,
-        cardExpiry: `${expiryMonth}/${expiryYear}`,
-        cardCvc,
-        cardName,
-      });
+  const hasPayPalAccountConnection = Boolean(paypalEmail) && !cardNumber && !cardExpiry && !cardCvc;
 
-      if (!tokenResult?.id) {
-        return res.status(400).json({ error: "PayPal sandbox rejected this card." });
-      }
-    } catch (error) {
-      const message = error?.details?.message || error?.message || "PayPal sandbox rejected this card.";
-      return res.status(400).json({ error: message });
+  if (provider === "PayPal" && cardNumber) {
+    if (!isValidCardNumber(cardNumber)) {
+      return res.status(400).json({
+        error: "Use a valid card number.",
+      });
     }
+
+    // A Sandbox-account card is valid test data, but PayPal's Vault endpoint
+    // only accepts a separate limited card set. This screen only records a
+    // creator's Sandbox payment setup; it does not charge or vault the card.
+    // Therefore, skip the Vault call in Sandbox and keep the test flow usable.
+    if (String(process.env.PAYPAL_ENVIRONMENT || "sandbox").toLowerCase() !== "sandbox") {
+      try {
+        const expiryMonth = String(cardExpiry).split("/")[0]?.trim();
+        const expiryYear = String(cardExpiry).split("/")[1]?.trim();
+        const tokenResult = await setupPaymentToken({
+          cardNumber,
+          cardExpiry: `${expiryMonth}/${expiryYear}`,
+          cardCvc,
+          cardName,
+        });
+
+        if (!tokenResult?.id) {
+          return res.status(400).json({ error: "PayPal rejected this card." });
+        }
+      } catch (error) {
+        const detail = error?.details?.details?.[0];
+        const message = detail?.issue || error?.details?.message || error?.message || "PayPal rejected this card.";
+
+        if (String(message).toLowerCase().includes("insufficient permissions") || String(message).toLowerCase().includes("not authorized")) {
+          return res.status(400).json({
+            error: "PayPal account is not configured for card processing. Enable Advanced Credit and Debit Card Payments before using card entry in production.",
+          });
+        }
+
+        return res.status(400).json({ error: message });
+      }
+    }
+  }
+
+  if (provider === "PayPal" && hasPayPalAccountConnection) {
+    const nextMethods = methods.length ? methods : ["PayPal"];
+    const nextPrimaryMethod = primaryMethod || "PayPal";
+    const payout = await CreatorPayoutInfo.findOne({ where: { CreatorProfileId: profile.CreatorProfileId } });
+    const accountIdentifier = encryptSensitiveValue(JSON.stringify({
+      methods: nextMethods,
+      provider,
+      taxId,
+      cardName,
+      paypalEmail,
+      stripeEmail,
+      stripeAccountId,
+      cardNumber: "",
+      cardExpiry: "",
+      cardCvc: "",
+      cardBrand: "",
+    }));
+
+    const values = {
+      CreatorProfileId: profile.CreatorProfileId,
+      PayoutMethod: nextPrimaryMethod,
+      AccountName: paypalEmail || cardName || stripeEmail || "",
+      AccountIdentifier: accountIdentifier,
+      Currency: "USD",
+    };
+
+    const saved = payout ? await payout.update(values) : await CreatorPayoutInfo.create(values);
+
+    return res.json({
+      storefrontName: storefront.StoreName,
+      payment: {
+        methods: nextMethods,
+        primaryMethod: nextPrimaryMethod,
+        provider,
+        taxId,
+        cardName,
+        paypalEmail,
+        stripeEmail,
+        stripeAccountId,
+        cardNumber: "",
+        cardExpiry: "",
+        cardCvc: "",
+        cardBrand: "",
+        accountName: values.AccountName,
+        accountIdentifier: decryptSensitiveValue(saved.AccountIdentifier),
+      },
+    });
   }
 
   const payout = await CreatorPayoutInfo.findOne({ where: { CreatorProfileId: profile.CreatorProfileId } });
@@ -492,11 +737,17 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
   // If cardInfoId provided, update existing card; otherwise create new one
   let cardInfo = null;
   if (cardInfoId) {
-    cardInfo = await CardInfo.findOne({ where: { CardInfoId: cardInfoId, CreatorProfileId: profile.CreatorProfileId } });
+    cardInfo = await CardInfo.findOne({
+      where: { CardInfoId: cardInfoId, CreatorProfileId: profile.CreatorProfileId, StorefrontId: storefront.StorefrontId },
+    });
   }
 
+  const existingCardCount = await CardInfo.count({
+    where: { CreatorProfileId: profile.CreatorProfileId, StorefrontId: storefront.StorefrontId },
+  });
   const cardValues = {
     CreatorProfileId: profile.CreatorProfileId,
+    StorefrontId: storefront.StorefrontId,
     CardName: encryptSensitiveValue(cardName),
     CardNumber: encryptSensitiveValue(cardNumber),
     CardExpiry: encryptSensitiveValue(cardExpiry),
@@ -504,7 +755,7 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
     CardBrand: encryptSensitiveValue(cardBrand),
     Provider: provider,
     Methods: methods,
-    PrimaryMethod: primaryMethod,
+    PrimaryMethod: existingCardCount === 0 ? primaryMethod : "Secondary",
     TaxId: encryptSensitiveValue(taxId),
     PaypalEmail: encryptSensitiveValue(paypalEmail),
     StripeEmail: encryptSensitiveValue(stripeEmail),
@@ -578,6 +829,43 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
       error: error.message || "Unable to save payment settings",
     });
   }
+});
+
+router.patch("/creator/storefronts/:storefrontName/payment/cards/:cardInfoId/primary", async (req, res) => {
+  const { profile, storefront } = await databaseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
+
+  const where = { CreatorProfileId: profile.CreatorProfileId, StorefrontId: storefront.StorefrontId };
+  const card = await CardInfo.findOne({ where: { ...where, CardInfoId: Number(req.params.cardInfoId) } });
+  if (!card) return res.status(404).json({ error: "Card not found" });
+
+  await CardInfo.update({ PrimaryMethod: "Secondary" }, { where });
+  await card.update({ PrimaryMethod: "Credit Card" });
+  return res.json({ cardInfoId: card.CardInfoId, primaryMethod: "Credit Card" });
+});
+
+router.delete("/creator/storefronts/:storefrontName/payment/cards/:cardInfoId", async (req, res) => {
+  const { profile, storefront } = await databaseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
+
+  const cards = await CardInfo.findAll({
+    where: { CreatorProfileId: profile.CreatorProfileId, StorefrontId: storefront.StorefrontId },
+    order: [["CreatedAt", "ASC"]],
+  });
+  if (cards.length <= 1) {
+    return res.status(409).json({ error: "A storefront must keep at least one card." });
+  }
+
+  const card = cards.find((item) => item.CardInfoId === Number(req.params.cardInfoId));
+  if (!card) return res.status(404).json({ error: "Card not found" });
+
+  if (card.PrimaryMethod === "Credit Card") {
+    return res.status(409).json({ error: "The primary card cannot be removed. Set another card as primary first." });
+  }
+
+  await card.destroy();
+
+  return res.status(204).send();
 });
 
 router.post("/creator/storefronts/:storefrontName/payment/paypal", async (req, res) => {

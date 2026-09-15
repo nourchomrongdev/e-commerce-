@@ -9,6 +9,8 @@ const Storefront = require("./storefrontModel");
 const CreatorPayoutInfo = require("./creatorPayoutInfoModel");
 const CardInfo = require("./cardInfoModel");
 const Product = require("./productModel");
+const ProductFile = require("./productFileModel");
+const ProductPreview = require("./productPreviewModel");
 const Order = require("./orderModel");
 const OrderItem = require("./orderItemModel");
 
@@ -33,10 +35,14 @@ if (sequelize) {
   CardInfo.belongsTo(CreatorProfile, { foreignKey: "CreatorProfileId", as: "creatorProfile" });
   Storefront.hasMany(Product, { foreignKey: "StorefrontId", as: "products" });
   Product.belongsTo(Storefront, { foreignKey: "StorefrontId", as: "storefront" });
+  Product.hasMany(ProductPreview, { foreignKey: "ProductId", as: "previews" });
+  ProductPreview.belongsTo(Product, { foreignKey: "ProductId", as: "product" });
+  Product.hasMany(ProductFile, { foreignKey: "ProductId", as: "files" });
+  ProductFile.belongsTo(Product, { foreignKey: "ProductId", as: "product" });
   Storefront.hasMany(OrderItem, { foreignKey: "StorefrontId", as: "orderItems" });
   OrderItem.belongsTo(Storefront, { foreignKey: "StorefrontId", as: "storefront" });
   Order.hasMany(OrderItem, { foreignKey: "OrderId", as: "items" });
   OrderItem.belongsTo(Order, { foreignKey: "OrderId", as: "order" });
 }
 
-module.exports = { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, Order, OrderItem };
+module.exports = { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, Order, OrderItem };

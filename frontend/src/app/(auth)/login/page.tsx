@@ -111,6 +111,7 @@ function LoginPageContent() {
           <AuthButton disabled={submitDisabled}>{loading ? "Signing in..." : "Sign In"}</AuthButton>
           <div className="flex items-center gap-3 text-[10px] text-muted-faint"><span className="h-px flex-1 bg-divider" />or continue with<span className="h-px flex-1 bg-divider" /></div>
           <a href={`${apiUrl}/auth/google`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-control text-[10px] font-medium text-body no-underline transition hover:bg-surface-hover"><img src="/icons/google-icon-.svg" alt="" aria-hidden="true" className="h-4 w-4" />Continue with Google</a>
+          <a href={`${apiUrl}/auth/paypal`} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#1d4ed8] text-[10px] font-medium text-[#1d4ed8] no-underline transition hover:bg-[#eff6ff]"><img src="/icons/paypal-icon.svg" alt="" aria-hidden="true" className="h-4 w-4" />Continue with PayPal</a>
           <p className="text-center text-[9px] leading-4 text-muted">By signing in, you agree to our <a href={routes.legal.terms()} className="text-primary underline">Terms and Conditions</a> and <a href={routes.legal.privacy()} className="text-primary underline">Privacy Policy</a></p>
         </PreventSubmit>
         </AuthShell>

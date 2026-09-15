@@ -4,6 +4,7 @@ type PaymentMethodCardProps = {
   method: string;
   cardName: string;
   cardNumber: string;
+  cardBrand?: string;
   paypalEmail: string;
   isPrimary: boolean;
   flipped: boolean;
@@ -56,6 +57,7 @@ export default function PaymentMethodCard({
   method,
   cardName,
   cardNumber,
+  cardBrand,
   paypalEmail,
   isPrimary,
   flipped,
@@ -64,6 +66,8 @@ export default function PaymentMethodCard({
   onRemove,
 }: PaymentMethodCardProps) {
   const isCard = method === "Credit Card" || method === "Debit Card";
+  const cardBrandLabel = cardBrand?.trim()
+    || (/^4/.test(cardNumber.replace(/\D/g, "")) ? "Visa" : "Card");
   const frontBackground = isCard
     ? "from-[#5b4bd8] via-[#4431a9] to-[#24175f]"
     : "from-[#0879b9] via-[#075b9d] to-[#06366b]";
@@ -124,7 +128,7 @@ export default function PaymentMethodCard({
                   {maskCardNumber(cardNumber)}
                 </p>
                 <div className="flex flex-wrap items-end justify-between gap-2 text-[9px] text-white/70">
-                  <span>VISA</span>
+                  <span>{cardBrandLabel.toUpperCase()}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-white sm:text-xs">
                       Tap to flip

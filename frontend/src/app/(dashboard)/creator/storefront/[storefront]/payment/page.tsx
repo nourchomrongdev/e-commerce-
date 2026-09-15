@@ -29,6 +29,18 @@ const storefrontData: Record<string, { displayName: string; type: string }> = {
 const inputClassName =
   "w-full rounded-lg border border-[#e2e7f1] bg-white px-3 py-2.5 text-xs text-[#111b40] outline-none transition focus:border-primary focus:ring-2 focus:ring-[#ff6b001c]";
 
+type SavedCard = {
+  id: number;
+  cardName: string;
+  cardNumber: string;
+  cardExpiry: string;
+  cardBrand: string;
+  isPrimary: boolean;
+};
+
+const primaryCardFirst = (cards: SavedCard[]) =>
+  [...cards].sort((first, second) => Number(second.isPrimary) - Number(first.isPrimary));
+
 function getDetectedCardBrand(cardNumber: string) {
   const digits = cardNumber.replace(/\D/g, "");
 
@@ -191,7 +203,7 @@ function CardNumberField({
           id="card-number"
           type="text"
           value={value}
-          placeholder="4242 4242 4242 4242"
+          placeholder="Enter Sandbox card number"
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
           className={`${inputClassName} pr-14 ${disabled ? "cursor-not-allowed bg-[#f3f6fb] text-[#ccc]" : ""} ${error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : ""}`}
@@ -231,19 +243,21 @@ export default function StorefrontPaymentPage({
     }
   }, [params]);
 
-  const storefront =
-    storefrontData[decodeURIComponent(storefrontName ?? "NourChomrong")] ||
-    storefrontData.DevCourses;
+  const storefront = {
+    displayName: decodeURIComponent(storefrontName ?? (storefrontName ?? "NourChomrong")),
+    type: "Digital Products",
+  };
   const [savedMethods, setSavedMethods] = useState<string[]>([]);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [primaryMethod, setPrimaryMethod] = useState("");
   const [provider, setProvider] = useState("PayPal");
   const [cardName, setCardName] = useState("");
-  const [paypalEmail, setPaypalEmail] = useState("");
   const [stripeEmail, setStripeEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [activeMethodIndex, setActiveMethodIndex] = useState(0);
+  const [cardSwipeStartX, setCardSwipeStartX] = useState<number | null>(null);
   const [flippedMethods, setFlippedMethods] = useState<Record<string, boolean>>(
     {},
   );
@@ -255,6 +269,7 @@ export default function StorefrontPaymentPage({
   const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
   const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
   const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
+  const [showPrimaryCardToast, setShowPrimaryCardToast] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -271,7 +286,8 @@ export default function StorefrontPaymentPage({
     };
   }, []);
 
-  const hasIncompletePayment = savedMethods.length === 0 || !primaryMethod;
+  const hasIncompletePayment =
+    savedCards.length === 0 || !primaryMethod;
 
   const persistPaymentSettings = async ({
     nextMethods = savedMethods,
@@ -283,11 +299,14 @@ export default function StorefrontPaymentPage({
     setIsSaving(true);
     const token = window.localStorage.getItem("marketplace-token");
 
-    const nextErrors = getCardFieldErrors({
-      cardNumber,
-      cardExpiry,
-      cardCvc,
-    });
+    const hasManualCard = Boolean(cardNumber || cardExpiry || cardCvc);
+    const nextErrors = hasManualCard
+      ? getCardFieldErrors({
+          cardNumber,
+          cardExpiry,
+          cardCvc,
+        })
+      : {};
 
     setFieldErrors(nextErrors);
     setPaymentFormError(null);
@@ -299,17 +318,20 @@ export default function StorefrontPaymentPage({
     }
 
     try {
+      const normalizedMethods = nextMethods;
+      const normalizedPrimaryMethod = nextPrimaryMethod || normalizedMethods[0] || "";
+
       const response = await fetch(
         `${apiUrl}/creator/storefronts/${encodeURIComponent(storefront.displayName)}/payment`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            methods: nextMethods,
-            primaryMethod: nextPrimaryMethod || nextMethods[0] || "",
+            methods: normalizedMethods,
+            primaryMethod: normalizedPrimaryMethod,
             provider: "PayPal",
             taxId,
-            paypalEmail,
+            paypalEmail: "",
             stripeEmail,
             cardNumber,
             cardExpiry,
@@ -319,49 +341,79 @@ export default function StorefrontPaymentPage({
         },
       );
 
+      const responseBody = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.error || "Unable to save payment settings");
+        throw new Error(responseBody.error || "Unable to save payment settings");
       }
 
       setFieldErrors({});
       setPaymentFormError(null);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2200);
-      return true;
+      return responseBody.payment || true;
     } finally {
       setIsSaving(false);
     }
   };
 
-  const savePayment = async () => {
+  const savePayment = () => {
     if (hasIncompletePayment) {
       setShowIncompletePaymentToast(true);
       return;
     }
 
-    try {
-      await persistPaymentSettings();
-    } catch (error) {
-      setSaved(false);
-      setPaymentFormError(
-        error instanceof Error ? error.message : "Unable to save payment settings",
-      );
-    }
+    // Cards are created only through the Add payment modal. This prevents the
+    // page-level button from unintentionally creating a duplicate card.
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
   };
 
-  const removePaymentMethod = (method: string) => {
-    const nextMethods = savedMethods.filter(
-      (savedMethod) => savedMethod !== method,
+  const setPrimaryCard = async (cardId: number) => {
+    const token = window.localStorage.getItem("marketplace-token");
+    setPaymentFormError(null);
+    const response = await fetch(
+      `${apiUrl}/creator/storefronts/${encodeURIComponent(storefront.displayName)}/payment/cards/${cardId}/primary`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
     );
-    setSavedMethods(nextMethods);
-    setActiveMethodIndex((index) =>
-      Math.min(index, Math.max(nextMethods.length - 1, 0)),
-    );
-    if (primaryMethod === method) {
-      setPrimaryMethod(nextMethods[0] ?? "");
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setPaymentFormError(body.error || "Unable to set the primary card.");
+      return;
     }
-    setFlippedMethods((methods) => ({ ...methods, [method]: false }));
+
+    setSavedCards((cards) => primaryCardFirst(cards.map((card) => ({ ...card, isPrimary: card.id === cardId }))));
+    setActiveMethodIndex(0);
+    setPrimaryMethod("Credit Card");
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  };
+
+  const removePaymentMethod = async (cardId: number, isPrimary: boolean) => {
+    if (isPrimary) {
+      setPaymentFormError("The primary card cannot be removed. Set another card as primary first.");
+      setShowPrimaryCardToast(true);
+      return;
+    }
+    if (savedCards.length <= 1) {
+      setPaymentFormError("A storefront must keep at least one card.");
+      return;
+    }
+
+    const token = window.localStorage.getItem("marketplace-token");
+    const response = await fetch(
+      `${apiUrl}/creator/storefronts/${encodeURIComponent(storefront.displayName)}/payment/cards/${cardId}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      setPaymentFormError(body.error || "Unable to remove this card.");
+      return;
+    }
+
+    const nextCards = savedCards.filter((card) => card.id !== cardId);
+    setSavedCards(nextCards);
+    setActiveMethodIndex((index) => Math.min(index, nextCards.length - 1));
+    setFlippedMethods((methods) => ({ ...methods, [String(cardId)]: false }));
   };
 
   const formatCardNumber = (value: string) => {
@@ -378,11 +430,14 @@ export default function StorefrontPaymentPage({
   };
 
   const addPaymentMethod = async () => {
-    const nextErrors = getCardFieldErrors({
-      cardNumber,
-      cardExpiry,
-      cardCvc,
-    });
+    const hasManualCard = Boolean(cardNumber || cardExpiry || cardCvc);
+    const nextErrors = hasManualCard
+      ? getCardFieldErrors({
+          cardNumber,
+          cardExpiry,
+          cardCvc,
+        })
+      : {};
 
     setFieldErrors(nextErrors);
 
@@ -406,6 +461,17 @@ export default function StorefrontPaymentPage({
         return;
       }
 
+      const savedCardId = Number((persisted as { cardInfoId?: number }).cardInfoId);
+      if (savedCardId) {
+        setSavedCards((cards) => primaryCardFirst([...cards, {
+          id: savedCardId,
+          cardName,
+          cardNumber,
+          cardExpiry,
+          cardBrand: detectedCardBrand,
+          isPrimary: cards.length === 0,
+        }]));
+      }
       setSavedMethods(nextMethods);
       setPrimaryMethod(nextPrimaryMethod);
       setActiveMethodIndex(Math.max(nextMethods.length - 1, 0));
@@ -447,11 +513,12 @@ export default function StorefrontPaymentPage({
       .then(([payment, branding, settings]) => {
         if (payment) {
           setSavedMethods(Array.isArray(payment.methods) ? payment.methods : []);
+          setSavedCards(primaryCardFirst(Array.isArray(payment.savedCards) ? payment.savedCards : []));
+          setActiveMethodIndex(0);
           setPrimaryMethod(payment.primaryMethod || "");
           setProvider(payment.provider || "PayPal");
           setTaxId(payment.taxId || "");
           setCardName(payment.cardName || "");
-          setPaypalEmail(payment.paypalEmail || "");
           setStripeEmail(payment.stripeEmail || "");
           setCardNumber(payment.cardNumber || "");
           setCardExpiry(payment.cardExpiry || "");
@@ -525,6 +592,14 @@ export default function StorefrontPaymentPage({
             }}
           />
         )}
+        {showPrimaryCardToast && (
+          <Toast
+            variant="warning"
+            title="Primary card cannot be removed"
+            message="Set another card as primary before removing this card."
+            onClose={() => setShowPrimaryCardToast(false)}
+          />
+        )}
       </div>
       <section className="min-w-0 rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] sm:p-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -549,7 +624,7 @@ export default function StorefrontPaymentPage({
                   Payment Methods
                 </h3>
                 <p className="mt-1 text-[11px] text-[#8993aa]">
-                  Saved payment methods are managed through PayPal.
+                  Add a Sandbox card for storefront payment testing.
                 </p>
               </div>
               <button
@@ -571,17 +646,17 @@ export default function StorefrontPaymentPage({
               </button>
             </div>
 
-            {savedMethods.length ? (
+            {savedCards.length ? (
               <div className="relative mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:flex sm:justify-center">
                 {/* Previous */}
                 <button
                   type="button"
                   aria-label="Previous payment method"
-                  disabled={savedMethods.length < 2}
+                  disabled={savedCards.length < 2}
                   onClick={() =>
                     setActiveMethodIndex(
                       (index) =>
-                        (index - 1 + savedMethods.length) % savedMethods.length,
+                        (index - 1 + savedCards.length) % savedCards.length,
                     )
                   }
                   className="row-start-2 grid h-10 w-10 shrink-0 place-items-center justify-self-end rounded-full border border-[#e0e5ef] bg-white text-lg text-[#33405d] transition hover:border-primary hover:text-primary disabled:opacity-40 sm:row-auto sm:justify-self-auto"
@@ -590,34 +665,46 @@ export default function StorefrontPaymentPage({
                 </button>
 
                 {/* Center Card */}
-                <div className="col-span-3 row-start-1 w-full max-w-md overflow-hidden sm:col-auto sm:row-auto">
+                <div
+                  className="col-span-3 row-start-1 w-full max-w-md overflow-hidden sm:col-auto sm:row-auto"
+                  onTouchStart={(event) => setCardSwipeStartX(event.touches[0]?.clientX ?? null)}
+                  onTouchEnd={(event) => {
+                    const endX = event.changedTouches[0]?.clientX;
+                    if (cardSwipeStartX === null || endX === undefined || Math.abs(endX - cardSwipeStartX) < 45) return;
+                    setActiveMethodIndex((index) => endX < cardSwipeStartX
+                      ? (index + 1) % savedCards.length
+                      : (index - 1 + savedCards.length) % savedCards.length);
+                    setCardSwipeStartX(null);
+                  }}
+                >
                   <div
                     className="flex transition-transform duration-500 ease-out"
                     style={{
                       transform: `translateX(-${activeMethodIndex * 100}%)`,
                     }}
                   >
-                    {savedMethods.map((method) => (
+                    {savedCards.map((card) => (
                       <div
-                        key={method}
+                        key={card.id}
                         className="flex min-w-full justify-center"
                       >
                         <div className="w-full max-w-md">
                           <PaymentMethodCard
-                            method={method}
-                            cardName={cardName}
-                            cardNumber={cardNumber}
-                            paypalEmail={paypalEmail}
-                            isPrimary={primaryMethod === method}
-                            flipped={Boolean(flippedMethods[method])}
-                            onSetPrimary={() => setPrimaryMethod(method)}
+                            method="Credit Card"
+                            cardName={card.cardName}
+                            cardNumber={card.cardNumber}
+                            cardBrand={card.cardBrand}
+                            paypalEmail=""
+                            isPrimary={card.isPrimary}
+                            flipped={Boolean(flippedMethods[String(card.id)])}
+                            onSetPrimary={() => void setPrimaryCard(card.id)}
                             onFlip={() =>
                               setFlippedMethods((methods) => ({
                                 ...methods,
-                                [method]: !methods[method],
+                                [String(card.id)]: !methods[String(card.id)],
                               }))
                             }
-                            onRemove={() => removePaymentMethod(method)}
+                            onRemove={() => void removePaymentMethod(card.id, card.isPrimary)}
                           />
                         </div>
                       </div>
@@ -629,10 +716,10 @@ export default function StorefrontPaymentPage({
                 <button
                   type="button"
                   aria-label="Next payment method"
-                  disabled={savedMethods.length < 2}
+                  disabled={savedCards.length < 2}
                   onClick={() =>
                     setActiveMethodIndex(
-                      (index) => (index + 1) % savedMethods.length,
+                      (index) => (index + 1) % savedCards.length,
                     )
                   }
                   className="row-start-2 grid h-10 w-10 shrink-0 place-items-center justify-self-start rounded-full border border-[#e0e5ef] bg-white text-lg text-[#33405d] transition hover:border-primary hover:text-primary disabled:opacity-40 sm:row-auto sm:justify-self-auto"
@@ -756,52 +843,60 @@ export default function StorefrontPaymentPage({
               </button>
             </div>
             <div className="mt-5 space-y-4">
-              <CardNumberField
-                value={cardNumber}
-                onChange={(value) => {
-                  setCardNumber(formatCardNumber(value));
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.cardNumber;
-                    return next;
-                  });
-                }}
-                error={fieldErrors.cardNumber}
-                disabled={isSaving}
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <PaymentField
-                  id="card-expiry"
-                  label="Expiry date"
-                  value={cardExpiry}
+              <div>
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8993aa]">
+                  Sandbox card entry
+                </p>
+                <p className="mb-3 text-[10px] leading-5 text-[#6b7280]">
+                  In Sandbox mode, use the card shown in your PayPal Sandbox account, a future expiry date, and any 3-digit CVC. The card is saved for Sandbox testing only and is not charged from this setup screen.
+                </p>
+                <CardNumberField
+                  value={cardNumber}
                   onChange={(value) => {
-                    setCardExpiry(formatExpiry(value));
+                    setCardNumber(formatCardNumber(value));
                     setFieldErrors((prev) => {
                       const next = { ...prev };
-                      delete next.cardExpiry;
+                      delete next.cardNumber;
                       return next;
                     });
                   }}
-                  placeholder="00/0000"
-                  error={fieldErrors.cardExpiry}
+                  error={fieldErrors.cardNumber}
                   disabled={isSaving}
                 />
-                <PaymentField
-                  id="card-cvc"
-                  label="CVC"
-                  value={cardCvc}
-                  onChange={(value) => {
-                    setCardCvc(value);
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.cardCvc;
-                      return next;
-                    });
-                  }}
-                  placeholder="123"
-                  error={fieldErrors.cardCvc}
-                  disabled={isSaving}
-                />
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <PaymentField
+                    id="card-expiry"
+                    label="Expiry date"
+                    value={cardExpiry}
+                    onChange={(value) => {
+                      setCardExpiry(formatExpiry(value));
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.cardExpiry;
+                        return next;
+                      });
+                    }}
+                    placeholder="00/0000"
+                    error={fieldErrors.cardExpiry}
+                    disabled={isSaving}
+                  />
+                  <PaymentField
+                    id="card-cvc"
+                    label="CVC"
+                    value={cardCvc}
+                    onChange={(value) => {
+                      setCardCvc(value);
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.cardCvc;
+                        return next;
+                      });
+                    }}
+                    placeholder="123"
+                    error={fieldErrors.cardCvc}
+                    disabled={isSaving}
+                  />
+                </div>
               </div>
             </div>
 
