@@ -6,11 +6,12 @@ type ProductTableProps = {
   products: Product[];
   discounts: Record<string, number>;
   onDiscount: (product: Product) => void;
+  isLoading?: boolean;
   onEdit?: (product: Product) => void;
   onMore?: (product: Product) => void;
 };
 
-export default function ProductTable({ products, discounts, onDiscount, onEdit, onMore }: ProductTableProps) {
+export default function ProductTable({ products, discounts, onDiscount, isLoading = false, onEdit, onMore }: ProductTableProps) {
   return (
     <div className="overflow-x-auto product-responsive-table">
       <table className="w-full min-w-[900px] text-left text-xs">
@@ -26,12 +27,19 @@ export default function ProductTable({ products, discounts, onDiscount, onEdit, 
           </tr>
         </thead>
         <tbody>
-          {products.map((product) => {
-            const discount = discounts[product.name] ?? 0;
+          {isLoading ? (
+            <tr>
+              <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#66718e]">
+                Loading products...
+              </td>
+            </tr>
+          ) : products.map((product) => {
+            const productKey = String(product.id ?? product.name);
+            const discount = discounts[productKey] ?? 0;
             const price = Number(product.price.slice(1));
 
             return (
-              <tr key={product.name} className="border-t border-[#edf0f5] text-[#283554] transition hover:bg-[#fffaf6]">
+              <tr key={productKey} className="border-t border-[#edf0f5] text-[#283554] transition hover:bg-[#fffaf6]">
                 <td data-label="Product" className="px-6 py-3">
                   <div className="flex items-center gap-3">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-sm text-white shadow-sm" style={{ backgroundColor: product.icon }}>✦</span>
@@ -62,7 +70,7 @@ export default function ProductTable({ products, discounts, onDiscount, onEdit, 
           })}
         </tbody>
       </table>
-      {products.length === 0 && <p className="px-6 py-12 text-center text-sm text-[#66718e]">No products match your search.</p>}
+      {!isLoading && products.length === 0 && <p className="px-6 py-12 text-center text-sm text-[#66718e]">No products match your search.</p>}
     </div>
   );
 }

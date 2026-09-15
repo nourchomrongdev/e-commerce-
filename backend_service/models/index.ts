@@ -11,6 +11,7 @@ const CardInfo = require("./cardInfoModel");
 const Product = require("./productModel");
 const ProductFile = require("./productFileModel");
 const ProductPreview = require("./productPreviewModel");
+const ProductVersion = require("./productVersionModel");
 const Order = require("./orderModel");
 const OrderItem = require("./orderItemModel");
 
@@ -39,10 +40,16 @@ if (sequelize) {
   ProductPreview.belongsTo(Product, { foreignKey: "ProductId", as: "product" });
   Product.hasMany(ProductFile, { foreignKey: "ProductId", as: "files" });
   ProductFile.belongsTo(Product, { foreignKey: "ProductId", as: "product" });
+  Product.hasMany(ProductVersion, { foreignKey: "ProductId", as: "versions" });
+  ProductVersion.belongsTo(Product, { foreignKey: "ProductId", as: "product" });
+  ProductVersion.hasMany(ProductFile, { foreignKey: "ProductVersionId", as: "files" });
+  ProductFile.belongsTo(ProductVersion, { foreignKey: "ProductVersionId", as: "version" });
+  ProductVersion.hasMany(ProductPreview, { foreignKey: "ProductVersionId", as: "previewAssets" });
+  ProductPreview.belongsTo(ProductVersion, { foreignKey: "ProductVersionId", as: "version" });
   Storefront.hasMany(OrderItem, { foreignKey: "StorefrontId", as: "orderItems" });
   OrderItem.belongsTo(Storefront, { foreignKey: "StorefrontId", as: "storefront" });
   Order.hasMany(OrderItem, { foreignKey: "OrderId", as: "items" });
   OrderItem.belongsTo(Order, { foreignKey: "OrderId", as: "order" });
 }
 
-module.exports = { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, Order, OrderItem };
+module.exports = { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, ProductVersion, Order, OrderItem };

@@ -41,6 +41,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     Settings?: boolean;
     Payment?: boolean;
   }>({});
+  const initialPathRef = useRef(pathname);
 
   const segments = pathname.split("/").filter(Boolean);
   const storefrontIndex = segments.indexOf("storefront");
@@ -140,7 +141,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       setRedirectingToLogin(true);
       setRedirectMessage("Checking creator account…");
 
-      const next = encodeURIComponent(pathname || routes.creator.overview());
+      const next = encodeURIComponent(initialPathRef.current || routes.creator.overview());
       window.localStorage.removeItem("marketplace-token");
       window.localStorage.removeItem("marketplace-user");
       window.localStorage.removeItem("current-user");
@@ -210,7 +211,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
         window.clearTimeout(unauthorizedMessageTimerRef.current);
       }
     };
-  }, [pathname, router]);
+  }, [router]);
 
   const toggleSidebar = () => {
     setStorefrontOpen(false);
@@ -223,12 +224,18 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     setMenuOpen((isOpen) => !isOpen);
   };
 
-  if (!authorized || redirectingToLogin) {
+  if (redirectingToLogin) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background text-[#111b40]">
-        <div className="flex items-center gap-3">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#e9edf6] border-t-primary" aria-label="Checking access" />
-          <span className="text-sm font-medium text-[#1f2d52]">{redirectMessage}</span>
+      <main className="flex min-h-screen flex-col bg-background text-[#111b40]">
+        <CreatorDashboardHeader onMenuOpen={toggleSidebar} storefrontOpen={storefrontOpen} onStorefrontToggle={setStorefrontOpen} sidebarOpen={menuOpen} />
+        <div className="flex min-h-0 flex-1">
+          <CreatorDashboardSidebar open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggle={toggleSidebar} />
+          <section className="flex min-w-0 flex-1 items-center justify-center p-5 sm:p-8">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-white px-5 py-4 shadow-sm">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#e9edf6] border-t-primary" aria-label="Checking access" />
+              <span className="text-sm font-medium text-[#1f2d52]">{redirectMessage}</span>
+            </div>
+          </section>
         </div>
       </main>
     );

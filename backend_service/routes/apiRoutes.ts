@@ -1,6 +1,8 @@
 const express = require("express");
 const crypto = require("crypto");
-const { sequelize, UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, Order, OrderItem } = require("../models");
+const fs = require("fs/promises");
+const path = require("path");
+const { sequelize, UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, ProductVersion, Order, OrderItem } = require("../models");
 const authRoutes = require("./authRoutes");
 const { createPaymentOrder, capturePaymentOrder } = require("../controllers/paymentController");
 const { applyCreatorProgram, approveCreatorProfile } = require("../controllers/creatorProgramController");
@@ -251,11 +253,13 @@ router.get("/products", async (req, res) => {
 function serializeProduct(product) {
   return {
     id: product.ProductId,
+    uuid: product.UUID,
     name: product.ProductName,
     slug: product.Slug,
     description: product.Description || "",
     productType: product.ProductType,
     price: Number(product.Price || 0),
+    discount: Number(product.DiscountPercent || 0),
     currency: product.Currency || "USD",
     status: String(product.Status || "draft").toLowerCase(),
     storefrontId: product.StorefrontId,
@@ -366,10 +370,49 @@ async function uniqueProductSlug(requestedSlug) {
   return candidate;
 }
 
+function previewDataSize(dataUrl) {
+  const encoded = String(dataUrl || "").split(",")[1] || "";
+  return Buffer.byteLength(encoded, "base64");
+}
+
+function releasePayload(body) {
+  if (Array.isArray(body.versions)) {
+    return body.versions.map((release) => ({
+      id: release.id ? Number(release.id) : undefined,
+      version: String(release.version || "").trim(),
+      releaseNotes: String(release.releaseNotes || release.summary || "").trim(),
+      current: release.current !== false,
+      files: Array.isArray(release.files) ? release.files.filter((file) => file?.storageKey && file?.fileName) : [],
+      previews: Array.isArray(release.previews) ? release.previews.filter((preview) => preview?.url) : [],
+    })).filter((release) => release.version);
+  }
+  return [{ version: String(body.version || "1.0.0").trim(), releaseNotes: String(body.releaseNotes || "Initial release.").trim(), current: true, files: Array.isArray(body.files) ? body.files.filter((file) => file?.storageKey && file?.fileName) : [], previews: Array.isArray(body.previews) ? body.previews.filter((preview) => preview?.url) : [] }];
+}
+
+async function replaceReleaseAssets(productId, versionId, files, previews, now) {
+  if (previews.some((preview) => previewDataSize(preview.url) > 10 * 1024 * 1024)) throw new Error("Preview images must be smaller than 10 MB.");
+  await ProductFile.destroy({ where: { ProductId: productId, ProductVersionId: versionId } });
+  await ProductPreview.destroy({ where: { ProductId: productId, ProductVersionId: versionId } });
+  if (files.length) await ProductFile.bulkCreate(files.map((file) => ({ ProductId: productId, ProductVersionId: versionId, FileName: String(file.fileName).slice(0, 255), StorageKey: String(file.storageKey), FileSize: Number(file.fileSize || 0), MimeType: String(file.mimeType || "application/octet-stream"), CreatedAt: now })));
+  if (previews.length) await ProductPreview.bulkCreate(previews.map((preview, index) => ({ ProductId: productId, ProductVersionId: versionId, PreviewType: String(preview.type || "image"), Title: String(preview.title || "").trim(), PreviewUrl: String(preview.url), SortOrder: Number(preview.sortOrder ?? index), CreatedAt: now })));
+}
+
+async function storefrontHasProductName(storefrontId, name, ignoredProductId) {
+  const products = await Product.findAll({
+    where: { StorefrontId: storefrontId },
+    attributes: ["ProductId", "ProductName"],
+  });
+  const normalizedName = String(name).trim().toLocaleLowerCase();
+  return products.some((product) => product.ProductId !== ignoredProductId && String(product.ProductName).trim().toLocaleLowerCase() === normalizedName);
+}
+
 async function creatorProduct(req) {
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return { storefront: null, product: null };
-  const product = await Product.findOne({ where: { ProductId: req.params.productId, StorefrontId: storefront.StorefrontId } });
+  const productKey = String(req.params.productId || "");
+  const product = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productKey)
+    ? await Product.findOne({ where: { UUID: productKey, StorefrontId: storefront.StorefrontId } })
+    : await Product.findOne({ where: { ProductId: productKey, StorefrontId: storefront.StorefrontId } });
   return { storefront, product };
 }
 
@@ -380,18 +423,104 @@ router.post("/creator/storefronts/:storefrontName/products", async (req, res) =>
     const name = String(req.body.name || "").trim();
     const price = Number(req.body.price || 0);
     if (!name || !Number.isFinite(price) || price < 0) return res.status(400).json({ error: "Product name and a valid price are required." });
+    if (await storefrontHasProductName(storefront.StorefrontId, name, undefined)) return res.status(409).json({ error: "A product with this name already exists in this storefront." });
     const categoryId = Number(req.body.categoryId || await resolveCategoryId(req.body.categoryName));
     const slug = await uniqueProductSlug(req.body.slug || name);
     const now = new Date();
+    const releases = releasePayload(req.body);
+    if (!releases.length || !releases.some((release) => release.files.length)) return res.status(400).json({ error: "At least one product file is required." });
+    if (new Set(releases.map((release) => release.version)).size !== releases.length) return res.status(400).json({ error: "Each product version must have a unique version number." });
     const product = await Product.create({ StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
-    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName).map((file) => ({ ProductId: product.ProductId, FileName: String(file.fileName).slice(0, 255), StorageKey: String(file.storageKey), FileSize: Number(file.fileSize || 0), MimeType: String(file.mimeType || "application/octet-stream"), CreatedAt: now })) : [];
-    if (files.length) await ProductFile.bulkCreate(files);
-    const previews = Array.isArray(req.body.previews) ? req.body.previews.filter((preview) => preview?.url).map((preview, index) => ({ ProductId: product.ProductId, PreviewType: String(preview.type || "image"), Title: String(preview.title || "").trim(), PreviewUrl: String(preview.url), SortOrder: Number(preview.sortOrder ?? index), CreatedAt: now })) : [];
-    if (previews.some((preview) => preview.PreviewUrl.length > 8 * 1024 * 1024)) return res.status(400).json({ error: "Preview images must be smaller than 8 MB." });
-    const createdPreviews = previews.length ? await ProductPreview.bulkCreate(previews) : [];
-    return res.status(201).json({ product: serializeProduct(product), previews: createdPreviews.map(serializePreview) });
+    const currentReleaseIndex = Math.max(0, releases.findIndex((release) => release.current));
+    for (const [index, release] of releases.entries()) {
+      const version = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: now });
+      await replaceReleaseAssets(product.ProductId, version.ProductVersionId, release.files, release.previews, now);
+    }
+    return res.status(201).json({ product: serializeProduct(product) });
   } catch (error) {
     return res.status(400).json({ error: error.message || "Unable to create product." });
+  }
+});
+
+router.put("/creator/storefronts/:storefrontName/products/:productId", async (req, res) => {
+  try {
+    const { product } = await creatorProduct(req);
+    if (!product) return res.status(404).json({ error: "Product not found." });
+    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName) : [];
+    if (req.body.files !== undefined && !files.length) return res.status(400).json({ error: "At least one product file is required." });
+    const price = req.body.price === undefined ? product.Price : Number(req.body.price);
+    const discount = req.body.discount === undefined ? product.DiscountPercent : Number(req.body.discount);
+    if (!Number.isFinite(price) || price < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100) return res.status(400).json({ error: "Price and discount must be valid values." });
+    const name = req.body.name === undefined ? product.ProductName : String(req.body.name).trim();
+    if (!name) return res.status(400).json({ error: "Product name is required." });
+    if (await storefrontHasProductName(product.StorefrontId, name, product.ProductId)) return res.status(409).json({ error: "A product with this name already exists in this storefront." });
+    const requestedSlug = String(req.body.slug || "").trim();
+    const slug = requestedSlug && requestedSlug !== product.Slug ? await uniqueProductSlug(requestedSlug) : product.Slug;
+    const categoryId = req.body.categoryName === undefined ? product.CategoryId : Number(req.body.categoryId || await resolveCategoryId(req.body.categoryName));
+    const releases = Array.isArray(req.body.versions) ? releasePayload(req.body) : null;
+    if (releases && (!releases.length || !releases.some((release) => release.files.length))) return res.status(400).json({ error: "At least one product file is required." });
+    if (releases && new Set(releases.map((release) => release.version)).size !== releases.length) return res.status(400).json({ error: "Each product version must have a unique version number." });
+    const version = String(req.body.version || "").trim();
+    if (!releases && version && await ProductVersion.findOne({ where: { ProductId: product.ProductId, VersionNumber: version } })) return res.status(409).json({ error: `Version ${version} already exists for this product.` });
+    await product.update({
+      ProductName: name,
+      Slug: slug,
+      CategoryId: categoryId,
+      Description: req.body.description === undefined ? product.Description : String(req.body.description).trim(),
+      ProductType: req.body.productType === undefined ? product.ProductType : String(req.body.productType),
+      Price: price,
+      DiscountPercent: discount,
+      Currency: req.body.currency === undefined ? product.Currency : String(req.body.currency).slice(0, 3).toUpperCase(),
+      Status: req.body.status === undefined ? product.Status : String(req.body.status).toLowerCase(),
+      UpdatedAt: new Date(),
+    });
+    if (releases) {
+      const existingVersions = await ProductVersion.findAll({ where: { ProductId: product.ProductId } });
+      const existingById = new Map<number, any>(existingVersions.map((item) => [Number(item.ProductVersionId), item]));
+      await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
+      const currentReleaseIndex = Math.max(0, releases.findIndex((release) => release.current));
+      for (const [index, release] of releases.entries()) {
+        const existing = release.id ? existingById.get(release.id) : undefined;
+        if (release.id && !existing) throw new Error("A product version could not be found.");
+        if (existing) {
+          await existing.update({ VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex });
+          await replaceReleaseAssets(product.ProductId, existing.ProductVersionId, release.files, release.previews, new Date());
+        } else {
+          const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: new Date() });
+          await replaceReleaseAssets(product.ProductId, created.ProductVersionId, release.files, release.previews, new Date());
+        }
+      }
+    } else if (req.body.files !== undefined) {
+      await ProductFile.destroy({ where: { ProductId: product.ProductId } });
+      await ProductFile.bulkCreate(files.map((file) => ({ ProductId: product.ProductId, FileName: String(file.fileName).slice(0, 255), StorageKey: String(file.storageKey), FileSize: Number(file.fileSize || 0), MimeType: String(file.mimeType || "application/octet-stream"), CreatedAt: new Date() })));
+    }
+    if (!releases && req.body.previews !== undefined) {
+      const previews = Array.isArray(req.body.previews) ? req.body.previews.filter((preview) => preview?.url).map((preview, index) => ({ ProductId: product.ProductId, PreviewType: String(preview.type || "image"), Title: String(preview.title || "").trim(), PreviewUrl: String(preview.url), SortOrder: Number(preview.sortOrder ?? index), CreatedAt: new Date() })) : [];
+      if (previews.some((preview) => previewDataSize(preview.PreviewUrl) > 10 * 1024 * 1024)) return res.status(400).json({ error: "Preview images must be smaller than 10 MB." });
+      await ProductPreview.destroy({ where: { ProductId: product.ProductId } });
+      if (previews.length) await ProductPreview.bulkCreate(previews);
+    }
+    if (!releases && version) {
+      await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
+      await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, ReleaseNotes: String(req.body.releaseNotes || "").trim(), IsCurrent: true, CreatedAt: new Date() });
+    }
+    return res.json({ product: serializeProduct(product) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to update product." });
+  }
+});
+
+router.get("/creator/storefronts/:storefrontName/products", async (req, res) => {
+  try {
+    const { storefront } = await databaseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const databaseProducts = await Product.findAll({
+      where: { StorefrontId: storefront.StorefrontId },
+      order: [["CreatedAt", "DESC"]],
+    });
+    return res.json({ products: databaseProducts.map(serializeProduct) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load storefront products." });
   }
 });
 
@@ -413,11 +542,71 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/previews", 
   return res.json({ previews: previews.map(serializePreview) });
 });
 
+router.get("/creator/storefronts/:storefrontName/products/:productId/versions", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const versions = await ProductVersion.findAll({ where: { ProductId: product.ProductId }, order: [["CreatedAt", "DESC"]] });
+  const versionIds = versions.map((version) => version.ProductVersionId);
+  const [files, previews] = await Promise.all([
+    ProductFile.findAll({ where: { ProductId: product.ProductId, ProductVersionId: versionIds, IsActive: true }, order: [["CreatedAt", "ASC"]] }),
+    ProductPreview.findAll({ where: { ProductId: product.ProductId, ProductVersionId: versionIds, IsActive: true }, order: [["SortOrder", "ASC"]] }),
+  ]);
+  const filesByVersion = new Map();
+  files.forEach((file) => filesByVersion.set(Number(file.ProductVersionId), [...(filesByVersion.get(Number(file.ProductVersionId)) || []), { fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType }]));
+  const previewsByVersion = new Map();
+  previews.forEach((preview) => previewsByVersion.set(Number(preview.ProductVersionId), [...(previewsByVersion.get(Number(preview.ProductVersionId)) || []), { id: String(preview.ProductPreviewId), title: preview.Title || "", type: preview.PreviewType, url: preview.PreviewUrl }]));
+  return res.json({ versions: versions.map((version) => ({ id: version.ProductVersionId, version: version.VersionNumber, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] })) });
+});
+
+router.post("/creator/storefronts/:storefrontName/products/:productId/versions", async (req, res) => {
+  try {
+    const { product } = await creatorProduct(req);
+    if (!product) return res.status(404).json({ error: "Product not found." });
+    const version = String(req.body.version || "").trim();
+    if (!version) return res.status(400).json({ error: "Version number is required." });
+    if (await ProductVersion.findOne({ where: { ProductId: product.ProductId, VersionNumber: version } })) return res.status(409).json({ error: `Version ${version} already exists for this product.` });
+
+    const now = new Date();
+    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName) : [];
+    const previews = Array.isArray(req.body.previews) ? req.body.previews.filter((preview) => preview?.url) : [];
+    if (previews.some((preview) => previewDataSize(preview.url) > 10 * 1024 * 1024)) return res.status(400).json({ error: "Preview images must be smaller than 10 MB." });
+    const isCurrent = req.body.current !== false;
+
+    if (req.body.description !== undefined) await product.update({ Description: String(req.body.description).trim(), UpdatedAt: now });
+    if (isCurrent) await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
+    const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, ReleaseNotes: String(req.body.summary || "").trim(), IsCurrent: isCurrent, CreatedAt: now });
+    await replaceReleaseAssets(product.ProductId, created.ProductVersionId, files, previews, now);
+    return res.status(201).json({ version: { id: created.ProductVersionId, version: created.VersionNumber, summary: created.ReleaseNotes || "", current: created.IsCurrent, createdAt: created.CreatedAt } });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to add version." });
+  }
+});
+
+router.get("/creator/storefronts/:storefrontName/products/:productId/files", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const files = await ProductFile.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["CreatedAt", "ASC"]] });
+  return res.json({ files: files.map((file) => ({ id: file.ProductFileId, fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType, createdAt: file.CreatedAt, url: `/creator/storefronts/${encodeURIComponent(req.params.storefrontName)}/products/${product.UUID || product.ProductId}/files/${file.ProductFileId}/content` })) });
+});
+
+router.get("/creator/storefronts/:storefrontName/products/:productId/files/:fileId/content", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const file = await ProductFile.findOne({ where: { ProductFileId: req.params.fileId, ProductId: product.ProductId, IsActive: true } });
+  if (!file) return res.status(404).json({ error: "File not found." });
+  try {
+    const filePath = path.resolve(__dirname, "../uploads/products", file.StorageKey);
+    res.type(file.MimeType || "application/octet-stream").send(await fs.readFile(filePath));
+  } catch {
+    return res.status(404).json({ error: "File content is unavailable." });
+  }
+});
+
 router.post("/creator/storefronts/:storefrontName/products/:productId/previews", async (req, res) => {
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
   const url = String(req.body.url || "");
-  if (!url || url.length > 8 * 1024 * 1024) return res.status(400).json({ error: "A preview image smaller than 8 MB is required." });
+  if (!url || previewDataSize(url) > 10 * 1024 * 1024) return res.status(400).json({ error: "A preview image smaller than 10 MB is required." });
   const preview = await ProductPreview.create({ ProductId: product.ProductId, PreviewType: String(req.body.type || "image"), Title: String(req.body.title || "").trim(), PreviewUrl: url, SortOrder: Number(req.body.sortOrder || 0), CreatedAt: new Date() });
   return res.status(201).json({ preview: serializePreview(preview) });
 });

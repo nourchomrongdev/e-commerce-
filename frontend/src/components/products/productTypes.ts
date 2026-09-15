@@ -1,6 +1,8 @@
 export type ProductStatus = "Published" | "Draft" | "Archived";
 
 export type Product = {
+  id?: number;
+  uuid?: string;
   name: string;
   description: string;
   price: string;

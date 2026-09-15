@@ -1,87 +1,82 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
 import ProductDiscountDialog from "@/components/products/ProductDiscountDialog";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductTable from "@/components/products/ProductTable";
+import { Modal } from "@/components/ui";
 import type { Product, ProductStatus } from "@/components/products/productTypes";
 
-const products: Product[] = [
-  {
-    name: "Laravel API Mastery",
-    description: "Complete guide to building RESTful APIs",
-    price: "$45.00",
-    discount: 20,
-    status: "Published",
-    sales: 128,
-    createdAt: "May 12, 2024",
-    icon: "#25376f",
-  },
-  {
-    name: "Flutter UI Design Course",
-    description: "Build beautiful mobile apps with Flutter",
-    price: "$39.00",
-    discount: 0,
-    status: "Published",
-    sales: 96,
-    createdAt: "May 8, 2024",
-    icon: "#176b8d",
-  },
-  {
-    name: "Vue.js for Beginners",
-    description: "Learn Vue.js from scratch",
-    price: "$29.00",
-    discount: 0,
-    status: "Draft",
-    sales: 0,
-    createdAt: "May 6, 2024",
-    icon: "#1d5c45",
-  },
-  {
-    name: "JavaScript Fundamentals",
-    description: "Core JavaScript concepts",
-    price: "$19.00",
-    discount: 15,
-    status: "Published",
-    sales: 210,
-    createdAt: "May 1, 2024",
-    icon: "#b27b1b",
-  },
-  {
-    name: "Database Design Basics",
-    description: "Design better databases",
-    price: "$25.00",
-    discount: 0,
-    status: "Archived",
-    sales: 45,
-    createdAt: "Apr 28, 2024",
-    icon: "#18254f",
-  },
-];
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+const iconColors = ["#25376f", "#176b8d", "#1d5c45", "#b27b1b", "#18254f"];
 
 const tabs: Array<"All Products" | ProductStatus> = ["All Products", "Published", "Draft", "Archived"];
 
 export default function CreatorProductsPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const storefrontMatch = pathname.match(/^\/creator\/storefront\/([^/]+)/);
-  const productsPath = storefrontMatch
-    ? `/creator/storefront/${storefrontMatch[1]}/products`
-    : "/creator/storefront";
+  const storefrontSegment = storefrontMatch?.[1] ?? "";
   const addProductPath = storefrontMatch
     ? `/creator/storefront/${storefrontMatch[1]}/products/new`
     : "/creator/storefront";
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All Products");
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [discounts, setDiscounts] = useState<Record<string, number>>(
     Object.fromEntries(products.map((product) => [product.name, product.discount])),
   );
   const [discountProduct, setDiscountProduct] = useState<Product | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [assetProduct, setAssetProduct] = useState<Product | null>(null);
+  const [moreProduct, setMoreProduct] = useState<Product | null>(null);
+  const [assets, setAssets] = useState<{ previews: Array<{ id: number; title: string; url: string }>; files: Array<{ id: number; fileName: string; fileSize: number; mimeType: string; url: string }> }>({ previews: [], files: [] });
+  const [assetsLoading, setAssetsLoading] = useState(false);
 
-  const visibleProducts = useMemo(() => {
+  useEffect(() => {
+    if (!storefrontSegment) {
+      setIsLoading(false);
+      return;
+    }
+    const storefrontName = decodeURIComponent(storefrontSegment);
+    const token = window.localStorage.getItem("marketplace-token");
+    setIsLoading(true);
+
+    fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(storefrontName)}/products`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Unable to load products.");
+        return data.products ?? [];
+      })
+      .then((databaseProducts: Array<{ id?: number; uuid?: string; name: string; description?: string; price: number; discount?: number; status: string; createdAt?: string }>) => {
+        const nextProducts = databaseProducts.map((product, index) => ({
+          id: product.id,
+          uuid: product.uuid,
+          name: product.name,
+          description: product.description || "",
+          price: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(product.price),
+          discount: product.discount ?? 0,
+          status: (product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()) as ProductStatus,
+          sales: 0,
+          createdAt: product.createdAt ? new Date(product.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-",
+          icon: iconColors[index % iconColors.length],
+        }));
+        setProducts(nextProducts);
+        setDiscounts(Object.fromEntries(nextProducts.map((product) => [String(product.id ?? product.name), product.discount])));
+      })
+      .catch(() => setProducts([]))
+      .finally(() => setIsLoading(false));
+  }, [storefrontSegment]);
+
+  const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return products.filter((product) => {
@@ -93,10 +88,65 @@ export default function CreatorProductsPage() {
 
       return matchesTab && matchesSearch;
     });
+  }, [activeTab, products, search]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredProducts.length / 10));
+  const visibleProducts = useMemo(() => filteredProducts.slice((page - 1) * 10, page * 10), [filteredProducts, page]);
+
+  useEffect(() => {
+    setPage(1);
   }, [activeTab, search]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   const openDiscountEditor = (product: Product) => {
     setDiscountProduct(product);
+  };
+
+  const openAssetViewer = async (product: Product) => {
+    if (!product.id) return;
+    setAssetProduct(product);
+    setAssetsLoading(true);
+    const token = window.localStorage.getItem("marketplace-token");
+    const headers = { Authorization: `Bearer ${token}` };
+    const baseUrl = `${apiUrl}/creator/storefronts/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/${product.id}`;
+    try {
+      const [previewsResponse, filesResponse] = await Promise.all([fetch(`${baseUrl}/previews`, { headers }), fetch(`${baseUrl}/files`, { headers })]);
+      const previews = await previewsResponse.json();
+      const files = await filesResponse.json();
+      setAssets({ previews: previews.previews ?? [], files: (files.files ?? []).map((file: { url: string }) => ({ ...file, url: `${apiUrl}${file.url}` })) });
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
+  const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editProduct?.id) return;
+    const form = new FormData(event.currentTarget);
+    const token = window.localStorage.getItem("marketplace-token");
+    const response = await fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/${editProduct.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: form.get("name"), description: form.get("description"), price: form.get("price"), status: form.get("status") }) });
+    if (!response.ok) return;
+    const data = await response.json();
+    const updated = data.product;
+    setProducts((current) => current.map((product) => product.id === editProduct.id ? { ...product, name: updated.name, description: updated.description, price: new Intl.NumberFormat("en-US", { style: "currency", currency: updated.currency || "USD" }).format(updated.price), status: (updated.status.charAt(0).toUpperCase() + updated.status.slice(1)) as ProductStatus } : product));
+    setEditProduct(null);
+  };
+
+  const saveDiscount = async (value: number) => {
+    if (!discountProduct?.id) return;
+    const token = window.localStorage.getItem("marketplace-token");
+    await fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/${discountProduct.id}`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ discount: value }) });
+    setDiscounts((current) => ({ ...current, [String(discountProduct.id ?? discountProduct.name)]: value }));
+    setProducts((current) => current.map((product) => product.id === discountProduct.id ? { ...product, discount: value } : product));
+    setDiscountProduct(null);
+  };
+
+  const productEditPath = (product: Product) => {
+    const productKey = product.uuid ?? product.id;
+    return productKey ? `${addProductPath.replace(/\/new$/, "")}/${productKey}/edit` : addProductPath;
   };
 
   return (
@@ -179,11 +229,38 @@ export default function CreatorProductsPage() {
           </div>
         </div>
 
-        <ProductTable products={visibleProducts} discounts={discounts} onDiscount={openDiscountEditor} />
-        <ProductPagination count={visibleProducts.length} total={products.length} />
+        <ProductTable products={visibleProducts} discounts={discounts} onDiscount={openDiscountEditor} onEdit={(product) => router.push(productEditPath(product))} onMore={setMoreProduct} isLoading={isLoading} />
+        <ProductPagination count={visibleProducts.length} total={filteredProducts.length} page={page} pages={pageCount} onPageChange={setPage} />
       </section>
 
-      <ProductDiscountDialog product={discountProduct} value={discountProduct ? discounts[discountProduct.name] ?? 0 : 0} onClose={() => setDiscountProduct(null)} onSave={(value) => { if (discountProduct) setDiscounts((current) => ({ ...current, [discountProduct.name]: value })); setDiscountProduct(null); }} />
+      <ProductDiscountDialog key={discountProduct?.id ?? "discount"} product={discountProduct} value={discountProduct ? discounts[String(discountProduct.id ?? discountProduct.name)] ?? 0 : 0} onClose={() => setDiscountProduct(null)} onSave={saveDiscount} />
+
+      <Modal open={Boolean(moreProduct)} title={`Actions: ${moreProduct?.name ?? "Product"}`} onClose={() => setMoreProduct(null)}>
+        {moreProduct && <div className="grid gap-2">
+          <button type="button" onClick={() => { const productKey = moreProduct.uuid ?? moreProduct.id; setMoreProduct(null); router.push(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/versions/new?product=${encodeURIComponent(String(productKey))}`); }} className="rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light">Add Version</button>
+          <button type="button" onClick={() => { setMoreProduct(null); router.push(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/preview-assets?product=${encodeURIComponent(moreProduct.name)}`); }} className="rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light">Edit Preview</button>
+          <button type="button" onClick={() => { setMoreProduct(null); router.push(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/files?product=${encodeURIComponent(moreProduct.name)}`); }} className="rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light">Edit File</button>
+          <button type="button" onClick={() => { setMoreProduct(null); router.push(`${productEditPath(moreProduct).replace(/\/edit$/, "")}/detail`); }} className="rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light">View Detail</button>
+        </div>}
+      </Modal>
+
+      <Modal open={Boolean(editProduct)} title="Edit product" onClose={() => setEditProduct(null)}>
+        {editProduct && <form onSubmit={saveProduct} className="space-y-4">
+          <label className="block text-xs font-medium text-body">Name<input name="name" defaultValue={editProduct.name} className="mt-1 h-9 w-full rounded-lg border border-border-control px-3 text-xs" required /></label>
+          <label className="block text-xs font-medium text-body">Description<textarea name="description" defaultValue={editProduct.description} className="mt-1 w-full rounded-lg border border-border-control px-3 py-2 text-xs" rows={3} /></label>
+          <label className="block text-xs font-medium text-body">Price<input name="price" type="number" min="0" step="0.01" defaultValue={editProduct.price.replace(/[^0-9.]/g, "")} className="mt-1 h-9 w-full rounded-lg border border-border-control px-3 text-xs" required /></label>
+          <label className="block text-xs font-medium text-body">Status<select name="status" defaultValue={editProduct.status} className="mt-1 h-9 w-full rounded-lg border border-border-control px-3 text-xs"><option>Draft</option><option>Published</option><option>Archived</option></select></label>
+          <button type="submit" className="w-full rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white">Save changes</button>
+        </form>}
+      </Modal>
+
+      <Modal open={Boolean(assetProduct)} title={`Assets: ${assetProduct?.name ?? ""}`} onClose={() => setAssetProduct(null)}>
+        {assetsLoading ? <p className="py-8 text-center text-sm text-muted">Loading assets...</p> : <div className="space-y-4">
+          {assets.previews.map((preview) => <img key={preview.id} src={preview.url} alt={preview.title || assetProduct?.name} className="max-h-64 w-full rounded-lg object-contain" />)}
+          {assets.files.length > 0 && <div><h3 className="text-xs font-semibold text-heading">Product files</h3>{assets.files.map((file) => <a key={file.id} href={file.url} target="_blank" rel="noreferrer" className="mt-2 block rounded-lg border border-border-control px-3 py-2 text-xs text-primary">{file.fileName}</a>)}</div>}
+          {!assets.previews.length && !assets.files.length && <p className="py-8 text-center text-sm text-muted">No previews or files available.</p>}
+        </div>}
+      </Modal>
     </div>
   );
 }

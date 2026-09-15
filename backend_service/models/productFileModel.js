@@ -4,6 +4,7 @@ const sequelize = require("./database");
 module.exports = sequelize?.define("ProductFile", {
   ProductFileId: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, field: "ProductFileId" },
   ProductId: { type: DataTypes.INTEGER, allowNull: false, field: "ProductId" },
+  ProductVersionId: { type: DataTypes.BIGINT, field: "ProductVersionId" },
   FileName: { type: DataTypes.STRING(255), allowNull: false, field: "FileName" },
   StorageKey: { type: DataTypes.TEXT, allowNull: false, field: "StorageKey" },
   FileUrl: { type: DataTypes.TEXT, field: "FileUrl" },

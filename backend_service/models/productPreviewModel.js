@@ -4,6 +4,7 @@ const sequelize = require("./database");
 module.exports = sequelize?.define("ProductPreview", {
   ProductPreviewId: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true, field: "ProductPreviewId" },
   ProductId: { type: DataTypes.INTEGER, allowNull: false, field: "ProductId" },
+  ProductVersionId: { type: DataTypes.BIGINT, field: "ProductVersionId" },
   PreviewType: { type: DataTypes.STRING(50), allowNull: false, field: "PreviewType" },
   Title: { type: DataTypes.STRING(255), field: "Title" },
   PreviewUrl: { type: DataTypes.TEXT, allowNull: false, field: "PreviewUrl" },

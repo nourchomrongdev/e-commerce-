@@ -8,7 +8,7 @@ async function saveProductFile(dataUrl, fileName, mimeType) {
   const match = String(dataUrl || "").match(/^data:[^;]+;base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error("Invalid product file data.");
   const buffer = Buffer.from(match[1], "base64");
-  if (!buffer.length || buffer.length > 10 * 1024 * 1024) throw new Error("Product files must be smaller than 10 MB.");
+  if (!buffer.length) throw new Error("Product file data is empty.");
   const extension = path.extname(String(fileName || "")).toLowerCase().replace(/[^a-z0-9.]/g, "") || ".bin";
   const storageKey = `${crypto.createHash("sha256").update(buffer).digest("hex")}${extension}`;
   await fs.mkdir(storageDirectory, { recursive: true });

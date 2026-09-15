@@ -16,6 +16,7 @@ export default function RouteLoadingBar() {
   const finishTimeoutRef = useRef<number | null>(null);
   const settleTimeoutRef = useRef<number | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
+  const previousPathnameRef = useRef(pathname);
 
   const clearTimers = () => {
     if (intervalRef.current !== null) {
@@ -114,6 +115,11 @@ export default function RouteLoadingBar() {
   }, []);
 
   useEffect(() => {
+    if (previousPathnameRef.current !== pathname) {
+      previousPathnameRef.current = pathname;
+      startLoading();
+    }
+
     if (!loadingRef.current) return;
 
     const settleNavigation = () => {
