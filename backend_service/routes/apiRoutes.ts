@@ -293,6 +293,7 @@ router.post("/admin/products", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Name, price, storefront, and category are required." });
     }
     const created = await Product.create({
+      UUID: crypto.randomUUID(),
       StorefrontId: storefrontId,
       CategoryId: categoryId,
       ProductName: name,
@@ -430,7 +431,7 @@ router.post("/creator/storefronts/:storefrontName/products", async (req, res) =>
     const releases = releasePayload(req.body);
     if (!releases.length || !releases.some((release) => release.files.length)) return res.status(400).json({ error: "At least one product file is required." });
     if (new Set(releases.map((release) => release.version)).size !== releases.length) return res.status(400).json({ error: "Each product version must have a unique version number." });
-    const product = await Product.create({ StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
+    const product = await Product.create({ UUID: crypto.randomUUID(), StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
     const currentReleaseIndex = Math.max(0, releases.findIndex((release) => release.current));
     for (const [index, release] of releases.entries()) {
       const version = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: now });
@@ -546,15 +547,44 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/versions", 
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
   const versions = await ProductVersion.findAll({ where: { ProductId: product.ProductId }, order: [["CreatedAt", "DESC"]] });
-  const versionIds = versions.map((version) => version.ProductVersionId);
+  const versionIds = versions.map((version) => Number(version.ProductVersionId)).filter((id) => Number.isFinite(id));
   const [files, previews] = await Promise.all([
-    ProductFile.findAll({ where: { ProductId: product.ProductId, ProductVersionId: versionIds, IsActive: true }, order: [["CreatedAt", "ASC"]] }),
-    ProductPreview.findAll({ where: { ProductId: product.ProductId, ProductVersionId: versionIds, IsActive: true }, order: [["SortOrder", "ASC"]] }),
+    ProductFile.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["CreatedAt", "ASC"]] }),
+    ProductPreview.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["SortOrder", "ASC"]] }),
   ]);
+
+  const currentVersionId = versions.find((version) => version.IsCurrent)?.ProductVersionId ?? versions[0]?.ProductVersionId ?? null;
   const filesByVersion = new Map();
-  files.forEach((file) => filesByVersion.set(Number(file.ProductVersionId), [...(filesByVersion.get(Number(file.ProductVersionId)) || []), { fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType }]));
   const previewsByVersion = new Map();
-  previews.forEach((preview) => previewsByVersion.set(Number(preview.ProductVersionId), [...(previewsByVersion.get(Number(preview.ProductVersionId)) || []), { id: String(preview.ProductPreviewId), title: preview.Title || "", type: preview.PreviewType, url: preview.PreviewUrl }]));
+
+  versions.forEach((version) => {
+    const versionId = Number(version.ProductVersionId);
+    filesByVersion.set(versionId, []);
+    previewsByVersion.set(versionId, []);
+  });
+
+  files.forEach((file) => {
+    const fileVersionId = Number(file.ProductVersionId ?? currentVersionId);
+    if (!Number.isFinite(fileVersionId)) return;
+    const targetVersion = versions.some((version) => Number(version.ProductVersionId) === fileVersionId)
+      ? fileVersionId
+      : currentVersionId ?? fileVersionId;
+    const nextEntry = { fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType };
+    const key = Number(targetVersion);
+    filesByVersion.set(key, [...(filesByVersion.get(key) || []), nextEntry]);
+  });
+
+  previews.forEach((preview) => {
+    const previewVersionId = Number(preview.ProductVersionId ?? currentVersionId);
+    if (!Number.isFinite(previewVersionId)) return;
+    const targetVersion = versions.some((version) => Number(version.ProductVersionId) === previewVersionId)
+      ? previewVersionId
+      : currentVersionId ?? previewVersionId;
+    const nextEntry = { id: String(preview.ProductPreviewId), title: preview.Title || "", type: preview.PreviewType, url: preview.PreviewUrl };
+    const key = Number(targetVersion);
+    previewsByVersion.set(key, [...(previewsByVersion.get(key) || []), nextEntry]);
+  });
+
   return res.json({ versions: versions.map((version) => ({ id: version.ProductVersionId, version: version.VersionNumber, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] })) });
 });
 

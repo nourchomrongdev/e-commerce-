@@ -30,6 +30,7 @@ function toUser(user) {
     role: primaryRole,
     roles,
     isVerified: Boolean(user.creatorProfile?.IsVerified),
+    hasApplied: Boolean(user.creatorProfile),
   };
 }
 

@@ -2,13 +2,56 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 type StorefrontOption = { name: string; products: number; href: string };
+
+const formatDisplayText = (value: string | null | undefined, fallback: string) => {
+  const cleaned = String(value ?? "").trim().replace(/_/g, " ").replace(/\s+/g, " ");
+  return cleaned || fallback;
+};
+
+const formatRoleText = (value: string | null | undefined, fallback: string) => {
+  const cleaned = String(value ?? "").trim().replace(/_/g, " ").replace(/\s+/g, " ");
+  if (!cleaned) return fallback;
+  return cleaned.split(" ").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
+};
+
+const resolveUserRole = (user: any, fallback: string) => {
+  const candidates: string[] = [];
+
+  const addCandidate = (value: unknown) => {
+    if (!value) return;
+    const text = String(value).replace(/_/g, " ").trim();
+    if (text) candidates.push(text);
+  };
+
+  if (Array.isArray(user?.roles)) {
+    user.roles.forEach((entry: unknown) => {
+      if (typeof entry === "string") addCandidate(entry);
+      else if (entry && typeof entry === "object") {
+        addCandidate((entry as any)?.role?.RoleName ?? (entry as any)?.RoleName ?? (entry as any)?.name ?? (entry as any)?.role ?? (entry as any)?.roleName);
+      }
+    });
+  }
+
+  addCandidate(user?.role ?? user?.userRole ?? user?.primaryRole ?? user?.roleName);
+
+  const normalized = candidates
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+
+  if (normalized.includes("creator")) return "Creator";
+  if (normalized.includes("admin")) return "Admin";
+  if (normalized.includes("reviewer")) return "Reviewer";
+  if (normalized.includes("buyer")) return "Buyer";
+  if (normalized.length > 0) return formatRoleText(normalized[0], fallback);
+  return fallback;
+};
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
@@ -24,10 +67,13 @@ export default function CreatorDashboardHeader({
   sidebarOpen?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [notifications, setNotifications] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [storefrontOptions, setStorefrontOptions] = useState<StorefrontOption[]>([]);
   const [isBurgerMenuVisible, setIsBurgerMenuVisible] = useState(false);
+  const [accountName, setAccountName] = useState("User");
+  const [accountRole, setAccountRole] = useState("Creator");
 
   useEffect(() => {
     const updateBurgerVisibility = () => setIsBurgerMenuVisible(window.innerWidth < 1024);
@@ -42,6 +88,42 @@ export default function CreatorDashboardHeader({
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem("creator-selected-storefront") ?? "";
   });
+
+  useEffect(() => {
+    const token = window.localStorage.getItem("marketplace-token");
+    const storedUser = window.localStorage.getItem("current-user") || window.localStorage.getItem("marketplace-user");
+
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        const nextName = formatDisplayText(parsedUser?.username || parsedUser?.name || parsedUser?.fullName, "User");
+        const nextRole = resolveUserRole(parsedUser, "Creator");
+        setAccountName(nextName);
+        setAccountRole(nextRole);
+      } catch {
+        // ignore invalid stored user data
+      }
+    }
+
+    if (!token) return;
+
+    fetch(`${apiUrl}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load user profile");
+        const result = await response.json();
+        const user = result.user ?? {};
+        const nextName = formatDisplayText(user.username || user.name || user.fullName, "User");
+        const nextRole = resolveUserRole(user, "Creator");
+        setAccountName(nextName);
+        setAccountRole(nextRole);
+        if (user.username || user.name || user.fullName) {
+          window.localStorage.setItem("current-user", JSON.stringify(user));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!accountOpen && !storefrontOpen && !notifications) return;
@@ -279,11 +361,11 @@ export default function CreatorDashboardHeader({
               className="flex items-center gap-2 rounded-lg p-1 text-left transition hover:bg-accent-light"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-sm font-semibold text-white">
-                {isAdminContext ? "A" : isReviewerContext ? "R" : "N"}
+                {formatDisplayText(accountName, "U").charAt(0).toUpperCase() || (isAdminContext ? "A" : isReviewerContext ? "R" : "N")}
               </span>
               <span className="hidden sm:block">
-                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : "NourChomrong"}</span>
-                <span className="block text-[11px] text-[#69738f]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : isAffiliateContext ? "Affiliate" : "Creator"}</span>
+                <span className="block text-sm font-semibold text-[#111b40]">{accountName}</span>
+                <span className="block text-[11px] text-[#69738f]">{accountRole}</span>
               </span>
               <PublicIcon name="down" className={`hidden h-4 w-4 text-[#69738f] transition-transform sm:block ${accountOpen ? "rotate-180" : ""}`} />
             </button>
@@ -315,17 +397,21 @@ export default function CreatorDashboardHeader({
                   Help Center
                 </Link>
                 <div className="border-t border-gray-100" />
-                <Link
-                  href="/login"
+                <button
+                  type="button"
                   onClick={() => {
+                    window.localStorage.removeItem("marketplace-token");
+                    window.localStorage.removeItem("marketplace-user");
+                    window.localStorage.removeItem("current-user");
                     window.localStorage.removeItem("creator-selected-storefront");
                     setAccountOpen(false);
+                    router.replace(routes.auth.login());
                   }}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-status-danger transition hover:bg-red-50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-status-danger transition hover:bg-red-50"
                 >
                   <PublicIcon name="arrow-left" className="h-5 w-5" />
                   Log out
-                </Link>
+                </button>
               </div>
             )}
           </div>

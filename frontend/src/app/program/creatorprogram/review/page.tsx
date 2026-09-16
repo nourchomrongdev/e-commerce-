@@ -34,15 +34,6 @@ export default function CreatorProgramReviewPage() {
       let foundEmail = "";
 
       try {
-        const stored = window.localStorage.getItem("creator-program-application");
-        if (stored) {
-          try {
-            setApplication(JSON.parse(stored) as Application);
-          } catch {
-            window.localStorage.removeItem("creator-program-application");
-          }
-        }
-
         const response = await fetch(`${apiUrl}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -57,6 +48,16 @@ export default function CreatorProgramReviewPage() {
         }
 
         const result = await response.json();
+        const userId = Number(result?.user?.id);
+        const applicationKey = userId ? `creator-program-application:${userId}` : "";
+        const stored = applicationKey ? window.localStorage.getItem(applicationKey) : null;
+        if (stored) {
+          try {
+            setApplication(JSON.parse(stored) as Application);
+          } catch {
+            window.localStorage.removeItem(applicationKey);
+          }
+        }
         foundEmail = result?.user?.email || "";
         setUserVerified(Boolean(result?.user?.isVerified));
 

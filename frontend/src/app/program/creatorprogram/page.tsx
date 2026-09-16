@@ -42,9 +42,8 @@ export default function CreatorProgramPage() {
       if (!response.ok) throw new Error("Unauthorized");
       const result = await response.json();
       const user = result.user ?? {};
-      const hasExistingCreatorApplication = Boolean(window.localStorage.getItem("creator-program-application"));
       const isAlreadyCreator = user.role === "creator";
-      const shouldLock = Boolean(isAlreadyCreator || hasExistingCreatorApplication);
+      const shouldLock = Boolean(isAlreadyCreator || user.hasApplied);
       setLockedForExistingUser(shouldLock);
     }).catch(() => {
       setLockedForExistingUser(false);

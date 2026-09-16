@@ -208,6 +208,7 @@ export default function CreatorProgramApplyPage() {
   const [submitNotice, setSubmitNotice] = useState<{ variant: "success" | "error"; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [socialLinks, setSocialLinks] = useState({
     instagram: "",
     facebook: "",
@@ -242,8 +243,8 @@ export default function CreatorProgramApplyPage() {
       if (!response.ok) throw new Error("Unauthorized");
       const result = await response.json();
       const user = result.user ?? {};
-      const hasExistingCreatorApplication = Boolean(window.localStorage.getItem("creator-program-application"));
-      if (user.role === "creator" || hasExistingCreatorApplication) {
+      setCurrentUserId(Number(user.id) || null);
+      if (user.role === "creator" || user.hasApplied) {
         router.replace(routes.programs.creatorProgramReview());
         return;
       }
@@ -403,7 +404,9 @@ export default function CreatorProgramApplyPage() {
         return;
       }
       const successMessage = "Your creator application has been submitted successfully.";
-      window.localStorage.setItem("creator-program-application", JSON.stringify({ status: "Under review", submittedAt: new Date().toISOString() }));
+      if (currentUserId) {
+        window.localStorage.setItem(`creator-program-application:${currentUserId}`, JSON.stringify({ status: "Under review", submittedAt: new Date().toISOString() }));
+      }
       setSubmitNotice({ variant: "success", message: successMessage });
       router.push(routes.programs.creatorProgramReview());
     } catch (error) {

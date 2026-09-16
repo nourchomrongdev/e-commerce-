@@ -30,9 +30,8 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
-  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
-  const [redirectMessage, setRedirectMessage] = useState("Checking creator account…");
-  const [storefrontName, setStorefrontName] = useState<string | null>(null);
+  const [redirectingToLogin, setRedirectingToLogin] = useState(true);
+  const [redirectMessage, setRedirectMessage] = useState("Please wait while we verify your creator access.");
   const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
   const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
   const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
@@ -42,6 +41,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     Payment?: boolean;
   }>({});
   const initialPathRef = useRef(pathname);
+  const redirectTimerRef = useRef<number | null>(null);
 
   const segments = pathname.split("/").filter(Boolean);
   const storefrontIndex = segments.indexOf("storefront");
@@ -51,6 +51,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     storefrontIndex >= 0 &&
     Boolean(storefrontNameSegment) &&
     storefrontNameSegment !== "new";
+  const storefrontName = isStorefrontRoute ? decodeURIComponent(storefrontNameSegment) : null;
   const storefrontHeaderAllowed = ["overview", "branding", "setting", "payment", "summary"].includes(storefrontSection);
   const activeTab = pathname.endsWith("/branding")
     ? "Branding"
@@ -72,14 +73,9 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
   }, []);
 
   useEffect(() => {
-    if (!isStorefrontRoute) {
-      setStorefrontName(null);
-      setIncompleteTabs({});
-      return;
-    }
+    if (!authorized || !isStorefrontRoute || !storefrontName) return;
 
-    const nextStorefrontName = decodeURIComponent(segments[storefrontIndex + 1] ?? "");
-    setStorefrontName(nextStorefrontName);
+    const nextStorefrontName = storefrontName;
 
     const token = window.localStorage.getItem("marketplace-token");
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -122,63 +118,62 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       .catch(() => {
         setIncompleteTabs({});
       });
-  }, [isStorefrontRoute, pathname, storefrontIndex]);
-
-  const redirectTimerRef = useRef<number | null>(null);
-  const unauthorizedMessageTimerRef = useRef<number | null>(null);
+  }, [authorized, isStorefrontRoute, pathname, storefrontName]);
 
   useEffect(() => {
     const token = window.localStorage.getItem("marketplace-token");
-    const redirectToLogin = (message = "Creator access required. Please log in or register a creator.") => {
+    const primaryMessage = "Checking creator account...";
+    const secondaryDelay = 1500;
+    const redirectDelay = 3000;
+
+    const redirectToLogin = (message = "Please log in before continue.") => {
       if (redirectTimerRef.current !== null) {
         window.clearTimeout(redirectTimerRef.current);
-      }
-      if (unauthorizedMessageTimerRef.current !== null) {
-        window.clearTimeout(unauthorizedMessageTimerRef.current);
       }
 
       setAuthorized(false);
       setRedirectingToLogin(true);
-      setRedirectMessage("Checking creator account…");
+      setRedirectMessage(primaryMessage);
 
       const next = encodeURIComponent(initialPathRef.current || routes.creator.overview());
       window.localStorage.removeItem("marketplace-token");
       window.localStorage.removeItem("marketplace-user");
       window.localStorage.removeItem("current-user");
 
-      unauthorizedMessageTimerRef.current = window.setTimeout(() => {
+      window.setTimeout(() => {
         setRedirectMessage(message);
-      }, 1500);
+      }, secondaryDelay);
 
       redirectTimerRef.current = window.setTimeout(() => {
         router.replace(`${routes.auth.login()}?next=${next}`);
-      }, 6000);
+      }, redirectDelay + secondaryDelay);
     };
 
-    const redirectToCreatorProgram = (message = "No creator access. Please apply for a creator program.") => {
+    const redirectToCreatorProgram = (message = "No creator access. Redirecting to creator program...") => {
       if (redirectTimerRef.current !== null) {
         window.clearTimeout(redirectTimerRef.current);
-      }
-      if (unauthorizedMessageTimerRef.current !== null) {
-        window.clearTimeout(unauthorizedMessageTimerRef.current);
       }
 
       setAuthorized(false);
       setRedirectingToLogin(true);
-      setRedirectMessage("Checking creator account…");
+      setRedirectMessage(primaryMessage);
 
-      unauthorizedMessageTimerRef.current = window.setTimeout(() => {
+      window.setTimeout(() => {
         setRedirectMessage(message);
-      }, 1500);
+      }, secondaryDelay);
 
       redirectTimerRef.current = window.setTimeout(() => {
         router.replace("http://localhost:3000/program/creatorprogram");
-      }, 6000);
+      }, redirectDelay + secondaryDelay);
     };
 
     if (!token) {
       redirectToLogin();
-      return;
+      return () => {
+        if (redirectTimerRef.current !== null) {
+          window.clearTimeout(redirectTimerRef.current);
+        }
+      };
     }
 
     fetch(`${apiUrl}/auth/me`, {
@@ -192,13 +187,13 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       const isVerified = Boolean(user.isVerified);
 
       if (!(role === "creator" || roles.includes("creator")) || !isVerified) {
-        redirectToCreatorProgram();
+        redirectToCreatorProgram("No creator access. Redirecting to creator program...");
         return;
       }
 
       setAuthorized(true);
       setRedirectingToLogin(false);
-      setRedirectMessage("Checking creator access…");
+      setRedirectMessage(primaryMessage);
     }).catch(() => {
       redirectToLogin();
     });
@@ -206,9 +201,6 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     return () => {
       if (redirectTimerRef.current !== null) {
         window.clearTimeout(redirectTimerRef.current);
-      }
-      if (unauthorizedMessageTimerRef.current !== null) {
-        window.clearTimeout(unauthorizedMessageTimerRef.current);
       }
     };
   }, [router]);
@@ -226,16 +218,18 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
 
   if (redirectingToLogin) {
     return (
-      <main className="flex min-h-screen flex-col bg-background text-[#111b40]">
-        <CreatorDashboardHeader onMenuOpen={toggleSidebar} storefrontOpen={storefrontOpen} onStorefrontToggle={setStorefrontOpen} sidebarOpen={menuOpen} />
-        <div className="flex min-h-0 flex-1">
-          <CreatorDashboardSidebar open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggle={toggleSidebar} />
-          <section className="flex min-w-0 flex-1 items-center justify-center p-5 sm:p-8">
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-white px-5 py-4 shadow-sm">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#e9edf6] border-t-primary" aria-label="Checking access" />
-              <span className="text-sm font-medium text-[#1f2d52]">{redirectMessage}</span>
-            </div>
-          </section>
+      <main className="fixed inset-0 z-[100] grid place-items-center bg-[#f5f5f7] px-4 py-8 text-[#1f2d52]">
+        <div className="flex max-w-md items-center gap-4">
+          <span
+            className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[2px] border-[#ee9b5a]"
+            aria-label="Checking access"
+          >
+            <span className="absolute inset-[2px] animate-spin rounded-full border-[2px] border-transparent border-t-[#ee9b5a]" />
+          </span>
+          <div>
+            <p className="text-[1.05rem] font-medium leading-snug text-[#1f2d52]">Checking creator account...</p>
+            <p className="mt-1 text-sm leading-snug text-[#66718e]">{redirectMessage}</p>
+          </div>
         </div>
       </main>
     );

@@ -5,12 +5,16 @@ ALTER TABLE "ProductPreviews" ADD COLUMN "ProductVersionId" BIGINT REFERENCES "P
 UPDATE "ProductFiles" AS file
 SET "ProductVersionId" = version."ProductVersionId"
 FROM "ProductVersions" AS version
-WHERE file."ProductId" = version."ProductId" AND version."IsCurrent" = TRUE;
+WHERE file."ProductId" = version."ProductId"
+  AND file."ProductVersionId" IS NULL
+  AND version."IsCurrent" = TRUE;
 
 UPDATE "ProductPreviews" AS preview
 SET "ProductVersionId" = version."ProductVersionId"
 FROM "ProductVersions" AS version
-WHERE preview."ProductId" = version."ProductId" AND version."IsCurrent" = TRUE;
+WHERE preview."ProductId" = version."ProductId"
+  AND preview."ProductVersionId" IS NULL
+  AND version."IsCurrent" = TRUE;
 
 CREATE INDEX "IX_ProductFiles_ProductVersionId" ON "ProductFiles" ("ProductVersionId");
 CREATE INDEX "IX_ProductPreviews_ProductVersionId" ON "ProductPreviews" ("ProductVersionId");

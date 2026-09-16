@@ -93,6 +93,20 @@
   display: none;
 }
 
+/* Keep every existing sidebar drawer visually unchanged while giving its
+   left-to-right entrance the same smooth, responsive motion. */
+aside[class*="transition-[width,transform,padding]"],
+aside[class*="transition-transform"] {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  aside[class*="transition-[width,transform,padding]"],
+  aside[class*="transition-transform"] {
+    transition-duration: 0ms;
+  }
+}
+
 select,
 .select-chevron {
   appearance: none;
