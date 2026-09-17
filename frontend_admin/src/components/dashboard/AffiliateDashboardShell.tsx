@@ -12,7 +12,7 @@ export default function AffiliateDashboardShell({ children }: { children: ReactN
   const toggleSidebar = () => {
     setStorefrontOpen(false);
 
-    if (window.matchMedia("(min-width: 1024px)").matches) {
+    if (window.matchMedia("(min-width: 901px)").matches) {
       setSidebarCollapsed((isCollapsed) => !isCollapsed);
       return;
     }

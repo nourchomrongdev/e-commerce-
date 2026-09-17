@@ -93,6 +93,11 @@
   display: none;
 }
 
+[aria-label="Expand sidebar"],
+[aria-label="Collapse sidebar"] {
+  z-index: 90 !important;
+}
+
 /* Keep every existing sidebar drawer visually unchanged while giving its
    left-to-right entrance the same smooth, responsive motion. */
 aside[class*="transition-[width,transform,padding]"],

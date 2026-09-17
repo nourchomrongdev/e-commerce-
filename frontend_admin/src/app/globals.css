@@ -152,6 +152,41 @@ select {
   display: none;
 }
 
+[aria-label="Expand sidebar"],
+[aria-label="Collapse sidebar"] {
+  z-index: 90 !important;
+}
+
+[aria-label="Expand sidebar"],
+[aria-label="Collapse sidebar"] {
+  font-size: 0 !important;
+}
+
+[aria-label="Expand sidebar"]::after,
+[aria-label="Collapse sidebar"]::after {
+  content: "";
+  display: block;
+  height: 1rem;
+  width: 1rem;
+  background-color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+[aria-label="Expand sidebar"]::after {
+  mask-image: url("/icons/right.svg");
+  -webkit-mask-image: url("/icons/right.svg");
+}
+
+[aria-label="Collapse sidebar"]::after {
+  mask-image: url("/icons/left.svg");
+  -webkit-mask-image: url("/icons/left.svg");
+}
+
 /* Keep every existing sidebar drawer visually unchanged while giving its
    left-to-right entrance the same smooth, responsive motion. */
 aside[class*="transition-[width,transform,padding]"],

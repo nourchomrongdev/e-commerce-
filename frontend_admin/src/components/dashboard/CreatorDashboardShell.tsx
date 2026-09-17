@@ -12,7 +12,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
   const toggleSidebar = () => {
     setStorefrontOpen(false);
 
-    if (window.matchMedia("(min-width: 1024px)").matches) {
+    if (window.matchMedia("(min-width: 901px)").matches) {
       setSidebarCollapsed((isCollapsed) => !isCollapsed);
       return;
     }

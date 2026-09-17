@@ -10,7 +10,7 @@ export default function AdminDashboardShell({ children, workspace = "admin" }: {
   const [storefrontOpen, setStorefrontOpen] = useState(false);
   const toggleSidebar = () => {
     setStorefrontOpen(false);
-    if (window.matchMedia("(min-width: 1024px)").matches) setSidebarCollapsed((isCollapsed) => !isCollapsed);
+    if (window.matchMedia("(min-width: 901px)").matches) setSidebarCollapsed((isCollapsed) => !isCollapsed);
     else setMenuOpen((isOpen) => !isOpen);
   };
 

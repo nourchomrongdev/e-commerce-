@@ -204,30 +204,30 @@ export default function CreatorDashboardSidebar({
           type="button"
           aria-label="Close dashboard navigation"
           onClick={onClose}
-          className="fixed inset-x-0 bottom-0 top-20 z-30 bg-slate-950/30 lg:hidden"
+          className="fixed inset-0 z-[70] bg-slate-950/45 backdrop-blur-[1px] transition-opacity duration-300 min-[901px]:hidden"
         />
       )}
       <button
         type="button"
         onClick={onToggle}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={`fixed top-20 z-[60] hidden h-9 w-9 place-items-center rounded-br-lg border-b border-r border-[#e1e5ee] bg-white text-xl shadow-md transition-[left] duration-300 hover:bg-accent-light lg:grid ${collapsed ? "left-0" : "left-[228px]"}`}
+        className={`fixed top-20 z-[60] grid h-9 w-9 place-items-center rounded-br-lg border-b border-r border-[#e1e5ee] bg-white text-xl shadow-md transition-[left] duration-300 hover:bg-accent-light max-[900px]:hidden ${collapsed ? "left-0" : "left-[228px]"}`}
       >
         {collapsed ? "›" : "‹"}
       </button>
       <aside
         onScroll={() => setStorefrontMenuOpen(false)}
-        className={`scrollbar-hidden fixed bottom-0 left-0 top-20 z-40 flex w-[85%] flex-col overflow-y-auto overscroll-contain border-r border-[#eaebf5] bg-white px-5 py-5 shadow-xl transition-[width,transform,padding] duration-300 lg:sticky lg:top-20 lg:h-[calc(100vh-5rem)] lg:translate-x-0 lg:shadow-none ${open ? "translate-x-0" : "-translate-x-full"} ${collapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0 lg:px-0" : "lg:w-[264px]"}`}
+        className={`scrollbar-hidden fixed inset-y-0 left-0 z-[80] flex w-[70%] max-w-[28rem] flex-col overflow-y-auto overscroll-contain border-r border-[#eaebf5] bg-white px-5 py-5 shadow-xl transition-[width,transform,padding] duration-300 min-[901px]:sticky min-[901px]:top-20 min-[901px]:h-[calc(100vh-5rem)] min-[901px]:translate-x-0 min-[901px]:shadow-none ${open ? "translate-x-0" : "-translate-x-full"} ${collapsed ? "min-[901px]:w-0 min-[901px]:overflow-hidden min-[901px]:border-r-0 min-[901px]:px-0" : "min-[901px]:w-[264px]"}`}
       >
         <button
           type="button"
           onClick={onClose}
-          className="mb-4 self-end text-lg lg:hidden"
+          className="mb-4 self-end text-lg min-[901px]:hidden"
           aria-label="Close dashboard navigation"
         >
           ×
         </button>
-        <div className="relative mb-5 lg:hidden">
+        <div className="relative mb-5 min-[901px]:hidden">
           <button
             type="button"
             onClick={() => setStorefrontMenuOpen((isOpen) => !isOpen)}

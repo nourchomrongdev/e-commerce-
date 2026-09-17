@@ -8,7 +8,7 @@ export default function BuyerDashboardShell({ children }: { children: ReactNode 
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const toggleSidebar = () => {
-    if (window.matchMedia("(min-width: 1024px)").matches) setSidebarCollapsed((collapsed) => !collapsed);
+    if (window.matchMedia("(min-width: 901px)").matches) setSidebarCollapsed((collapsed) => !collapsed);
     else setMenuOpen((open) => !open);
   };
 

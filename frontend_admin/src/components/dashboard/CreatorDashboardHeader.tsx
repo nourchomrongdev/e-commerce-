@@ -109,14 +109,14 @@ export default function CreatorDashboardHeader({
             onMenuOpen();
           }}
           aria-label="Toggle dashboard navigation"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-[#111b40] hover:bg-accent-light lg:hidden"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-[#111b40] hover:bg-accent-light min-[901px]:hidden"
         >
           ☰
         </button>
 
         <Link
           href="/"
-          className="flex min-w-0 items-center text-[#111b40] no-underline"
+          className="flex min-w-0 items-center text-[#111b40] no-underline max-[900px]:hidden"
         >
           <AppBrand
             name={APP_NAME}
