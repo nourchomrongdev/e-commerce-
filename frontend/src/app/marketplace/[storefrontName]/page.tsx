@@ -1,162 +1,76 @@
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { routes } from "@/lib/routeController";
+import StorefrontCartButton from "@/components/StorefrontCartButton";
 
-const storefronts: Record<string, {
-  displayName: string;
-  type: string;
-  description: string;
-  accent: string;
-  products: { name: string; type: string; price: string; icon: string }[];
-}> = {
-  DevCourses: {
-    displayName: "DevCourses",
-    type: "Digital Products",
-    description: "Online courses and resources for developers to level up their skills.",
-    accent: "var(--storefront-blue)",
-    products: [
-      { name: "Full Stack Web Dev", type: "Video Course", price: "$49", icon: "JS" },
-      { name: "React Code Course", type: "Video Course", price: "$39", icon: "R" },
-      { name: "API Mastery", type: "Developer Guide", price: "$24", icon: "API" },
-      { name: "Modern Resume", type: "Template", price: "$9", icon: "CV" },
-    ],
-  },
-  "AI Resources": {
-    displayName: "AI Resources",
-    type: "Bundles",
-    description: "AI tools and learning bundles for everyone.",
-    accent: "var(--storefront-teal)",
-    products: [
-      { name: "AI Starter Bundle", type: "Bundle", price: "$29", icon: "AI" },
-      { name: "Prompt Library", type: "Resource Pack", price: "$15", icon: "P" },
-    ],
-  },
-  NourChomrong: {
-    displayName: "NourChomrong",
-    type: "Templates",
-    description: "Professional templates and design resources for modern websites.",
-    accent: "var(--storefront-blue)",
-    products: [
-      { name: "Startup Landing Page", type: "UI Kit", price: "$24", icon: "UI" },
-      { name: "Business Plan", type: "Template", price: "$18", icon: "BP" },
-    ],
-  },
-};
+const products = [
+  ["Modern Landing Page Template", "Templates", "$24", "landing"],
+  ["Mobile App UI Kit", "UI Kits", "$18", "mobile"],
+  ["Business Card Templates", "Templates", "$12", "cards"],
+  ["Stock Photos Collection", "Graphics", "$16", "photos"],
+  ["Dashboard UI Kit", "UI Kits", "$22", "dashboard"],
+  ["E-book: Digital Marketing Guide", "E-books", "$10", "book"],
+  ["Royalty Free Music Pack", "Audio", "$14", "music"],
+  ["Web Development Course", "Video Courses", "$29", "course"],
+] as const;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { storefrontName: string };
-}): Promise<Metadata> {
-  const storefront = storefronts[decodeURIComponent(params.storefrontName)] || storefronts.DevCourses;
-  return {
-    title: storefront.displayName,
-    description: storefront.description,
-  };
+type Props = { params: Promise<{ storefrontName: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { storefrontName } = await params;
+  return { title: decodeURIComponent(storefrontName), description: "Browse digital products from this creator." };
 }
 
-export default function PublicStorefrontPage({
-  params,
-}: {
-  params: { storefrontName: string };
-}) {
-  const storefront = storefronts[decodeURIComponent(params.storefrontName)] || storefronts.DevCourses;
-  const storefrontUrl = routes.marketplaceStorefront(storefront.displayName);
+export default async function StorefrontPage({ params }: Props) {
+  const { storefrontName } = await params;
+  const name = decodeURIComponent(storefrontName);
+  const basePath = `/marketplace/${encodeURIComponent(storefrontName)}`;
 
   return (
-    <main className="min-h-screen bg-[#f4f5f7] text-[#111b40]">
+    <main className="min-h-screen bg-[#f7f9fd] text-[#142b4d]">
       <Navbar active="products" />
-      <div className="mx-auto max-w-[1180px] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
-        <div className="mb-5 flex items-center gap-2 text-xs text-[#8993aa]">
-          <Link href={routes.marketplace()} className="text-primary no-underline hover:underline">Marketplace</Link>
-          <span>/</span>
-          <span>{storefront.displayName}</span>
+      <div className="mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
+        <Breadcrumbs name={name} />
+        <section className="relative mt-4 overflow-hidden rounded-xl border border-[#e4eaf5] bg-gradient-to-r from-[#f7faff] via-[#edf2ff] to-[#dfe4fb] px-6 py-7 shadow-sm sm:px-8">
+          <div className="absolute right-0 top-0 h-full w-1/2 bg-[radial-gradient(ellipse_at_60%_40%,rgba(126,145,220,.28),transparent_65%)]" />
+          <div className="relative z-10 flex flex-wrap items-center gap-5">
+            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#f2bd3e] to-[#9b5d10] text-4xl font-semibold text-white shadow-md">N</div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{name} <span className="text-sm text-indigo-500">●</span></h1>
+              <p className="mt-1 text-sm text-indigo-600">Creative Templates &amp; Digital Assets</p>
+              <p className="mt-2 max-w-xl text-xs leading-5 text-slate-600">High-quality templates, UI kits, and digital resources to help you build faster and create better.</p>
+              <div className="mt-3 flex flex-wrap gap-4 text-[10px] text-slate-600"><span>▣　24 Products</span><span className="text-amber-500">★ <b className="text-slate-600">4.8</b> (124 reviews)</span><span>⌖ Cambodia</span></div>
+            </div>
+            <button type="button" className="ml-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-indigo-600 shadow-sm">♧　Follow</button>
+          </div>
+        </section>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[190px_minmax(0,1fr)_285px]">
+          <aside className="space-y-4">
+            <InfoPanel title="▣　 Store Info"><InfoRow icon="▣" text="24 Products" /><InfoRow icon="☆" text="4.8 (124 reviews)" /><InfoRow icon="◷" text="Joined Mar 2024" /><InfoRow icon="⌖" text="Cambodia" /></InfoPanel>
+            <InfoPanel title="▦　 Categories"><CategoryRow icon="▤" name="Templates" count="12" /><CategoryRow icon="▦" name="UI Kits" count="6" tone="orange" /><CategoryRow icon="▧" name="Graphics" count="4" tone="violet" /><CategoryRow icon="▥" name="E-books" count="2" tone="green" /></InfoPanel>
+          </aside>
+
+          <section className="min-w-0">
+            <div className="mb-3 flex items-center justify-between"><h2 className="text-base font-bold">Products <span className="text-slate-500">(24)</span></h2><button type="button" className="rounded-md border border-[#dce4f0] bg-white px-3 py-2 text-[10px] text-slate-600">Most Popular　⌄</button></div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {products.map(([title, type, price, art], index) => <ProductTile key={title} title={title} type={type} price={price} art={art} featured={index === 0} basePath={basePath} />)}
+            </div>
+            <div className="mt-3 rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm"><div className="flex gap-6 border-b border-[#edf1f7] text-[10px] font-semibold text-indigo-500"><span className="border-b-2 border-indigo-500 pb-3">Description</span><span className="pb-3 text-slate-400">Files Included</span><span className="pb-3 text-slate-400">Version History</span><span className="pb-3 text-slate-400">Reviews (124)</span></div><h3 className="mt-4 text-xs font-bold">About This Store</h3><p className="mt-2 text-[10px] leading-5 text-slate-500">Explore a curated collection of clean, useful digital resources made for modern creators, teams, and growing businesses.</p></div>
+          </section>
+
+          <aside className="hidden lg:block"><div className="overflow-hidden rounded-xl border border-[#e5ebf4] bg-white p-3 shadow-sm"><div className="product-art landing grid h-36 place-items-center rounded-lg"><span className="rounded bg-white/90 px-3 py-2 text-sm font-bold text-slate-800 shadow">Startup</span></div><div className="mt-3 flex gap-2">{["landing", "mobile", "cards", "course"].map((art) => <div key={art} className={`product-art ${art} h-9 flex-1 rounded`} />)}</div><h3 className="mt-4 text-sm font-bold">Modern Landing Page Template</h3><p className="mt-1 text-[10px] text-indigo-500">Templates</p><p className="mt-2 text-amber-500 text-xs">★ <b className="text-slate-600">4.8</b> (124 reviews)</p><div className="mt-4 flex items-center gap-3"><b className="text-2xl">$24.00</b><del className="text-[10px] text-slate-400">$39.00</del><span className="rounded bg-orange-100 px-2 py-1 text-[9px] font-bold text-primary">38% OFF</span></div><StorefrontCartButton id="modern-landing-page-template" name="Modern Landing Page Template" type="Templates" price="$24" href={`${basePath}/modern-landing-page-template`} /></div></aside>
         </div>
-
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-          <div className="rounded-xl border border-[#dfe3ea] bg-[#eceef1] p-4 shadow-sm sm:p-5">
-            <div className="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-lg bg-[#e2e4e7] p-6 sm:min-h-[470px]">
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-[#0b3a73]" />
-              <div className="relative z-10 grid w-full max-w-[520px] grid-cols-3 gap-3 sm:gap-5">
-                {[
-                  ["People", "bg-[#37a8d0]"],
-                  ["Teams", "bg-[#f2a719]"],
-                  ["Growth", "bg-[#1ba6a6]"],
-                  ["Payroll", "bg-[#d15a2e]"],
-                  ["HR", "bg-white"],
-                  ["Reports", "bg-[#ef9f12]"],
-                ].map(([label, color], index) => (
-                  <div key={label} className={`grid aspect-square place-items-center rounded-xl border-4 border-white/90 ${color} p-2 text-center shadow-md ${index === 4 ? "col-start-2" : ""}`}>
-                    <span className="text-[10px] font-bold text-[#233044] sm:text-xs">{label}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="absolute bottom-7 z-10 text-center text-lg font-semibold text-white sm:text-2xl">{storefront.displayName}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col px-1 py-2 sm:px-3 lg:py-4">
-            <span className="w-fit rounded-md bg-accent-light px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">{storefront.type}</span>
-            <h1 className="mt-5 text-3xl font-bold tracking-tight text-[#202735] sm:text-5xl">{storefront.displayName}</h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-[#647087]">{storefront.description}</p>
-            <div className="mt-5 flex flex-wrap gap-4 border-b border-[#d9dde5] pb-5 text-xs text-[#58657d]">
-              <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" />Available now</span>
-              <span>{storefront.products.length} listed products</span>
-            </div>
-            <div className="mt-6 flex overflow-hidden rounded-xl border border-primary">
-              <Link href={routes.marketplace()} className="flex flex-1 items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-bold text-white no-underline hover:bg-primary-hover">
-                <PublicIcon name="download" className="h-4 w-4" /> Browse products
-              </Link>
-              <a href="mailto:support@marketplace.com" className="flex flex-1 items-center justify-center gap-2 bg-white px-4 py-3 text-sm font-bold text-primary no-underline hover:bg-accent-light">
-                <PublicIcon name="mail" className="h-4 w-4" /> Contact us
-              </a>
-            </div>
-            <div className="mt-6 rounded-xl bg-[#eef0f3] p-4">
-              <p className="text-xs font-semibold text-[#202735]">Share this storefront</p>
-              <div className="mt-3 flex items-center gap-2">
-                <div className="rounded-lg bg-white p-2"><QRCodeSVG value={storefrontUrl} size={72} bgColor="#ffffff" fgColor="#111b40" includeMargin /></div>
-                <p className="max-w-[220px] text-[10px] leading-5 text-[#647087]">Scan to open this storefront on another device.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8">
-          <div className="mb-5 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-[#111b40]">Featured products</h2>
-              <p className="mt-1 text-xs text-[#8993aa]">Explore the latest resources from this creator.</p>
-            </div>
-            <span className="text-xs font-medium text-[#8993aa]">{storefront.products.length} shown</span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {storefront.products.map((product, index) => (
-              <article key={product.name} className="group rounded-xl border border-[#e0e4ea] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="grid h-12 w-12 place-items-center rounded-xl text-xs font-bold text-white" style={{ backgroundColor: [storefront.accent, "var(--storefront-orange)", "var(--storefront-pink)", "var(--storefront-navy)"][index % 4] }}>
-                    {product.icon}
-                  </div>
-                  <button type="button" aria-label={`Add ${product.name} to cart`} className="grid h-8 w-8 place-items-center rounded-lg bg-accent-light text-primary">
-                    <PublicIcon name="shopping-cart" className="h-4 w-4" />
-                  </button>
-                </div>
-                <p className="mt-5 text-sm font-bold text-[#111b40]">{product.name}</p>
-                <p className="mt-1 text-xs text-[#8993aa]">{product.type}</p>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-sm font-bold text-primary">{product.price}</span>
-                  <span className="text-[11px] text-[#8993aa]">Digital download</span>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
       </div>
       <PublicFooter />
     </main>
   );
 }
+
+function Breadcrumbs({ name }: { name: string }) { return <div className="flex items-center gap-2 text-[10px] text-slate-500"><Link href="/marketplace" className="text-indigo-500">⌂　Marketplace</Link><span>›</span><span>Storefronts</span><span>›</span><b className="text-slate-700">{name}</b></div>; }
+function InfoPanel({ title, children }: { title: string; children: React.ReactNode }) { return <div className="rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm"><h3 className="text-xs font-bold">{title}</h3><div className="mt-4 space-y-4">{children}</div></div>; }
+function InfoRow({ icon, text }: { icon: string; text: string }) { return <p className="text-[10px] text-slate-500"><span className="mr-2 text-indigo-500">{icon}</span>{text}</p>; }
+function CategoryRow({ icon, name, count, tone = "blue" }: { icon: string; name: string; count: string; tone?: string }) { return <div className="flex items-center gap-2 text-[10px] text-slate-500"><span className={`grid h-6 w-6 place-items-center rounded ${tone === "orange" ? "bg-orange-50 text-orange-500" : tone === "violet" ? "bg-violet-50 text-violet-500" : tone === "green" ? "bg-emerald-50 text-emerald-500" : "bg-blue-50 text-blue-500"}`}>{icon}</span><span>{name}</span><span className="ml-auto">{count}　›</span></div>; }
+function ProductTile({ title, type, price, art, featured, basePath }: { title: string; type: string; price: string; art: string; featured?: boolean; basePath: string }) { const slug = title.toLowerCase().replaceAll(" ", "-"); return <article className="rounded-lg border border-[#e5ebf4] bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><Link href={`${basePath}/${slug}`} className="no-underline"><div className={`product-art ${art} relative grid h-28 place-items-center rounded-md`}><span className="rounded bg-white/85 px-2 py-1 text-[9px] font-bold text-slate-700 shadow-sm">{featured ? "Featured" : title.split(" ")[0]}</span></div><h3 className="mt-2 truncate text-[10px] font-bold text-slate-800">{title}</h3><p className="mt-1 text-[9px] text-indigo-500">{type}</p><p className="mt-2 text-amber-500 text-[9px]">★ <span className="text-slate-500">4.8 (124)</span></p><b className="mt-1 block text-sm">{price}</b></Link><StorefrontCartButton id={slug} name={title} type={type} price={price} href={`${basePath}/${slug}`} compact /></article>; }

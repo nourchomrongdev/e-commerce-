@@ -6,6 +6,7 @@ import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import { apps, products } from "./ProductGrid";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { publicNavigation, routes, type PublicRouteKey } from "@/lib/routeController";
+import { CART_UPDATED_EVENT, getCartCount, readCart } from "@/lib/cart";
 
 type NavbarProps = { active?: PublicRouteKey | null };
 const links = publicNavigation;
@@ -62,6 +63,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   const [userRole, setUserRole] = useState("");
   const [username, setUsername] = useState("Unknown");
   const [email, setEmail] = useState("");
+  const [cartCount, setCartCount] = useState(0);
   const [desktopMenu, setDesktopMenu] = useState<
     "categories" | "company" | "more" | "programs" | null
   >(null);
@@ -93,6 +95,12 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   useEffect(() => {
     if (mobileSearchOpen) mobileInput.current?.focus();
   }, [mobileSearchOpen]);
+  useEffect(() => {
+    const updateCartCount = () => setCartCount(getCartCount(readCart()));
+    updateCartCount();
+    window.addEventListener(CART_UPDATED_EVENT, updateCartCount);
+    return () => window.removeEventListener(CART_UPDATED_EVENT, updateCartCount);
+  }, []);
   useEffect(() => {
     const close = () => {
       setFocused(false);
@@ -386,7 +394,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 className="h-4 w-4 text-slate-700"
               />
               <span className="absolute right-0 top-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-primary px-0.5 text-[7px] text-white">
-                2
+                {cartCount}
               </span>
             </button>
             {!authChecked ? (

@@ -34,6 +34,44 @@
   --creator-review-note-text: #1a8d61;
 }
 
+.product-art {
+  background-color: #eaf0fb;
+  background-position: center;
+  background-size: cover;
+}
+
+.product-art.landing {
+  background-image: radial-gradient(circle at 78% 34%, #ffb879 0 12%, transparent 13%), linear-gradient(135deg, #fef8f3 0 48%, #c8daf4 49% 66%, #ffb06d 67%);
+}
+
+.product-art.mobile {
+  background-image: radial-gradient(ellipse at 50% 70%, #fff 0 20%, transparent 21%), linear-gradient(135deg, #ddd8ff, #6658e8 55%, #eeeaff);
+}
+
+.product-art.cards {
+  background-image: linear-gradient(135deg, transparent 0 38%, rgba(255, 255, 255, .85) 39% 55%, transparent 56%), linear-gradient(145deg, #b7d2bc, #f7f2e8 52%, #80664f);
+}
+
+.product-art.photos {
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, .12), transparent 40%), linear-gradient(135deg, #d9f0f5, #6d9ac7 48%, #305f70);
+}
+
+.product-art.dashboard {
+  background-image: linear-gradient(90deg, rgba(16, 26, 61, .88) 0 37%, transparent 38%), linear-gradient(135deg, #18264b, #3232a1 52%, #10152d);
+}
+
+.product-art.book {
+  background-image: linear-gradient(110deg, #e6edf7 0 44%, #fefefe 45% 61%, #becce3 62%), linear-gradient(135deg, #cbd8eb, #fff);
+}
+
+.product-art.music {
+  background-image: radial-gradient(ellipse at center, #e946b7 0 3%, transparent 4% 9%, #6646ef 10% 12%, transparent 13% 20%, #e946b7 21% 23%, transparent 24%), linear-gradient(135deg, #161448, #23135f 65%, #081129);
+}
+
+.product-art.course {
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, .1), transparent 45%), linear-gradient(135deg, #1e2f42, #17243a 55%, #77849c);
+}
+
 @theme {
   --color-background: #f5f5fb;
   --color-primary: #f57e1f;

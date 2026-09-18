@@ -25,7 +25,7 @@ export default function BuyerDashboardHeader({ onMenuOpen }: { onMenuOpen: () =>
   return (
     <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6">
       <div className="flex h-20 w-full items-center gap-3">
-        <button type="button" onClick={onMenuOpen} aria-label="Toggle buyer navigation" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-heading hover:bg-accent-light min-[901px]:hidden">☰</button>
+        <button type="button" onClick={onMenuOpen} aria-label="Toggle buyer navigation" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl text-heading hover:bg-accent-light lg:hidden">☰</button>
         <Link href={routes.home()} className="flex min-w-0 items-center no-underline"><AppBrand name={APP_NAME} textClassName="text-base sm:text-xl" logoClassName="h-8 w-8" /></Link>
         <div className="ml-auto flex items-center gap-3">
           <label className="relative hidden sm:block"><span className="sr-only">Search marketplace</span><PublicIcon name="search" className="absolute left-3 top-2.5 h-4 w-4 text-muted-soft" /><input placeholder="Search anything..." className="h-10 w-64 rounded-lg border border-border-control bg-white pl-9 pr-3 text-xs outline-none placeholder:text-muted-soft focus:border-primary" /></label>
