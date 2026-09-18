@@ -384,8 +384,8 @@ export default function Navbar({ active = "home" }: NavbarProps) {
             >
               <PublicIcon name="search" className="h-4 w-4 text-slate-400" />
             </button>
-            <button
-              type="button"
+            <Link
+              href="/cart"
               aria-label="Cart"
               className="relative grid h-8 w-8 place-items-center text-base text-slate-700"
             >
@@ -396,7 +396,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
               <span className="absolute right-0 top-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-primary px-0.5 text-[7px] text-white">
                 {cartCount}
               </span>
-            </button>
+            </Link>
             {!authChecked ? (
               <span className="h-10 w-20 shrink-0" aria-hidden="true" />
             ) : signedIn ? (

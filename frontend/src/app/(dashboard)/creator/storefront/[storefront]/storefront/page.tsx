@@ -11,8 +11,8 @@ interface StorefrontDetailPageProps {
 }
 
 const storefrontData: Record<string, any> = {
-  "NourChomrong": {
-    displayName: "NourChomrong",
+  "TestStore": {
+    displayName: "TestStore",
     type: "Templates",
     description: "Professional templates and design resources for modern websites",
     products: 24,
@@ -22,7 +22,7 @@ const storefrontData: Record<string, any> = {
     rating: 4.8,
     status: "Active",
     createdDate: "May 12, 2024",
-    storeId: "str_NourChomrong",
+    storeId: "str_TestStore",
   },
   "DevCourses": {
     displayName: "DevCourses",

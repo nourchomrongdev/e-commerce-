@@ -379,7 +379,7 @@ export default function CreatorPayoutsPage() {
                     PayPal
                   </p>
                   <p className="text-[9px] text-muted-soft">
-                    nourchomrong@gmail.com
+                    teststore@gmail.com
                   </p>
                 </div>
               </div>

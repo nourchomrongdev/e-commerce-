@@ -13,39 +13,39 @@ export const creatorNavigation: NavItem[] = [
 ];
 
 export const creatorStoreNavigation: NavItem[] = [
-  { label: "Storefront Overview", href: "/creator/storefront/NourChomrong/overview", icon: "store" },
-  { label: "Customers", href: "/creator/storefront/NourChomrong/customer", icon: "user" },
-  { label: "Analytics", href: "/creator/storefront/NourChomrong/analytics", icon: "dashboard" },
+  { label: "Storefront Overview", href: "/creator/storefront/TestStore/overview", icon: "store" },
+  { label: "Customers", href: "/creator/storefront/TestStore/customer", icon: "user" },
+  { label: "Analytics", href: "/creator/storefront/TestStore/analytics", icon: "dashboard" },
   { label: "Verification Status", href: "/creator/verification", icon: "verification" },
   { label: "Payout Information", href: "/creator/payouts", icon: "payout" },
 ];
 
 export const creatorProductNavigation: NavItem[] = [
-  { label: "My Products", href: "/creator/storefront/NourChomrong/products", icon: "product" },
-  { label: "Add Product", href: "/creator/storefront/NourChomrong/products/new", icon: "add" },
-  { label: "Files", href: "/creator/storefront/NourChomrong/products/files", icon: "file-search-corner" },
-  { label: "Version History", href: "/creator/storefront/NourChomrong/products/versions", icon: "clock-9" },
-  { label: "Preview Assets", href: "/creator/storefront/NourChomrong/preview-assets", icon: "view" },
+  { label: "My Products", href: "/creator/storefront/TestStore/products", icon: "product" },
+  { label: "Add Product", href: "/creator/storefront/TestStore/products/new", icon: "add" },
+  { label: "Files", href: "/creator/storefront/TestStore/products/files", icon: "file-search-corner" },
+  { label: "Version History", href: "/creator/storefront/TestStore/products/versions", icon: "clock-9" },
+  { label: "Preview Assets", href: "/creator/storefront/TestStore/preview-assets", icon: "view" },
 ];
 
 export const creatorLicenseNavigation: NavItem[] = [
-  { label: "License Types", href: "/creator/storefront/NourChomrong/licenses/types", icon: "type" },
-  { label: "License Rules", href: "/creator/storefront/NourChomrong/licenses/rules", icon: "settings" },
-  { label: "License Keys", href: "/creator/storefront/NourChomrong/licenses/keys", icon: "key" },
-  { label: "License Activations", href: "/creator/storefront/NourChomrong/licenses/activations", icon: "shield-check" },
-  { label: "Revoked Licenses", href: "/creator/storefront/NourChomrong/licenses/revoked", icon: "shield-minus" },
+  { label: "License Types", href: "/creator/storefront/TestStore/licenses/types", icon: "type" },
+  { label: "License Rules", href: "/creator/storefront/TestStore/licenses/rules", icon: "settings" },
+  { label: "License Keys", href: "/creator/storefront/TestStore/licenses/keys", icon: "key" },
+  { label: "License Activations", href: "/creator/storefront/TestStore/licenses/activations", icon: "shield-check" },
+  { label: "Revoked Licenses", href: "/creator/storefront/TestStore/licenses/revoked", icon: "shield-minus" },
 ];
 
 export const creatorOrderNavigation: NavItem[] = [
-  { label: "Orders", href: "/creator/storefront/NourChomrong/orders", icon: "receipt" },
-  { label: "Download Activity", href: "/creator/storefront/NourChomrong/orders/downloads", icon: "download" },
-  { label: "Re-download Requests", href: "/creator/storefront/NourChomrong/orders/redownloads", icon: "rotate-ccw" },
-  { label: "Refund Requests", href: "/creator/storefront/NourChomrong/orders/refunds", icon: "wallet" },
+  { label: "Orders", href: "/creator/storefront/TestStore/orders", icon: "receipt" },
+  { label: "Download Activity", href: "/creator/storefront/TestStore/orders/downloads", icon: "download" },
+  { label: "Re-download Requests", href: "/creator/storefront/TestStore/orders/redownloads", icon: "rotate-ccw" },
+  { label: "Refund Requests", href: "/creator/storefront/TestStore/orders/refunds", icon: "wallet" },
 ];
 
 export const creatorReviewNavigation: NavItem[] = [
-  { label: "Customer Reviews", href: "/creator/storefront/NourChomrong/reviews", icon: "user" },
-  { label: "My Responses", href: "/creator/storefront/NourChomrong/reviews/responses", icon: "message-square-reply" },
+  { label: "Customer Reviews", href: "/creator/storefront/TestStore/reviews", icon: "user" },
+  { label: "My Responses", href: "/creator/storefront/TestStore/reviews/responses", icon: "message-square-reply" },
 ];
 
 export const creatorAffiliateNavigation: NavItem[] = [

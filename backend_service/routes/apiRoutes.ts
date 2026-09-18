@@ -157,8 +157,8 @@ const products = [
 let storefronts = [
   {
     id: 1,
-    displayName: "NourChomrong",
-    slug: "nourchomrong",
+    displayName: "TestStore",
+    slug: "teststore",
     type: "Templates",
     products: 24,
     revenue: "$1,284.00",

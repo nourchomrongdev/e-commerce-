@@ -4,7 +4,7 @@ import { Button } from "@/components/ui";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const storefrontData: Record<string, { displayName: string; type: string }> = {
-  NourChomrong: { displayName: "NourChomrong", type: "Templates" },
+  TestStore: { displayName: "TestStore", type: "Templates" },
   DevCourses: { displayName: "DevCourses", type: "Digital Products" },
   "AI Resources": { displayName: "AI Resources", type: "Bundles" },
   DesignHub: { displayName: "DesignHub", type: "UI Kits" },
@@ -49,7 +49,7 @@ function Panel({ title, action, children, className = "" }: { title: string; act
 
 export default async function StorefrontAnalyticsPage({ params }: { params: Promise<{ storefront: string }> }) {
   const { storefront: storefrontParam } = await params;
-  const storefront = storefrontData[decodeURIComponent(storefrontParam)] ?? storefrontData.NourChomrong;
+  const storefront = storefrontData[decodeURIComponent(storefrontParam)] ?? storefrontData.TestStore;
 
   return (
     <div className="mx-auto w-full max-w-[1400px]">

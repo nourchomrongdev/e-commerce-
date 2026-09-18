@@ -40,3 +40,15 @@ export function addToCart(item: Omit<CartItem, "quantity">) {
 export function getCartCount(cart: CartItem[]) {
   return cart.reduce((total, item) => total + item.quantity, 0);
 }
+
+export function removeFromCart(id: string) {
+  const nextCart = readCart().filter((item) => item.id !== id);
+  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
+  window.dispatchEvent(new Event(CART_UPDATED_EVENT));
+  return nextCart;
+}
+
+export function clearCart() {
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+  window.dispatchEvent(new Event(CART_UPDATED_EVENT));
+}

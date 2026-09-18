@@ -17,7 +17,7 @@ import {
 } from "./creator-navigation";
 
 const storefrontOptions = [
-  { name: "NourChomrong", products: 24, href: "/creator/storefront/NourChomrong/overview" },
+  { name: "TestStore", products: 24, href: "/creator/storefront/TestStore/overview" },
   { name: "DevCourses", products: 12, href: "/creator/storefront/DevCourses/overview" },
   { name: "AI Resources", products: 7, href: "/creator/storefront/AI%20Resources/overview" },
   { name: "DesignHub", products: 12, href: "/creator/storefront/DesignHub/overview" },

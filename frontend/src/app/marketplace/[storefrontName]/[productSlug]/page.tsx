@@ -2,27 +2,459 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
-import PublicIcon from "@/components/icons/PublicIcon";
 import StorefrontCartButton from "@/components/StorefrontCartButton";
+import ProductBreadcrumbs from "@/components/ProductBreadcrumbs";
 
-const product = { name: "Startup Landing Page", type: "Template", price: "$24", oldPrice: "$39", icon: "landing" };
-type Props = { params: Promise<{ storefrontName: string; productSlug: string }> };
+type Props = {
+  params: Promise<{ storefrontName: string; productSlug: string }>;
+};
 
-export async function generateMetadata(): Promise<Metadata> { return { title: product.name, description: "A modern and responsive landing page template for startups, apps and digital products." }; }
+const catalog: Record<
+  string,
+  {
+    name: string;
+    type: string;
+    price: string;
+    oldPrice: string;
+    description: string;
+    art: string;
+    isFree?: boolean;
+  }
+> = {
+  "business-plan": {
+    name: "Business Plan",
+    type: "Template",
+    price: "$18",
+    oldPrice: "$29",
+    description:
+      "A polished business plan template for founders, teams and growing companies.",
+    art: "business",
+  },
+  "the-ultimate-design": {
+    name: "The Ultimate Design",
+    type: "eBook",
+    price: "$15",
+    oldPrice: "$24",
+    description:
+      "A practical design guide for creators, product teams and anyone who wants to make better digital experiences.",
+    art: "book",
+  },
+  "startup-landing-page": {
+    name: "Startup Landing Page",
+    type: "Template",
+    price: "$24",
+    oldPrice: "$39",
+    description:
+      "A modern and responsive landing page template for startups, apps and digital products.",
+    art: "landing",
+  },
+  "modern-resume": {
+    name: "Modern Resume",
+    type: "Template",
+    price: "$0",
+    oldPrice: "$9",
+    description:
+      "A clean, professional resume template ready to customize and download.",
+    art: "book",
+    isFree: true,
+  },
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { productSlug } = await params;
+  const product = catalog[productSlug] ?? catalog["business-plan"];
+  return { title: product.name, description: product.description };
+}
 
 export default async function ProductDetailPage({ params }: Props) {
-  const { storefrontName } = await params;
-  const name = decodeURIComponent(storefrontName);
+  const { storefrontName, productSlug } = await params;
+  const product = catalog[productSlug] ?? {
+    ...catalog["business-plan"],
+    name: productSlug
+      .split("-")
+      .map((word) => word[0]?.toUpperCase() + word.slice(1))
+      .join(" "),
+  };
+  const seller = decodeURIComponent(storefrontName);
   const basePath = `/marketplace/${encodeURIComponent(storefrontName)}`;
-  const productPath = `${basePath}/startup-landing-page`;
+  const productPath = `${basePath}/${productSlug}`;
+  const isFree = product.isFree || productSlug.toLowerCase().includes("free");
+  const screenshotTones = [
+    "landing",
+    "mobile",
+    "cards",
+    "book",
+    "dashboard",
+    "course",
+  ];
 
-  return <main className="min-h-screen bg-[#f7f9fd] text-[#142b4d]"><Navbar active="products" /><div className="mx-auto max-w-[1280px] px-4 pb-12 pt-5 sm:px-6 lg:px-8">
-    <div className="flex items-center gap-2 text-[10px] text-slate-500"><Link href="/marketplace" className="text-indigo-500">⌂　Marketplace</Link><span>›</span><Link href={basePath} className="text-indigo-500">Templates</Link><span>›</span><b className="text-slate-700">{product.name}</b></div>
-    <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1.28fr)_minmax(330px,.9fr)_275px]">
-      <section><div className="rounded-xl border border-[#e5ebf4] bg-white p-3 shadow-sm"><div className="grid min-h-[390px] place-items-center rounded-lg bg-[#f5f7fc] p-6"><div className="product-art landing relative grid aspect-[1.52/1] w-full place-items-center overflow-hidden rounded-lg shadow-sm"><div className="absolute left-[10%] top-[17%] max-w-[47%]"><span className="text-[10px] font-bold text-primary">⚡ StartUp</span><p className="mt-8 text-xs text-indigo-500">Build Your Dream</p><h2 className="mt-1 text-2xl font-extrabold leading-tight text-[#102d55]">Startup <span className="text-primary">Faster</span></h2><p className="mt-2 text-[9px] leading-4 text-slate-500">The modern landing page template for startups, apps and digital products.</p><button type="button" className="mt-4 rounded bg-primary px-3 py-2 text-[8px] font-bold text-white">Get Started →</button></div><div className="absolute bottom-[12%] right-[9%] h-[48%] w-[43%] rounded-xl border-[6px] border-slate-800 bg-gradient-to-br from-slate-700 to-slate-950 p-4 shadow-xl"><div className="space-y-2"><i className="block h-1.5 w-2/3 rounded bg-blue-300" /><i className="block h-1.5 w-full rounded bg-white/25" /><i className="block h-16 rounded bg-primary/70" /></div></div></div></div><div className="mt-3 grid grid-cols-4 gap-2">{["landing", "mobile", "cards", "course"].map((art) => <div key={art} className={`product-art ${art} h-14 rounded border-2 ${art === "landing" ? "border-primary" : "border-transparent"}`} />)}</div></div><div className="mt-5 rounded-xl border border-[#e5ebf4] bg-white p-5 shadow-sm"><h2 className="text-sm font-bold">About This Product</h2><p className="mt-3 text-xs leading-6 text-slate-500">The Startup Landing Page template is a modern, clean and professional landing page design perfect for startups, SaaS, apps, and digital products. It comes with a beautiful UI, responsive layout, and is easy to customize.</p><ul className="mt-4 grid gap-2 text-[10px] text-slate-600 sm:grid-cols-2">{["Modern and clean design", "Fully responsive (mobile, tablet, desktop)", "Easy to edit (no coding required)", "Well organized layers and components", "Free updates & support"].map((item) => <li key={item}><span className="mr-2 text-primary">✓</span>{item}</li>)}</ul><div className="mt-5 rounded-lg bg-orange-50 p-3 text-[10px] text-slate-500">💡　This is a digital product. After purchase, you will get instant access to download the files.</div></div></section>
+  return (
+    <div className="min-h-screen bg-[#f7f9fd] text-[#142b4d]">
+      <Navbar active="products" />
+      <main className="mx-auto max-w-[1280px] px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="border-b border-[#e5ebf4] py-3">
+          <ProductBreadcrumbs
+            productName={seller}
+            productPath={basePath}
+            current={product.name}
+          />
+        </div>
 
-      <section className="pt-2"><span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-semibold text-indigo-600">{product.type}</span><h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">{product.name}</h1><p className="mt-3 text-sm leading-6 text-slate-500">A modern and responsive landing page template for startups, apps and digital products. Perfect for your next project.</p><p className="mt-5 text-amber-500">★★★★★ <b className="ml-2 text-xs text-slate-700">4.8</b> <span className="text-xs text-slate-500">(124 reviews)　|　245 sold</span></p><div className="mt-5 flex items-center gap-3"><b className="text-4xl">{product.price}</b><del className="text-sm text-slate-400">{product.oldPrice}</del><span className="rounded bg-orange-100 px-3 py-1.5 text-xs font-bold text-primary">38% OFF</span></div><div className="mt-5 flex flex-wrap gap-2">{["HTML", "CSS", "JavaScript", "Responsive", "5 Files Included"].map((tag) => <span key={tag} className="rounded-lg bg-white px-3 py-2 text-[10px] text-slate-500 shadow-sm ring-1 ring-[#e8edf5]">▧　{tag}</span>)}</div><p className="mt-7 text-xs font-bold">Quantity</p><div className="mt-2 flex w-28 overflow-hidden rounded-lg border border-[#dce4f0] bg-white"><button type="button" className="w-9 py-2 text-slate-500">−</button><span className="flex-1 border-x border-[#dce4f0] py-2 text-center text-xs font-bold">1</span><button type="button" className="w-9 py-2 text-slate-500">+</button></div><StorefrontCartButton id="startup-landing-page" name={product.name} type={product.type} price={product.price} href={productPath} /><button type="button" className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-primary px-4 py-3 text-xs font-bold text-primary">⚡　Buy Now</button><div className="mt-5 rounded-xl bg-orange-50 p-4"><p className="text-xs font-semibold text-primary">▣　Instant Download</p><p className="mt-1 text-[10px] text-slate-500">Get your files right after payment.</p></div></section>
+        <div className="grid gap-8 border-b border-[#e5ebf4] py-8 lg:grid-cols-[minmax(0,1fr)_270px]">
+          <section className="min-w-0 border border-border bg-white p-5 shadow-sm sm:p-6">
+            <div className="p-5">
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-300 to-[#a95119] text-3xl font-bold text-white shadow-lg">
+                  {product.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-semibold uppercase tracking-[.16em] text-primary">
+                    {product.type} / Digital product
+                  </p>
+                  <h1 className="mt-1 text-[30px] font-extrabold leading-tight tracking-tight text-heading sm:text-4xl">
+                    {product.name}
+                  </h1>
+                  <p className="mt-1 text-xs text-muted">by {seller}</p>
+                </div>
+                <div className="w-full sm:w-auto sm:text-right">
+                  <div className="text-sm text-amber-500">
+                    ★★★★★{" "}
+                    <span className="ml-1 text-xs font-semibold text-heading">
+                      4.8
+                    </span>
+                  </div>
+                  <small className="text-[10px] text-muted">
+                    124 reviews · 245 downloads
+                  </small>
+                </div>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-y border-divider py-4 text-[10px]">
+                <span className="text-muted">Secure delivery</span>
+                <span className="h-3 w-px bg-border" />
+                <span className="text-muted">Instant access</span>
+                <span className="h-3 w-px bg-border" />
+                <span className="text-muted">Verified creator</span>
+              </div>
+              <div className="mt-6 flex flex-wrap items-end justify-between gap-5">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-muted">
+                    {isFree ? "Free download" : "Current version · v3.2.7"}
+                  </p>
+                  <p className="mt-1 text-3xl font-extrabold leading-none text-heading">
+                    {isFree ? "Free" : product.price}{" "}
+                    {!isFree && (
+                      <>
+                        <del className="ml-2 text-sm font-normal text-muted">
+                          {product.oldPrice}
+                        </del>
+                        <span className="ml-2 rounded bg-orange-50 px-2 py-1 text-[9px] font-bold text-primary">
+                          v3.2.7
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                {isFree ? (
+                  <button
+                    type="button"
+                    className="flex h-11 w-full max-w-[220px] items-center justify-center rounded-md bg-primary px-5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-hover"
+                  >
+                    Free Download
+                  </button>
+                ) : (
+                  <div className="flex w-full max-w-[220px] flex-col gap-2 [&>button]:mt-0">
+                    <StorefrontCartButton
+                      id={productSlug}
+                      name={product.name}
+                      type={product.type}
+                      price={product.price}
+                      href={productPath}
+                    />
+                    <StorefrontCartButton
+                      id={productSlug}
+                      name={product.name}
+                      type={product.type}
+                      price={product.price}
+                      href={productPath}
+                      label="Buy Now"
+                      redirectTo="/cart/payment"
+                      iconName="shopping-cart-plus"
+                      className="!border !border-primary !bg-white !text-primary hover:!bg-accent-light"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="mt-7 overflow-hidden">
+                <div
+                  className={`product-art ${product.art === "landing" ? "landing" : "cards"} relative grid min-h-[260px] place-items-center rounded-md p-6`}
+                >
+                  <div className="max-w-[68%] text-center text-[#102d55] sm:max-w-[48%]">
+                    <span className="text-[8px] font-bold tracking-[.15em] text-primary">
+                      TESTSTORE STUDIO
+                    </span>
+                    <h2 className="mt-5 text-2xl font-extrabold leading-none">
+                      {product.name}
+                    </h2>
+                    <p className="mt-3 text-[9px] leading-4 text-slate-600">
+                      {product.description}
+                    </p>
+                    <span className="mx-auto mt-6 block h-1.5 w-16 rounded bg-primary" />
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {screenshotTones.map((tone, index) => (
+                    <div
+                      key={tone}
+                      className={`product-art ${tone} h-14 rounded border ${index === 0 ? "border-primary" : "border-border"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
 
-      <aside className="space-y-4"><div className="rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm"><h2 className="text-sm font-bold">Why Choose Us?</h2>{[["◈", "100% Original Products", "All products are created by real creators."], ["♢", "Secure Payment", "Multiple payment methods supported."], ["⇩", "Instant Download", "Get your files immediately."], ["◌", "24/7 Support", "We're here to help you anytime."]].map(([icon, title, detail]) => <div key={title} className="mt-5 flex gap-3"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-50 text-primary">{icon}</span><span><b className="block text-[10px]">{title}</b><small className="mt-1 block text-[9px] leading-4 text-slate-500">{detail}</small></span></div>)}</div><div className="rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm"><h2 className="text-sm font-bold">Seller Information</h2><div className="mt-4 flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#9b5d10] text-xl text-white">N</span><span><b className="block text-xs">{name}</b><small className="text-[10px] text-primary">♛ Top Seller</small></span></div><div className="mt-5 grid grid-cols-3 text-center text-[9px] text-slate-500"><span><b className="block text-xs text-slate-800">245</b>Products</span><span><b className="block text-xs text-slate-800">4.8</b>Rating</span><span><b className="block text-xs text-slate-800">1.2k</b>Followers</span></div><Link href={basePath} className="mt-5 block rounded-lg border border-[#dce4f0] py-2 text-center text-[10px] font-semibold text-primary">View Store　→</Link></div><div className="rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm"><h2 className="text-sm font-bold">Share This Product</h2><div className="mt-4 flex gap-2"><span className="grid h-8 w-8 place-items-center rounded-full bg-blue-50 text-xs text-blue-500">f</span><span className="grid h-8 w-8 place-items-center rounded-full bg-blue-50 text-xs text-blue-500">♥</span><span className="grid h-8 w-8 place-items-center rounded-full bg-blue-50 text-xs text-blue-500">in</span><button type="button" className="ml-auto rounded border border-[#dce4f0] px-3 text-[9px] text-slate-500"><PublicIcon name="link" className="mr-1 inline h-3 w-3" />Copy Link</button></div></div></aside>
-    </div></div><PublicFooter /></main>;
+            <DarkSection title="About this product">
+              <p>
+                {product.description} This product is designed for practical
+                daily use, with clean files, clear documentation and a workflow
+                that helps you get started quickly.
+              </p>
+              <p>
+                Download the latest version to get the newest improvements,
+                creator updates and all included bonus resources.
+              </p>
+            </DarkSection>
+            <DarkSection title="What's included">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  "Editable source files",
+                  "Quick-start documentation",
+                  "Bonus templates and checklists",
+                  "Lifetime product updates",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded border border-border bg-white p-3 text-xs text-muted shadow-sm"
+                  >
+                    <span className="mr-2 text-primary">+</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </DarkSection>
+            <DarkSection title="Requirements and information">
+              <div className="grid gap-4 sm:grid-cols-3">
+                {[
+                  ["Format", "PDF, ZIP"],
+                  ["File size", "18.4 MB"],
+                  ["License", "Single use"],
+                  ["Updated", "Sep 18, 2026"],
+                  ["Category", product.type],
+                  ["Support", "Included"],
+                ].map(([label, value]) => (
+                  <div key={label} className="border-b border-divider pb-3">
+                    <small className="block text-[9px] uppercase text-muted">
+                      {label}
+                    </small>
+                    <b className="mt-1 block text-xs text-heading">{value}</b>
+                  </div>
+                ))}
+              </div>
+            </DarkSection>
+            <Link
+              href={`${productPath}/versions`}
+              className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-hover"
+            >
+              View all product versions <span>→</span>
+            </Link>
+            <DarkSection title="Rate this product">
+              <div className="flex flex-wrap items-center gap-5">
+                <span className="text-5xl font-light text-heading">4.8</span>
+                <div>
+                  <div className="text-amber-500">★★★★★</div>
+                  <small className="text-[9px] text-muted">
+                    Based on 124 reviews
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="rounded border border-primary px-4 py-2 text-[10px] font-bold text-primary"
+                >
+                  Write a review
+                </button>
+              </div>
+            </DarkSection>
+            <DarkSection title="Users say">
+              <div className="flex flex-wrap gap-2 text-[10px] text-muted">
+                {[
+                  "Easy to use and well organized",
+                  "Helpful documentation",
+                  "Great value for creators",
+                  "Files are ready immediately",
+                ].map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-border px-3 py-2"
+                  >
+                    ✓ {item}
+                  </span>
+                ))}
+              </div>
+            </DarkSection>
+            <DarkSection title="Comments">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  "This product is made thoughtfully.",
+                  "Very useful and visually appealing.",
+                  "Good quality files and support.",
+                  "Excellent product for beginners.",
+                ].map((comment, index) => (
+                  <article
+                    key={comment}
+                    className="rounded-lg bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <b className="text-xs text-heading">
+                        {["Sokha P.", "Dara K.", "Maly S.", "Narin T."][index]}
+                      </b>
+                      <span className="text-[10px] text-amber-500">★★★★★</span>
+                    </div>
+                    <p className="mt-3 text-[10px] leading-5 text-muted">
+                      {comment}
+                    </p>
+                    <small className="mt-3 block text-[9px] text-muted">
+                      Verified buyer · 2 days ago
+                    </small>
+                  </article>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="mt-4 w-full rounded border border-border py-2 text-[9px] uppercase tracking-[.12em] text-muted"
+              >
+                See more comments
+              </button>
+            </DarkSection>
+          </section>
+
+          <aside className="hidden space-y-5 lg:sticky lg:top-5 lg:block lg:self-start">
+            <DarkRail title="Alternatives">
+              <RailItem
+                name="Mobile App UI Kit"
+                detail="A complete UI kit for mobile products"
+                tone="mobile"
+              />
+              <RailItem
+                name="Dashboard UI Kit"
+                detail="Modern admin screens and components"
+                tone="dashboard"
+              />
+              <RailItem
+                name="Business Card Templates"
+                detail="Ready-to-edit professional designs"
+                tone="cards"
+              />
+              <RailItem
+                name="The Ultimate Design"
+                detail="A practical guide for creators"
+                tone="book"
+              />
+            </DarkRail>
+            <DarkRail title="App stores">
+              <RailItem
+                name="Creator Marketplace"
+                detail="Explore more digital products"
+                tone="landing"
+              />
+              <RailItem
+                name="Free downloads"
+                detail="Useful products at no cost"
+                tone="mobile"
+              />
+              <RailItem
+                name="Top sellers"
+                detail="Discover verified creators"
+                tone="course"
+              />
+            </DarkRail>
+            <DarkRail title="Discover tools">
+              <RailItem
+                name="Templates"
+                detail="Build faster with ready-made files"
+                tone="cards"
+              />
+              <RailItem
+                name="eBooks"
+                detail="Learn from practical guides"
+                tone="book"
+              />
+              <RailItem
+                name="Creator support"
+                detail="Help when you need it"
+                tone="dashboard"
+              />
+            </DarkRail>
+          </aside>
+        </div>
+      </main>
+      <PublicFooter />
+    </div>
+  );
+}
+
+function DarkSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-8 border-t border-divider pt-6">
+      <h2 className="text-base font-bold text-heading">{title}</h2>
+      <div className="mt-3 space-y-3 text-[11px] leading-6 text-muted">
+        {children}
+      </div>
+    </section>
+  );
+}
+function DarkRail({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
+      <h2 className="border-l-2 border-primary pl-2 text-sm font-bold text-heading">
+        {title}
+      </h2>
+      <div className="mt-4 space-y-3">{children}</div>
+    </section>
+  );
+}
+function RailItem({
+  name,
+  detail,
+  tone,
+}: {
+  name: string;
+  detail: string;
+  tone: string;
+}) {
+  return (
+    <Link href="#" className="flex gap-3 rounded p-1 hover:bg-accent-light">
+      <span
+        className={`product-art ${tone} grid h-10 w-10 shrink-0 place-items-center rounded text-[9px] font-bold text-white`}
+      >
+        {name.charAt(0)}
+      </span>
+      <span className="min-w-0">
+        <b className="block truncate text-[10px] text-heading">{name}</b>
+        <small className="mt-1 block text-[9px] leading-4 text-muted">
+          {detail}
+        </small>
+      </span>
+    </Link>
+  );
 }

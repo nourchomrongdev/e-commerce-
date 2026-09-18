@@ -289,7 +289,7 @@ export default function CreatorDashboardHeader({
                       }}
                       className={`flex items-center gap-3 px-4 py-3 transition ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
                     >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${name === "NourChomrong" ? "bg-blue-100 text-primary" : "bg-purple-100 text-purple-600"}`}>
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${name === "TestStore" ? "bg-blue-100 text-primary" : "bg-purple-100 text-purple-600"}`}>
                         <PublicIcon name="store" className="h-5 w-5" />
                       </div>
 

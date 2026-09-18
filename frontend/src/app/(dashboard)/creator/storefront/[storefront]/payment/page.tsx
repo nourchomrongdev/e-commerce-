@@ -20,7 +20,7 @@ const clearStoredToastState = () => {
 };
 
 const storefrontData: Record<string, { displayName: string; type: string }> = {
-  NourChomrong: { displayName: "NourChomrong", type: "Templates" },
+  TestStore: { displayName: "TestStore", type: "Templates" },
   DevCourses: { displayName: "DevCourses", type: "Digital Products" },
   "AI Resources": { displayName: "AI Resources", type: "Bundles" },
   DesignHub: { displayName: "DesignHub", type: "UI Kits" },
@@ -244,7 +244,7 @@ export default function StorefrontPaymentPage({
   }, [params]);
 
   const storefront = {
-    displayName: decodeURIComponent(storefrontName ?? (storefrontName ?? "NourChomrong")),
+    displayName: decodeURIComponent(storefrontName ?? (storefrontName ?? "TestStore")),
     type: "Digital Products",
   };
   const [savedMethods, setSavedMethods] = useState<string[]>([]);

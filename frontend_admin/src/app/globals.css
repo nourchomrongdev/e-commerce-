@@ -317,3 +317,16 @@ select:focus,
     animation: none;
   }
 }
+
+#best-sellers > a {
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+#best-sellers > a > div:first-child {
+  border-radius: 5px;
+}
+
+main aside button.border-orange-300 {
+  border-color: var(--color-primary);
+}

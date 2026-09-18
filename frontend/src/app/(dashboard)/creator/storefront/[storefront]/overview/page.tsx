@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { Toast } from "@/components/ui";
-import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 
@@ -21,34 +20,11 @@ const clearStoredToastState = () => {
   window.sessionStorage.removeItem("storefront-payment-toast");
 };
 
-const storefrontData: Record<string, { displayName: string; type: string; description: string }> = {
-  NourChomrong: {
-    displayName: "NourChomrong",
-    type: "Templates",
-    description: "Professional templates and design resources for modern websites",
-  },
-  DevCourses: {
-    displayName: "DevCourses",
-    type: "Digital Products",
-    description: "Online courses and resources for developers to level up their skills",
-  },
-  "AI Resources": {
-    displayName: "AI Resources",
-    type: "Bundles",
-    description: "AI tools and learning bundles for everyone",
-  },
-  DesignHub: {
-    displayName: "DesignHub",
-    type: "UI Kits",
-    description: "Beautiful UI kits and design systems",
-  },
-};
-
 const overviewCards = [
-  { label: "Products", value: "24", detail: "Published and draft listings", icon: "product", tone: "bg-[#edf5ff] text-blue-700" },
-  { label: "Revenue", value: "$1,284.00", detail: "Compared to last month", icon: "dollar", tone: "bg-[#effaf5] text-emerald-700" },
-  { label: "Orders", value: "186", detail: "Confirmed from buyers", icon: "receipt", tone: "bg-[#fff3e9] text-primary" },
-  { label: "Conversion", value: "3.4%", detail: "Avg. on public storefront", icon: "up", tone: "bg-[#f7f2ff] text-violet-700" },
+  { label: "Products", detail: "Published and draft listings", icon: "product", tone: "bg-[#edf5ff] text-blue-700" },
+  { label: "Revenue", detail: "Compared to last month", icon: "dollar", tone: "bg-[#effaf5] text-emerald-700" },
+  { label: "Orders", detail: "Confirmed from buyers", icon: "receipt", tone: "bg-[#fff3e9] text-primary" },
+  { label: "Conversion", detail: "Avg. on public storefront", icon: "up", tone: "bg-[#f7f2ff] text-violet-700" },
 ];
 
 export default function StorefrontOverviewPage({
@@ -57,7 +33,7 @@ export default function StorefrontOverviewPage({
   params: Promise<{ storefront: string }>;
 }) {
   const [storefrontParam, setStorefrontParam] = useState("");
-  const [storefront, setStorefront] = useState(storefrontData.NourChomrong);
+  const [storefront, setStorefront] = useState({ displayName: "", type: "", description: "" });
   const [stats, setStats] = useState({ products: 0, revenue: 0, orders: 0, conversion: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [recentItems, setRecentItems] = useState<{ name: string; status: string; sales: string }[]>([]);
@@ -87,7 +63,8 @@ export default function StorefrontOverviewPage({
       fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/overview`, { headers: { Authorization: `Bearer ${token}` } })
         .then((response) => response.json())
         .then((data) => { if (data.storefront) setStorefront({ displayName: data.storefront.displayName, type: data.storefront.type, description: data.storefront.description }); if (data.stats) setStats(data.stats); if (data.recentProducts) setRecentItems(data.recentProducts); })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => setIsLoading(false));
 
       Promise.all([
         fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/branding`, { headers: { Authorization: `Bearer ${token}` } })
@@ -177,14 +154,16 @@ export default function StorefrontOverviewPage({
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {overviewCards.map(({ label, value, detail, icon, tone }) => {
+          {isLoading ? Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-[132px] animate-pulse rounded-2xl border border-[#e9edf6] bg-[#f1f3f8]" />
+          )) : overviewCards.map(({ label, detail, icon, tone }) => {
             const liveValue = label === "Products" ? String(stats.products) : label === "Revenue" ? `$${Number(stats.revenue).toFixed(2)}` : label === "Orders" ? String(stats.orders) : `${Number(stats.conversion).toFixed(1)}%`;
             return (
             <article key={label} className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8993aa]">{label}</p>
-                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{stats.products || stats.revenue || stats.orders || stats.conversion ? liveValue : label === "Revenue" ? formatCompactCurrency(value) : value}</p>
+                  <p className="mt-2 text-2xl font-bold tracking-tight text-[#111b40]">{liveValue}</p>
                 </div>
                 <span className={`grid h-10 w-10 place-items-center rounded-lg ${tone}`}>
                   <PublicIcon name={icon as any} className="h-5 w-5" />

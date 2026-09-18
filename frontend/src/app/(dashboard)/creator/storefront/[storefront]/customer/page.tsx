@@ -6,7 +6,7 @@ import PublicIcon from "@/components/icons/PublicIcon";
 import { Button, InputText } from "@/components/ui";
 
 const storefrontData: Record<string, { displayName: string; type: string }> = {
-  NourChomrong: { displayName: "NourChomrong", type: "Templates" },
+  TestStore: { displayName: "TestStore", type: "Templates" },
   DevCourses: { displayName: "DevCourses", type: "Digital Products" },
   "AI Resources": { displayName: "AI Resources", type: "Bundles" },
   DesignHub: { displayName: "DesignHub", type: "UI Kits" },
@@ -47,7 +47,7 @@ export default function StorefrontCustomerPage({
   }, [params]);
 
   const storefront =
-    storefrontData[decodeURIComponent(storefrontName ?? "NourChomrong")] || storefrontData.NourChomrong;
+    storefrontData[decodeURIComponent(storefrontName ?? "TestStore")] || storefrontData.TestStore;
 
   const visibleCustomers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();

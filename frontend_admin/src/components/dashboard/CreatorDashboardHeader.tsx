@@ -199,7 +199,7 @@ export default function CreatorDashboardHeader({
                       }}
                       className={`flex items-center gap-3 px-4 py-3 transition ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}
                     >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${name === "NourChomrong" ? "bg-blue-100 text-primary" : "bg-purple-100 text-purple-600"}`}>
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${name === "TestStore" ? "bg-blue-100 text-primary" : "bg-purple-100 text-purple-600"}`}>
                         <PublicIcon name="store" className="h-5 w-5" />
                       </div>
 
@@ -274,7 +274,7 @@ export default function CreatorDashboardHeader({
                 {isAdminContext ? "A" : isReviewerContext ? "R" : "N"}
               </span>
               <span className="hidden sm:block">
-                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : "NourChomrong"}</span>
+                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : "TestStore"}</span>
                 <span className="block text-[11px] text-[#69738f]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : isAffiliateContext ? "Affiliate" : "Creator"}</span>
               </span>
               <PublicIcon name="down" className={`hidden h-4 w-4 text-[#69738f] transition-transform sm:block ${accountOpen ? "rotate-180" : ""}`} />

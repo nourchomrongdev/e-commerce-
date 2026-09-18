@@ -49,11 +49,11 @@ const rows = {
     ["XXXX-XXXX-XXXX-6Q1R", "Stock Photo Bundle", "marketing@agency.com", "iOS 17 / Safari", "Sydney, Australia", "May 17, 2025"],
   ],
   revoked: [
-    ["XXXX-XXXX-XXXX-6Q1R", "Stock Photo Bundle", "Personal License", "NourChomrong", "Payment dispute", "May 22, 2025 11:20 AM", "Revoked"],
-    ["XXXX-XXXX-XXXX-7K8L", "React Components", "Extended License", "NourChomrong", "Violation of license terms", "May 20, 2025 03:15 PM", "Revoked"],
-    ["XXXX-XXXX-XXXX-1PML", "Laravel API Mastery", "Commercial License", "NourChomrong", "Fraudulent activity", "May 18, 2025 09:40 AM", "Revoked"],
-    ["XXXX-XXXX-XXXX-7Q2H", "UI/UX Design Kit", "Personal License", "NourChomrong", "Manual revocation", "May 15, 2025 02:30 PM", "Revoked"],
-    ["XXXX-XXXX-XXXX-6F4V", "Video Course Pack", "Educational License", "NourChomrong", "Exceeded device limit", "May 12, 2025 10:10 AM", "Revoked"],
+    ["XXXX-XXXX-XXXX-6Q1R", "Stock Photo Bundle", "Personal License", "TestStore", "Payment dispute", "May 22, 2025 11:20 AM", "Revoked"],
+    ["XXXX-XXXX-XXXX-7K8L", "React Components", "Extended License", "TestStore", "Violation of license terms", "May 20, 2025 03:15 PM", "Revoked"],
+    ["XXXX-XXXX-XXXX-1PML", "Laravel API Mastery", "Commercial License", "TestStore", "Fraudulent activity", "May 18, 2025 09:40 AM", "Revoked"],
+    ["XXXX-XXXX-XXXX-7Q2H", "UI/UX Design Kit", "Personal License", "TestStore", "Manual revocation", "May 15, 2025 02:30 PM", "Revoked"],
+    ["XXXX-XXXX-XXXX-6F4V", "Video Course Pack", "Educational License", "TestStore", "Exceeded device limit", "May 12, 2025 10:10 AM", "Revoked"],
   ],
 } as const;
 

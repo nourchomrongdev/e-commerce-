@@ -30,7 +30,7 @@ export const products: Item[] = [
     name: "Modern Resume",
     type: "Template",
     icon: "CV",
-    price: "$9",
+    isFree: true,
   },
   {
     name: "Instagram Post Bundle",

@@ -4,6 +4,7 @@ type PublicIconName =
   "user-round" |
   "search" |
   "shopping-cart" |
+  "shopping-cart-plus" |
   "shopping-basket" |
   "dashboard" |
   "mail" |
