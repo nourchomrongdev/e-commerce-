@@ -11,6 +11,12 @@ app.use(cors());
 app.use(express.json({ limit: "1gb" }));
 app.use("/api", apiRoutes);
 
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  console.error("Unhandled API error:", error);
+  return res.status(500).json({ error: "Internal server error." });
+});
+
 app.get("/", (req, res) => {
   res.json({
     message: "Digital Products Marketplace API is running!"

@@ -7,6 +7,18 @@ import { Toast } from "@/components/ui";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 
+async function readApiJson(response: Response, endpoint: string) {
+  const body = await response.text();
+  let data: Record<string, any> = {};
+  try {
+    data = body ? JSON.parse(body) : {};
+  } catch {
+    throw new Error(`${response.status} ${endpoint}: server returned non-JSON content`);
+  }
+  if (!response.ok) throw new Error(`${response.status} ${endpoint}: ${data.error || "request failed"}`);
+  return data;
+}
+
 const getStoredToastState = (key: string, fallback: boolean) => {
   if (typeof window === "undefined") return fallback;
   const storedValue = window.sessionStorage.getItem(key);
@@ -60,6 +72,8 @@ export default function StorefrontBrandingPage({
   const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
   const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [settingsIncomplete, setSettingsIncomplete] = useState(false);
   const [paymentIncomplete, setPaymentIncomplete] = useState(false);
 
@@ -84,31 +98,19 @@ export default function StorefrontBrandingPage({
     if (!storefrontName) return;
     const token = window.localStorage.getItem("marketplace-token");
     const decodedName = decodeURIComponent(storefrontName);
+    setIsLoading(true);
+    setLoadError("");
 
     Promise.all([
       fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/branding`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || "Unable to load storefront branding");
-        }
-        return data;
-      }),
+      }).then((response) => readApiJson(response, "branding")),
       fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/settings`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) return {};
-        return data.settings || {};
-      }),
+      }).then((response) => readApiJson(response, "settings")).then((data) => data.settings || {}),
       fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodedName)}/payment`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) return {};
-        return data.payment || {};
-      }),
+      }).then((response) => readApiJson(response, "payment")).then((data) => data.payment || {}),
     ])
       .then(([brandingData, settingsData, paymentData]) => {
         const { branding, storefront: loadedStorefront } = brandingData;
@@ -138,11 +140,14 @@ export default function StorefrontBrandingPage({
             !String(paymentData.primaryMethod ?? "").trim(),
         );
       })
-      .catch(() => setStorefront(null))
+      .catch((error) => {
+        setStorefront(null);
+        setLoadError(error instanceof Error ? error.message : "Unable to load storefront branding.");
+      })
       .finally(() => setIsLoading(false));
-  }, [storefrontName]);
+  }, [loadAttempt, storefrontName]);
 
-  if (isLoading || !storefront) {
+  if (isLoading) {
     const loadingStorefront = { displayName: decodeURIComponent(storefrontName ?? "Storefront"), type: "", description: "" };
     return (
       <div className="w-full min-w-0 max-w-full overflow-x-hidden">
@@ -153,7 +158,24 @@ export default function StorefrontBrandingPage({
             <div className="h-32 animate-pulse rounded-xl bg-[#f5f6fa]" />
             <div className="h-32 animate-pulse rounded-xl bg-[#f5f6fa]" />
           </div>
-          {!isLoading && <p className="mt-5 text-sm text-red-600">Unable to load this storefront from the database.</p>}
+        </section>
+      </div>
+    );
+  }
+
+  if (loadError || !storefront) {
+    return (
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden">
+        <section className="mt-5 rounded-2xl border border-red-100 bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-[#111b40]">Unable to load branding</h2>
+              <p className="mt-1 text-sm text-[#8993aa]">{loadError || "We could not load this storefront from the database."}</p>
+            </div>
+            <button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90">
+              Try again
+            </button>
+          </div>
         </section>
       </div>
     );

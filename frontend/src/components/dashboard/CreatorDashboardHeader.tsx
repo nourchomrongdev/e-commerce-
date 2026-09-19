@@ -164,30 +164,39 @@ export default function CreatorDashboardHeader({
   useEffect(() => {
     if (isAffiliateContext || isReviewerContext || isAdminContext) return;
 
-    const token = window.localStorage.getItem("marketplace-token");
-    if (!token) return;
+    const loadStorefronts = () => {
+      const token = window.localStorage.getItem("marketplace-token");
+      if (!token) return;
 
-    fetch(`${apiUrl}/creator/storefronts`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error("Unable to load storefronts");
-        return response.json();
-      })
-      .then((data: { storefronts?: { displayName: string; products: number }[] }) => {
-        if (!data.storefronts) return;
-        setStorefrontOptions(data.storefronts.map(({ displayName, products }) => ({
-          name: displayName,
-          products,
-          href: routes.creator.storefrontOverview(displayName),
-        })));
-        if (data.storefronts.length === 0) {
-          setSelectedStorefront("");
-          window.localStorage.removeItem("creator-selected-storefront");
-        }
-      })
-      .catch(() => undefined);
-  }, [isAffiliateContext, isReviewerContext, isAdminContext]);
+      fetch(`${apiUrl}/creator/storefronts`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((response) => {
+          if (!response.ok) throw new Error("Unable to load storefronts");
+          return response.json();
+        })
+        .then((data: { storefronts?: { displayName: string; products: number }[] }) => {
+          if (!data.storefronts) return;
+          const nextOptions = data.storefronts.map(({ displayName, products }) => ({ name: displayName, products, href: routes.creator.storefrontOverview(displayName) }));
+          setStorefrontOptions(nextOptions);
+          if (selectedStorefront && !nextOptions.some(({ name }) => name === selectedStorefront)) {
+            setSelectedStorefront(nextOptions[0]?.name ?? "");
+            if (nextOptions.length === 0) window.localStorage.removeItem("creator-selected-storefront");
+          }
+          if (data.storefronts.length === 0) {
+            setSelectedStorefront("");
+            window.localStorage.removeItem("creator-selected-storefront");
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    loadStorefronts();
+    window.addEventListener("storefronts-changed", loadStorefronts);
+    window.addEventListener("storage", loadStorefronts);
+    return () => {
+      window.removeEventListener("storefronts-changed", loadStorefronts);
+      window.removeEventListener("storage", loadStorefronts);
+    };
+  }, [isAffiliateContext, isReviewerContext, isAdminContext, selectedStorefront]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#eaebf5] bg-[#fbfbff]/95 px-3 backdrop-blur sm:px-6">

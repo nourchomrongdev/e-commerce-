@@ -4,7 +4,7 @@ const sequelize = require("./database");
 module.exports = sequelize?.define("Storefront", {
   StorefrontId: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, field: "StorefrontId" },
   UUID: { type: DataTypes.UUID, unique: true, field: "UUID" },
-  CreatorProfileId: { type: DataTypes.INTEGER, allowNull: false, unique: true, field: "CreatorProfileId" },
+  CreatorProfileId: { type: DataTypes.INTEGER, allowNull: false, field: "CreatorProfileId" },
   StoreName: { type: DataTypes.STRING(150), allowNull: false, field: "StoreName" },
   StoreSlug: { type: DataTypes.STRING(150), allowNull: false, unique: true, field: "StoreSlug" },
   Description: { type: DataTypes.TEXT, field: "Description" },

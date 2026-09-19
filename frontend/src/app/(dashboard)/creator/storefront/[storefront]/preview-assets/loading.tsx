@@ -1,0 +1,7 @@
+function PreviewAssetsSkeleton() {
+  return <div className="mx-auto w-full max-w-[1200px] animate-pulse"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><div className="h-8 w-44 rounded bg-surface-muted" /><div className="mt-2 h-4 w-72 rounded bg-surface-muted" /></div><div className="h-9 w-32 rounded-lg bg-surface-muted" /></div><div className="mt-6 h-10 max-w-md rounded-lg bg-surface-muted" /><section className="mt-5 overflow-hidden rounded-2xl border border-border bg-white shadow-sm"><div className="flex gap-6 border-b border-divider px-5 pt-4"><div className="h-4 w-10 rounded bg-surface-muted" /><div className="h-4 w-14 rounded bg-surface-muted" /><div className="h-4 w-14 rounded bg-surface-muted" /></div><div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="overflow-hidden rounded-xl border border-border"><div className="aspect-[1.45] bg-surface-muted" /><div className="space-y-2 p-3"><div className="h-3 w-28 rounded bg-surface-muted" /><div className="h-3 w-20 rounded bg-surface-muted" /><div className="h-7 w-16 rounded bg-surface-muted" /></div></div>)}</div></section></div>;
+}
+
+export default function Loading() {
+  return <PreviewAssetsSkeleton />;
+}

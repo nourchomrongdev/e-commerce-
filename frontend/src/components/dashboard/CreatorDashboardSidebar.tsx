@@ -16,12 +16,7 @@ import {
   creatorUtilityNavigation,
 } from "./creator-navigation";
 
-const storefrontOptions = [
-  { name: "TestStore", products: 24, href: "/creator/storefront/TestStore/overview" },
-  { name: "DevCourses", products: 12, href: "/creator/storefront/DevCourses/overview" },
-  { name: "AI Resources", products: 7, href: "/creator/storefront/AI%20Resources/overview" },
-  { name: "DesignHub", products: 12, href: "/creator/storefront/DesignHub/overview" },
-] as const;
+const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 
 export default function CreatorDashboardSidebar({
   open,
@@ -37,6 +32,7 @@ export default function CreatorDashboardSidebar({
   const pathname = usePathname();
   const affiliateApproved = true;
   const [storedStorefront, setStoredStorefront] = useState("");
+  const [storefrontOptions, setStorefrontOptions] = useState<{ name: string; products: number; href: string }[]>([]);
   const [storefrontMenuOpen, setStorefrontMenuOpen] = useState(false);
   const [showStorefrontToast, setShowStorefrontToast] = useState(false);
   const matches = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/) ?? pathname.match(/^\/creator\/([^/]+)(?:\/|$)/);
@@ -71,6 +67,36 @@ export default function CreatorDashboardSidebar({
       setStoredStorefront("");
     }
   }, [pathname]);
+
+  useEffect(() => {
+    const loadStorefronts = () => {
+      const token = window.localStorage.getItem("marketplace-token");
+      if (!token) return;
+      fetch(`${apiUrl}/creator/storefronts`, { headers: { Authorization: `Bearer ${token}` } })
+        .then((response) => response.ok ? response.json() : { storefronts: [] })
+        .then((data: { storefronts?: { displayName: string; products: number }[] }) => {
+          const nextOptions = (data.storefronts ?? []).map(({ displayName, products }) => ({
+            name: displayName,
+            products,
+            href: `/creator/storefront/${encodeURIComponent(displayName)}/overview`,
+          }));
+          setStorefrontOptions(nextOptions);
+          if (storedStorefront && !nextOptions.some(({ name }) => name === storedStorefront)) {
+            setStoredStorefront(nextOptions[0]?.name ?? "");
+            if (nextOptions.length === 0) window.localStorage.removeItem("creator-selected-storefront");
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    loadStorefronts();
+    window.addEventListener("storefronts-changed", loadStorefronts);
+    window.addEventListener("storage", loadStorefronts);
+    return () => {
+      window.removeEventListener("storefronts-changed", loadStorefronts);
+      window.removeEventListener("storage", loadStorefronts);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showStorefrontToast) return;

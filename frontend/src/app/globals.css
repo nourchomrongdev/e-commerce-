@@ -1,4 +1,23 @@
 @import "tailwindcss";
+
+.preview-assets-page[data-loading="true"] > section:last-of-type {
+  position: relative;
+  min-height: 13rem;
+}
+
+.preview-assets-page[data-loading="true"] > section:last-of-type::after {
+  content: "Loading preview assets...";
+  position: absolute;
+  inset: 4.5rem 0 0;
+  display: grid;
+  place-items: center;
+  color: #536b92;
+  font-size: 0.875rem;
+}
+
+.preview-assets-page[data-loading="true"] > section:last-of-type > div:last-child > p {
+  visibility: hidden;
+}
 @import "react-phone-number-input/style.css";
 
 :root {

@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix frontend -- --port 3000\" \"npm run dev --prefix frontend_admin -- --port 3001\" \"npm run dev --prefix backend_service\"",
-    "migrate": "npm run migrate --prefix backend_service"
+    "migrate": "npm run migrate --prefix backend_service",
+    "build": "npm run build --prefix backend_service && npm run build --prefix frontend && npm run build --prefix frontend_admin",
+    "start": "concurrently \"npm run start --prefix frontend -- --port 3000\" \"npm run start --prefix frontend_admin -- --port 3001\" \"npm run start --prefix backend_service\""
   },
   "keywords": [],
   "author": "",

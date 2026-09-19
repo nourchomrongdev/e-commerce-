@@ -176,8 +176,9 @@ export default function StorefrontForm({ mode, storefrontName }: StorefrontFormP
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "Unable to save storefront");
       }
+      window.dispatchEvent(new Event("storefronts-changed"));
       setFeedback(isEdit ? "Storefront updated successfully." : "Storefront created successfully.");
-      window.setTimeout(() => router.push("/creator/storefront"), 700);
+      window.setTimeout(() => router.push(`/creator/storefront/${encodeURIComponent(name)}/overview`), 700);
     }).catch((error: Error) => setFeedback(error.message)).finally(() => setIsSubmitting(false));
   };
 
@@ -204,6 +205,8 @@ export default function StorefrontForm({ mode, storefrontName }: StorefrontFormP
           const data = await response.json().catch(() => ({}));
           throw new Error(data.error || "Unable to delete storefront");
         }
+        window.dispatchEvent(new Event("storefronts-changed"));
+        window.localStorage.removeItem("creator-selected-storefront");
         setDeleteStep(null);
         router.push("/creator/storefront");
       })

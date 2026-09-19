@@ -149,12 +149,27 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+type LegacyStorefront = {
+  id: number;
+  displayName: string;
+  slug: string;
+  type: string;
+  products: number;
+  revenue: string;
+  description: string;
+  theme?: string;
+  isPublished?: boolean;
+  isFeatured?: boolean;
+  guestPurchase?: boolean;
+  logoUrl?: string;
+};
+
 const products = [
   { id: 1, name: "Website Template", price: 15, category: "Templates" },
   { id: 2, name: "E-Book", price: 10, category: "Books" },
 ];
 
-let storefronts = [
+let storefronts: LegacyStorefront[] = [
   {
     id: 1,
     displayName: "TestStore",
@@ -196,7 +211,7 @@ let storefronts = [
 // Storefronts are created through the API; keep runtime state empty on startup.
 storefronts = [];
 
-const storefrontState = new Map(
+const storefrontState = new Map<string, { branding: Record<string, unknown>; settings: Record<string, unknown> }>(
   storefronts.map((storefront) => [storefront.displayName, {
     branding: {
       storeName: storefront.displayName,
@@ -229,7 +244,7 @@ function findStorefront(name, res) {
   return { storefrontName, storefront };
 }
 
-function hasLogoReference(imageUrl, ignoredStorefront) {
+function hasLogoReference(imageUrl: string, ignoredStorefront?: LegacyStorefront) {
   return storefronts.some((storefront) => storefront !== ignoredStorefront && storefront.logoUrl === imageUrl);
 }
 
@@ -335,7 +350,13 @@ router.use("/creator", requireCreatorAccess);
 async function databaseStorefront(req) {
   const profile = await CreatorProfile.findOne({ where: { UserId: req.userId } });
   if (!profile) return { profile: null, storefront: null };
-  const storefront = await Storefront.findOne({ where: { CreatorProfileId: profile.CreatorProfileId } });
+  const storefrontName = req.params.storefrontName;
+  const storefront = await Storefront.findOne({
+    where: storefrontName
+      ? { CreatorProfileId: profile.CreatorProfileId, [require("sequelize").Op.or]: [{ StoreName: storefrontName }, { StoreSlug: storefrontName }] }
+      : { CreatorProfileId: profile.CreatorProfileId },
+    order: [["CreatedAt", "ASC"]],
+  });
   return { profile, storefront };
 }
 
@@ -676,8 +697,10 @@ function serializeStorefront(storefront) {
 }
 
 router.get("/creator/storefronts", async (req, res) => {
-  const { storefront } = await databaseStorefront(req);
-  return res.json({ storefronts: storefront ? [serializeStorefront(storefront)] : [] });
+  const profile = await CreatorProfile.findOne({ where: { UserId: req.userId } });
+  if (!profile) return res.json({ storefronts: [] });
+  const storefronts = await Storefront.findAll({ where: { CreatorProfileId: profile.CreatorProfileId }, order: [["CreatedAt", "ASC"]], });
+  return res.json({ storefronts: storefronts.map(serializeStorefront) });
 });
 
 router.get("/creator/storefronts/:storefrontName", async (req, res) => {
@@ -688,9 +711,8 @@ router.get("/creator/storefronts/:storefrontName", async (req, res) => {
 
 router.post("/creator/storefronts", async (req, res) => {
   try {
-    const { profile, storefront: existing } = await databaseStorefront(req);
+    const { profile } = await databaseStorefront(req);
     if (!profile) return res.status(404).json({ error: "Creator profile not found." });
-    if (existing) return res.status(409).json({ error: "Your creator account already has a storefront." });
     const storeName = String(req.body.storeName || "").trim();
     const slug = String(req.body.slug || "").trim().toLowerCase();
     const description = String(req.body.description || "").trim();
@@ -727,9 +749,13 @@ router.get("/creator/storefronts/:storefrontName/overview", async (req, res) => 
 });
 
 router.get("/creator/storefronts/:storefrontName/branding", async (req, res) => {
-  const { storefront } = await databaseStorefront(req);
-  if (!storefront) return res.status(404).json({ error: "Storefront not found" });
-  return res.json({ storefrontName: storefront.StoreName, storefront: serializeStorefront(storefront), branding: { storeName: storefront.StoreName, description: storefront.Description, ...(storefront.ThemeSettings || {}) } });
+  try {
+    const { storefront } = await databaseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found" });
+    return res.json({ storefrontName: storefront.StoreName, storefront: serializeStorefront(storefront), branding: { storeName: storefront.StoreName, description: storefront.Description, ...(storefront.ThemeSettings || {}) } });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load storefront branding." });
+  }
 });
 
 router.put("/creator/storefronts/:storefrontName/branding", async (req, res) => {
@@ -1213,7 +1239,7 @@ router.delete("/creator/storefronts/:storefrontName", async (req, res) => {
 
   storefronts = storefronts.filter((item) => item.displayName !== result.storefrontName);
   storefrontState.delete(result.storefrontName);
-  if (result.storefront.logoUrl && !hasLogoReference(result.storefront.logoUrl)) {
+  if (result.storefront.logoUrl && !hasLogoReference(result.storefront.logoUrl, undefined)) {
     await deleteEncryptedImage(result.storefront.logoUrl);
   }
   return res.status(204).send();
@@ -1240,11 +1266,14 @@ function registerStorefrontSection(section) {
     if (!result) return;
 
     const state = storefrontState.get(result.storefrontName);
+    const existingSocialLinks = state.settings.socialLinks && typeof state.settings.socialLinks === "object"
+      ? state.settings.socialLinks as Record<string, unknown>
+      : {};
     state[section] = {
       ...state[section],
       ...req.body,
       ...(section === "settings" && req.body.socialLinks
-        ? { socialLinks: { ...state.settings.socialLinks, ...req.body.socialLinks } }
+        ? { socialLinks: { ...existingSocialLinks, ...req.body.socialLinks } }
         : {}),
     };
 

@@ -17,7 +17,8 @@ type PublicIconName =
   "left" |
   "up" |
   "arrow-right" |
-  "arrow-left";
+  "arrow-left" |
+  "grip";
 type PublicIconSidebarName = 
   "store" | 
   "product" | 
@@ -63,19 +64,22 @@ type PublicIconProps = {
  * to set its color because bg-current inherits the element's current color.
  */
 export default function PublicIcon({ name, className = "", label }: PublicIconProps) {
-  const iconUrl = `/icons/${name}.svg`;
+  const iconUrl = `/icons/${name === "grip-vertical" ? "grip" : name}.svg`;
 
   return (
-    <span
-      aria-hidden={label ? undefined : true}
-      aria-label={label}
-      role={label ? "img" : undefined}
-      className={`inline-block h-5 w-5 shrink-0 bg-current ${className}`}
-      style={{
-        mask: `url(${iconUrl}) center / contain no-repeat`,
-        WebkitMask: `url(${iconUrl}) center / contain no-repeat`,
-      }}
-    />
+    <>
+      <style>{`label:has(input[name^="primary-preview-"]) { display: none; } div:has(> label > input[name^="primary-preview-"])::before { content: "Drag and drop to reorder previews. The first preview is shown to buyers."; display: block; width: 100%; margin-bottom: 0.375rem; color: #8993aa; font-size: 9px; line-height: 1rem; }`}</style>
+      <span
+        aria-hidden={label ? undefined : true}
+        aria-label={label}
+        role={label ? "img" : undefined}
+        className={`inline-block h-5 w-5 shrink-0 bg-current ${className}`}
+        style={{
+          mask: `url(${iconUrl}) center / contain no-repeat`,
+          WebkitMask: `url(${iconUrl}) center / contain no-repeat`,
+        }}
+      />
+    </>
   );
 }
 

@@ -102,6 +102,8 @@ export default function StorefrontOverviewPage({
     });
   }, [params]);
 
+  if (isLoading) return <OverviewLoading />;
+
   return (
     <div className="w-full">
       <div className="fixed right-5 top-24 z-[80] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
@@ -154,9 +156,7 @@ export default function StorefrontOverviewPage({
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {isLoading ? Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-[132px] animate-pulse rounded-2xl border border-[#e9edf6] bg-[#f1f3f8]" />
-          )) : overviewCards.map(({ label, detail, icon, tone }) => {
+          {overviewCards.map(({ label, detail, icon, tone }) => {
             const liveValue = label === "Products" ? String(stats.products) : label === "Revenue" ? `$${Number(stats.revenue).toFixed(2)}` : label === "Orders" ? String(stats.orders) : `${Number(stats.conversion).toFixed(1)}%`;
             return (
             <article key={label} className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-4 shadow-sm">
@@ -215,6 +215,66 @@ export default function StorefrontOverviewPage({
               </Link>
             </div>
           </article>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function OverviewLoading() {
+  return (
+    <div className="w-full" aria-busy="true" aria-label="Loading storefront overview">
+      <section className="rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="h-6 w-32 animate-pulse rounded-md bg-[#e9edf6]" />
+            <div className="mt-3 h-3 w-56 max-w-full animate-pulse rounded bg-[#f1f3f7]" />
+          </div>
+          <div className="h-10 w-36 shrink-0 animate-pulse rounded-lg bg-[#edf0f5]" />
+        </div>
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="h-3 w-20 animate-pulse rounded bg-[#e9edf6]" />
+                  <div className="mt-3 h-8 w-24 animate-pulse rounded bg-[#edf0f5]" />
+                </div>
+                <div className="h-10 w-10 animate-pulse rounded-lg bg-[#edf0f5]" />
+              </div>
+              <div className="mt-4 h-3 w-32 animate-pulse rounded bg-[#f1f3f7]" />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-5">
+            <div className="h-5 w-36 animate-pulse rounded bg-[#e9edf6]" />
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-[#edf0f5] bg-white px-3 py-4">
+                  <div>
+                    <div className="h-3 w-28 animate-pulse rounded bg-[#e9edf6]" />
+                    <div className="mt-2 h-2.5 w-20 animate-pulse rounded bg-[#f1f3f7]" />
+                  </div>
+                  <div className="h-6 w-14 animate-pulse rounded-full bg-[#f1f3f7]" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#e9edf6] bg-[#f9fafc] p-5">
+            <div className="h-5 w-24 animate-pulse rounded bg-[#e9edf6]" />
+            <div className="mt-5 space-y-2">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex h-11 items-center justify-between rounded-lg border border-[#edf0f5] bg-white px-3">
+                  <div className="h-3 w-28 animate-pulse rounded bg-[#f1f3f7]" />
+                  <div className="h-4 w-4 animate-pulse rounded bg-[#edf0f5]" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </div>

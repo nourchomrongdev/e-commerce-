@@ -115,7 +115,7 @@ export default function CreatorProgramReviewPage() {
               <p className="text-[18px] font-semibold text-[var(--creator-page-heading)]">Checking your application...</p>
             </div>
           ) : userVerified ? (
-            <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,29,60,0.04)]">
+            <section className="overflow-hidden rounded-[5px] border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,29,60,0.035)]">
               <div className="border-b border-emerald-200 bg-emerald-50 p-6 sm:p-7">
                 <div className="flex items-start gap-4">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700 shadow-inner ring-1 ring-emerald-200">
@@ -129,7 +129,7 @@ export default function CreatorProgramReviewPage() {
               </div>
 
               <div className="grid gap-4 bg-white/50 p-5 sm:p-6 md:grid-cols-3">
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-emerald-100 bg-emerald-50/60 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200">
                     <PublicIcon name="calendar" className="h-4 w-4" />
                   </span>
@@ -140,7 +140,7 @@ export default function CreatorProgramReviewPage() {
                   </div>
                 </div>
 
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-amber-100 bg-amber-50/70 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-amber-100 bg-amber-50/70 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-amber-600 shadow-sm ring-1 ring-amber-200">
                     <PublicIcon name="notification" className="h-4 w-4" />
                   </span>
@@ -151,7 +151,7 @@ export default function CreatorProgramReviewPage() {
                   </div>
                 </div>
 
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-sky-100 bg-sky-50/70 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-sky-100 bg-sky-50/70 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sky-600 shadow-sm ring-1 ring-sky-200">
                     <PublicIcon name="mail" className="h-4 w-4" />
                   </span>
@@ -174,7 +174,7 @@ export default function CreatorProgramReviewPage() {
               </div>
             </section>
           ) : application ? (
-            <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,29,60,0.04)]">
+            <section className="overflow-hidden rounded-[5px] border border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,29,60,0.035)]">
               <div className="border-b border-amber-200 bg-amber-50 p-6 sm:p-7">
                 <div className="flex items-start gap-4">
                   <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 shadow-inner ring-1 ring-amber-200">
@@ -188,7 +188,7 @@ export default function CreatorProgramReviewPage() {
               </div>
 
               <div className="grid gap-4 bg-white/40 p-5 sm:p-6 md:grid-cols-3">
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-slate-200 bg-white/70 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-slate-200 bg-white/70 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-600 shadow-sm ring-1 ring-slate-200">
                     <PublicIcon name="calendar" className="h-4 w-4" />
                   </span>
@@ -199,7 +199,7 @@ export default function CreatorProgramReviewPage() {
                   </div>
                 </div>
 
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-amber-200 bg-amber-100/60 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-amber-200 bg-amber-100/60 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-amber-600 shadow-sm ring-1 ring-amber-200">
                     <PublicIcon name="notification" className="h-4 w-4" />
                   </span>
@@ -210,7 +210,7 @@ export default function CreatorProgramReviewPage() {
                   </div>
                 </div>
 
-                <div className="flex min-h-[120px] items-center gap-3 rounded-[16px] border border-sky-200 bg-sky-50/80 p-4">
+                <div className="flex min-h-[120px] items-center gap-3 rounded-[5px] border border-sky-200 bg-sky-50/80 p-4">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-sky-600 shadow-sm ring-1 ring-sky-200">
                     <PublicIcon name="mail" className="h-4 w-4" />
                   </span>
@@ -233,7 +233,7 @@ export default function CreatorProgramReviewPage() {
               </div>
             </section>
           ) : (
-            <section className="rounded-[22px] border border-[var(--creator-review-border)] bg-[var(--creator-page-bg)] p-6 shadow-[0_12px_32px_rgba(15,29,60,0.04)] sm:p-8">
+            <section className="rounded-[5px] border border-[var(--creator-review-border)] bg-[var(--creator-page-bg)] p-6 shadow-[0_6px_18px_rgba(15,29,60,0.035)] sm:p-8">
               <div className="flex items-start gap-4">
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--creator-page-bg)] text-primary">
                   <PublicIcon name="store" className="h-5 w-5" />

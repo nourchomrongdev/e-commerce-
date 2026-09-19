@@ -1,6 +1,10 @@
-import ProductPage from "../../[productSlug]/page";
+import ProductDetailClient from "@/components/marketplace/ProductDetailClient";
 
-export default async function StorefrontProductPage({ params }: { params: Promise<{ productSlug: string }> }) {
+export default async function StorefrontProductPage({
+  params,
+}: {
+  params: Promise<{ storefront: string; productSlug: string }>;
+}) {
   const { productSlug } = await params;
-  return <ProductPage params={Promise.resolve({ productSlug })} />;
+  return <ProductDetailClient productSlug={productSlug} />;
 }
