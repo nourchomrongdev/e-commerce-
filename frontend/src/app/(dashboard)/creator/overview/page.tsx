@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { Card, MetricTile } from "@/components/ui";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const stats = [
@@ -8,6 +8,7 @@ const stats = [
   { label: "Revenue", value: "$1,152.30", change: "↑ 8.2%", icon: "dollar" },
   { label: "Products", value: "24", change: "+3 this week", icon: "shopping-basket" },
   { label: "Customers", value: "386", change: "↑ 15.4%", icon: "user" },
+  { label: "Total Storefronts", value: "3", change: "+1 this month", icon: "store" },
 ];
 
 const products = [
@@ -25,17 +26,9 @@ const orders = [
   ["#ORD-3253", "$29.99", "1 hour ago"],
 ];
 
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <article className={`rounded-2xl border border-[#e8eaf2] bg-white shadow-sm ${className}`}>
-      {children}
-    </article>
-  );
-}
-
 export default function CreatorOverview() {
   return (
-    <div className="w-full">
+    <div className="creator-overview w-full">
       <header className="mb-5">
         <h1 className="text-2xl font-bold tracking-tight text-[#101a3c] sm:text-[28px]">
           Good evening, Chomrong <span aria-hidden>.</span>
@@ -45,22 +38,17 @@ export default function CreatorOverview() {
         </p>
       </header>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_310px] 2xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-5">
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="summary-cards grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             {stats.map(({ label, value, change, icon }) => (
-              <Card key={label} className="relative p-5">
-                <div className="flex items-start">
-                  <div className="min-w-0 pr-8">
-                    <p className="text-xs font-semibold text-[#182342]">{label}</p>
-                    <p className="mt-3 truncate text-2xl font-bold tracking-tight text-[#111b40]">{value.startsWith("$") ? formatCompactCurrency(value) : value}</p>
-                  </div>
-                  <span className="absolute right-5 top-5 grid h-11 w-11 place-items-center text-primary">
-                    <PublicIcon name={icon as any} className="h-6 w-6" />
-                  </span>
-                </div>
-                <p className="mt-3 text-xs font-medium text-emerald-600">{change}</p>
-              </Card>
+              <MetricTile
+                key={label}
+                label={label}
+                value={value.startsWith("$") ? formatCompactCurrency(value) : value}
+                change={change}
+                icon={<PublicIcon name={icon as any} className="h-7 w-7" />}
+              />
             ))}
           </section>
 

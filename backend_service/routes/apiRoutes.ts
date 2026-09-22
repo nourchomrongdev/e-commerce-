@@ -12,6 +12,7 @@ const { saveProductFile } = require("../services/productFileService");
 const { setupPaymentToken } = require("../services/paypalService");
 
 const router = express.Router();
+const MARKETPLACE_FEE_RATE = 0.2;
 const encryptionKey = crypto.createHash("sha256").update(process.env.JWT_SECRET || "local-development-secret-change-me").digest();
 
 function encryptSensitiveValue(value) {
@@ -271,15 +272,35 @@ function serializeProduct(product) {
     uuid: product.UUID,
     name: product.ProductName,
     slug: product.Slug,
+    shortDescription: product.ShortDescription || "",
     description: product.Description || "",
     productType: product.ProductType,
     price: Number(product.Price || 0),
     discount: Number(product.DiscountPercent || 0),
+    discountType: product.DiscountType || "none",
+    discountAmount: Number(product.DiscountAmount || 0),
     currency: product.Currency || "USD",
     status: String(product.Status || "draft").toLowerCase(),
     storefrontId: product.StorefrontId,
     createdAt: product.CreatedAt,
     updatedAt: product.UpdatedAt,
+  };
+}
+
+function parseDiscount(body, price, fallback: { type?: string; amount?: number } = {}) {
+  const discountType = String(body.discountType || fallback.type || "none").toLowerCase();
+  const requestedAmount = Number(body.discountAmount ?? body.discount ?? fallback.amount ?? 0);
+  if (!["none", "percentage", "fixed"].includes(discountType) || !Number.isFinite(requestedAmount) || requestedAmount < 0) {
+    throw new Error("Discount must be a valid percentage or fixed amount.");
+  }
+  if (discountType === "percentage" && requestedAmount > 100) throw new Error("Percentage discount must be between 0 and 100.");
+  if (discountType === "fixed" && requestedAmount + price * MARKETPLACE_FEE_RATE >= price) {
+    throw new Error("Fixed discount plus the 20% marketplace fee must be less than the product price.");
+  }
+  return {
+    type: discountType,
+    amount: discountType === "none" ? 0 : requestedAmount,
+    percent: discountType === "fixed" && price > 0 ? (requestedAmount / price) * 100 : discountType === "percentage" ? requestedAmount : 0,
   };
 }
 
@@ -295,8 +316,13 @@ router.get("/admin/products", requireAdmin, async (req, res) => {
 router.post("/admin/products", requireAdmin, async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
+    assertTextLimit("Product name", name, 40);
+    assertTextLimit("Short description", req.body.shortDescription, 50);
+    assertWordLimit("Product description", req.body.description, 50);
+    assertTextLimit("Product price", req.body.price, 20);
     const slug = await uniqueProductSlug(req.body.slug || name);
     const price = Number(req.body.price);
+    const discount = parseDiscount(req.body, price);
     let storefrontId = Number(req.body.storefrontId);
     let categoryId = Number(req.body.categoryId);
     if (!storefrontId) {
@@ -313,9 +339,13 @@ router.post("/admin/products", requireAdmin, async (req, res) => {
       CategoryId: categoryId,
       ProductName: name,
       Slug: slug,
+      ShortDescription: String(req.body.shortDescription || "").trim(),
       Description: String(req.body.description || "").trim(),
       ProductType: String(req.body.productType || "Digital Download"),
       Price: price,
+      DiscountPercent: discount.percent,
+      DiscountType: discount.type,
+      DiscountAmount: discount.amount,
       Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(),
       Status: String(req.body.status || "draft").toLowerCase(),
       CreatedAt: new Date(),
@@ -347,6 +377,52 @@ router.post("/payments/paypal/order", createPaymentOrder);
 router.post("/payments/paypal/capture", capturePaymentOrder);
 router.use("/creator", requireCreatorAccess);
 
+router.get("/creator/catalog-options", async (req, res) => {
+  try {
+    const [categories] = await sequelize.query('SELECT "CategoryId" AS id, "CategoryName" AS name FROM "Categories" WHERE "IsActive" = TRUE AND "ParentCategoryId" IS NULL ORDER BY "CategoryName" ASC');
+    let subcategories = [];
+    try {
+      [subcategories] = await sequelize.query('SELECT "SubcategoryId" AS id, "CategoryId" AS "categoryId", "SubcategoryName" AS name FROM "Subcategories" WHERE "IsActive" = TRUE ORDER BY "SubcategoryName" ASC');
+    } catch {
+      subcategories = [];
+    }
+    let productTypes = [];
+    try {
+      [productTypes] = await sequelize.query('SELECT "TypeName" AS name, "Description" AS description FROM "ProductTypes" WHERE "IsActive" = TRUE ORDER BY "TypeName" ASC');
+    } catch {
+      productTypes = [];
+    }
+    return res.json({ categories, subcategories, productTypes });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load catalog options." });
+  }
+});
+
+router.post("/creator/catalog-options", async (req, res) => {
+  try {
+    const kind = String(req.body.kind || "").toLowerCase();
+    const name = String(req.body.name || "").trim();
+    if (!name || !["category", "subcategory", "producttype"].includes(kind)) return res.status(400).json({ error: "A valid catalog type and name are required." });
+    if (kind === "producttype") {
+      const [rows] = await sequelize.query('INSERT INTO "ProductTypes" ("TypeName") VALUES (:name) ON CONFLICT ("TypeName") DO UPDATE SET "IsActive" = TRUE RETURNING "TypeName" AS name', { replacements: { name } });
+      return res.status(201).json({ option: rows[0] });
+    }
+    const parentName = String(req.body.parentName || "").trim();
+    const parent = parentName ? (await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE lower("CategoryName") = lower(:name) AND "ParentCategoryId" IS NULL LIMIT 1', { replacements: { name: parentName } }))[0][0] : null;
+    if (kind === "subcategory") {
+      if (!parent) return res.status(400).json({ error: "A parent category is required for a subcategory." });
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "subcategory";
+      const [rows] = await sequelize.query('INSERT INTO "Subcategories" ("CategoryId", "SubcategoryName", "Slug") VALUES (:categoryId, :name, :slug) ON CONFLICT ("CategoryId", "SubcategoryName") DO UPDATE SET "IsActive" = TRUE RETURNING "SubcategoryId" AS id, "CategoryId" AS "categoryId", "SubcategoryName" AS name', { replacements: { categoryId: parent.CategoryId, name, slug } });
+      return res.status(201).json({ option: rows[0] });
+    }
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "category";
+    const [rows] = await sequelize.query('INSERT INTO "Categories" ("CategoryName", "Slug", "ParentCategoryId") VALUES (:name, :slug, :parentId) ON CONFLICT ("Slug") DO UPDATE SET "IsActive" = TRUE RETURNING "CategoryId" AS id, "CategoryName" AS name, "ParentCategoryId" AS "parentId"', { replacements: { name, slug, parentId: parent?.CategoryId || null } });
+    return res.status(201).json({ option: rows[0] });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to add catalog option." });
+  }
+});
+
 async function databaseStorefront(req) {
   const profile = await CreatorProfile.findOne({ where: { UserId: req.userId } });
   if (!profile) return { profile: null, storefront: null };
@@ -371,14 +447,24 @@ function serializePreview(preview) {
   };
 }
 
-async function resolveCategoryId(categoryName) {
+async function resolveCategoryId(categoryName, parentCategoryName?: string) {
   const normalizedName = String(categoryName || "Uncategorized").trim() || "Uncategorized";
-  const [existing] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE lower("CategoryName") = lower(:categoryName) LIMIT 1', { replacements: { categoryName: normalizedName } });
+  const parent = parentCategoryName ? (await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE lower("CategoryName") = lower(:parentCategoryName) AND "ParentCategoryId" IS NULL LIMIT 1', { replacements: { parentCategoryName } }))[0][0] : null;
+  const [existing] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE lower("CategoryName") = lower(:categoryName) AND ("ParentCategoryId" = :parentId OR (:parentId IS NULL AND "ParentCategoryId" IS NULL)) LIMIT 1', { replacements: { categoryName: normalizedName, parentId: parent?.CategoryId || null } });
   if (existing[0]?.CategoryId) return Number(existing[0].CategoryId);
   const slug = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "uncategorized";
-  await sequelize.query('INSERT INTO "Categories" ("CategoryName", "Slug", "Description") VALUES (:categoryName, :slug, :description) ON CONFLICT ("Slug") DO NOTHING', { replacements: { categoryName: normalizedName, slug, description: `${normalizedName} products` } });
-  const [created] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE "Slug" = :slug LIMIT 1', { replacements: { slug } });
+  const categorySlug = parent ? `${slug}-${parent.CategoryId}` : slug;
+  await sequelize.query('INSERT INTO "Categories" ("CategoryName", "Slug", "ParentCategoryId", "Description") VALUES (:categoryName, :slug, :parentId, :description) ON CONFLICT ("Slug") DO NOTHING', { replacements: { categoryName: normalizedName, slug: categorySlug, parentId: parent?.CategoryId || null, description: `${normalizedName} products` } });
+  const [created] = await sequelize.query('SELECT "CategoryId" FROM "Categories" WHERE "Slug" = :slug LIMIT 1', { replacements: { slug: categorySlug } });
   return Number(created[0]?.CategoryId || 0);
+}
+
+async function resolveSubcategoryId(subcategoryName, categoryName) {
+  const normalizedName = String(subcategoryName || "").trim();
+  if (!normalizedName) return null;
+  const parentId = await resolveCategoryId(categoryName);
+  const [rows] = await sequelize.query('SELECT "SubcategoryId" FROM "Subcategories" WHERE "CategoryId" = :categoryId AND lower("SubcategoryName") = lower(:subcategoryName) LIMIT 1', { replacements: { categoryId: parentId, subcategoryName: normalizedName } });
+  return rows[0]?.SubcategoryId ? Number(rows[0].SubcategoryId) : null;
 }
 
 async function uniqueProductSlug(requestedSlug) {
@@ -397,18 +483,70 @@ function previewDataSize(dataUrl) {
   return Buffer.byteLength(encoded, "base64");
 }
 
+function assertTextLimit(label, value, maximum) {
+  if (String(value || "").length > maximum)
+    throw new Error(`${label} must be ${maximum} characters or fewer.`);
+}
+
+function assertWordLimit(label, value, maximum) {
+  const text = String(value || "");
+  const words = text.match(/[A-Z]?[a-z]+|[A-Z]+(?![a-z])|\d+/g) || [];
+  if (words.length > maximum || text.length > 500)
+    throw new Error(`${label} must be ${maximum} words or fewer and no more than 500 characters.`);
+}
+
+function isSafeProductStorageKey(value) {
+  return /^[a-f0-9]{64}\.[a-z0-9]+$/i.test(String(value || ""));
+}
+
+const MAX_PRODUCT_FILES = 10;
+
 function releasePayload(body) {
+  let releases;
+  const productPrice = Number(body.price || 0);
   if (Array.isArray(body.versions)) {
-    return body.versions.map((release) => ({
+    releases = body.versions.map((release) => ({
       id: release.id ? Number(release.id) : undefined,
       version: String(release.version || "").trim(),
+      price: productPrice,
+      isFree: productPrice === 0,
+      license: String(release.license || body.license || "All").replace(/\s+License$/i, "").trim(),
+      licenses: Array.isArray(release.licenses) ? release.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: productPrice, access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [],
       releaseNotes: String(release.releaseNotes || release.summary || "").trim(),
       current: release.current !== false,
-      files: Array.isArray(release.files) ? release.files.filter((file) => file?.storageKey && file?.fileName) : [],
+      files: Array.isArray(release.files) ? release.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [],
       previews: Array.isArray(release.previews) ? release.previews.filter((preview) => preview?.url) : [],
     })).filter((release) => release.version);
+  } else {
+    releases = [{ version: String(body.version || "1.0.0").trim(), price: Number(body.price || 0), isFree: Number(body.price || 0) === 0, license: String(body.license || "All").replace(/\s+License$/i, "").trim(), licenses: [], releaseNotes: String(body.releaseNotes || "Initial release.").trim(), current: true, files: Array.isArray(body.files) ? body.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [], previews: Array.isArray(body.previews) ? body.previews.filter((preview) => preview?.url) : [] }];
   }
-  return [{ version: String(body.version || "1.0.0").trim(), releaseNotes: String(body.releaseNotes || "Initial release.").trim(), current: true, files: Array.isArray(body.files) ? body.files.filter((file) => file?.storageKey && file?.fileName) : [], previews: Array.isArray(body.previews) ? body.previews.filter((preview) => preview?.url) : [] }];
+  releases.forEach((release) => {
+    if (!release.licenses.length) release.licenses = [{ name: release.license, price: release.isFree ? 0 : release.price, access: "Lifetime Access", downloadLimit: null }];
+    release.licenses = release.licenses.filter((license, index, all) => license.name && Number.isFinite(license.price) && license.price >= 0 && all.findIndex((item) => item.name.toLowerCase() === license.name.toLowerCase()) === index).slice(0, 4);
+    if (!release.licenses.length) throw new Error("Choose at least one licence for every product version.");
+    release.license = release.licenses[0]?.name ?? null;
+    if (release.files.length > MAX_PRODUCT_FILES)
+      throw new Error(`A product version can contain at most ${MAX_PRODUCT_FILES} files.`);
+    assertTextLimit("Product price", release.price, 10);
+    assertTextLimit("Product version", release.version, 10);
+    assertTextLimit("Release notes", release.releaseNotes, 100);
+  });
+  return releases;
+}
+
+async function resolveLicenseTypeId(licenseName) {
+  const normalized = String(licenseName || "All").replace(/\s+License$/i, "").trim();
+  const [rows] = await sequelize.query('SELECT "LicenseTypeId" FROM "LicenseTypes" WHERE lower("LicenseName") IN (lower(:licenseName), lower(:licenseName) || \' license\') AND "IsActive" = TRUE LIMIT 1', { replacements: { licenseName: normalized } });
+  return rows[0]?.LicenseTypeId ? Number(rows[0].LicenseTypeId) : null;
+}
+
+async function replaceReleaseLicenses(versionId, licenses) {
+  await sequelize.query('DELETE FROM "ProductVersionLicenses" WHERE "ProductVersionId" = :versionId', { replacements: { versionId } });
+  for (const license of licenses) {
+    const licenseTypeId = await resolveLicenseTypeId(license.name);
+    if (!licenseTypeId) throw new Error(`The ${license.name} licence is not available.`);
+    await sequelize.query('INSERT INTO "ProductVersionLicenses" ("ProductVersionId", "LicenseTypeId", "Price", "AccessType", "DownloadLimit") VALUES (:versionId, :licenseTypeId, :price, :accessType, :downloadLimit)', { replacements: { versionId, licenseTypeId, price: license.price, accessType: license.access, downloadLimit: license.downloadLimit } });
+  }
 }
 
 async function replaceReleaseAssets(productId, versionId, files, previews, now) {
@@ -443,19 +581,28 @@ router.post("/creator/storefronts/:storefrontName/products", async (req, res) =>
     const { storefront } = await databaseStorefront(req);
     if (!storefront) return res.status(404).json({ error: "Storefront not found." });
     const name = String(req.body.name || "").trim();
+    assertTextLimit("Product name", name, 40);
+    assertTextLimit("Short description", req.body.shortDescription, 50);
+    assertWordLimit("Product description", req.body.description, 50);
+    assertTextLimit("Product price", req.body.price, 20);
     const price = Number(req.body.price || 0);
     if (!name || !Number.isFinite(price) || price < 0) return res.status(400).json({ error: "Product name and a valid price are required." });
+    const discount = parseDiscount(req.body, price);
     if (await storefrontHasProductName(storefront.StorefrontId, name, undefined)) return res.status(409).json({ error: "A product with this name already exists in this storefront." });
     const categoryId = Number(req.body.categoryId || await resolveCategoryId(req.body.categoryName));
     const slug = await uniqueProductSlug(req.body.slug || name);
     const now = new Date();
     const releases = releasePayload(req.body);
-    if (!releases.length || !releases.some((release) => release.files.length)) return res.status(400).json({ error: "At least one product file is required." });
+    const isPublished = String(req.body.status || "draft").toLowerCase() === "published";
+    if (!releases.length || releases.some((release) => !release.files.length)) return res.status(400).json({ error: "Add at least one product file to every version before saving." });
+    if (releases.some((release) => !release.previews.length)) return res.status(400).json({ error: "Add at least one preview asset to every version before saving." });
+    if (releases.some((release) => !Number.isFinite(release.price) || release.price < 0)) return res.status(400).json({ error: "Each product version must have a valid price." });
     if (new Set(releases.map((release) => release.version)).size !== releases.length) return res.status(400).json({ error: "Each product version must have a unique version number." });
-    const product = await Product.create({ UUID: crypto.randomUUID(), StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
+    const product = await Product.create({ UUID: crypto.randomUUID(), StorefrontId: storefront.StorefrontId, CategoryId: categoryId, ProductName: name, Slug: slug, ShortDescription: String(req.body.shortDescription || "").trim(), Description: String(req.body.description || "").trim(), ProductType: String(req.body.productType || "Digital Download"), Price: price, DiscountPercent: discount.percent, DiscountType: discount.type, DiscountAmount: discount.amount, Currency: String(req.body.currency || "USD").slice(0, 3).toUpperCase(), Status: String(req.body.status || "draft").toLowerCase(), CreatedAt: now, UpdatedAt: now });
     const currentReleaseIndex = Math.max(0, releases.findIndex((release) => release.current));
     for (const [index, release] of releases.entries()) {
-      const version = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: now });
+      const version = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, Price: release.isFree ? 0 : release.price, IsFree: release.isFree, LicenseTypeId: release.license ? await resolveLicenseTypeId(release.license) : null, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: now });
+      await replaceReleaseLicenses(version.ProductVersionId, release.licenses);
       await replaceReleaseAssets(product.ProductId, version.ProductVersionId, release.files, release.previews, now);
     }
     return res.status(201).json({ product: serializeProduct(product) });
@@ -468,30 +615,44 @@ router.put("/creator/storefronts/:storefrontName/products/:productId", async (re
   try {
     const { product } = await creatorProduct(req);
     if (!product) return res.status(404).json({ error: "Product not found." });
-    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName) : [];
+    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [];
     if (req.body.files !== undefined && !files.length) return res.status(400).json({ error: "At least one product file is required." });
     const price = req.body.price === undefined ? product.Price : Number(req.body.price);
-    const discount = req.body.discount === undefined ? product.DiscountPercent : Number(req.body.discount);
-    if (!Number.isFinite(price) || price < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100) return res.status(400).json({ error: "Price and discount must be valid values." });
+    if (req.body.price !== undefined) assertTextLimit("Product price", req.body.price, 20);
+    if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: "Price must be a valid value." });
+    const discount = parseDiscount(req.body, price, { type: product.DiscountType, amount: product.DiscountAmount ?? product.DiscountPercent });
     const name = req.body.name === undefined ? product.ProductName : String(req.body.name).trim();
     if (!name) return res.status(400).json({ error: "Product name is required." });
+    assertTextLimit("Product name", name, 40);
+    assertWordLimit(
+      "Product description",
+      req.body.description === undefined ? product.Description : req.body.description,
+      50,
+    );
+    if (req.body.shortDescription !== undefined) assertTextLimit("Short description", req.body.shortDescription, 50);
     if (await storefrontHasProductName(product.StorefrontId, name, product.ProductId)) return res.status(409).json({ error: "A product with this name already exists in this storefront." });
     const requestedSlug = String(req.body.slug || "").trim();
     const slug = requestedSlug && requestedSlug !== product.Slug ? await uniqueProductSlug(requestedSlug) : product.Slug;
     const categoryId = req.body.categoryName === undefined ? product.CategoryId : Number(req.body.categoryId || await resolveCategoryId(req.body.categoryName));
     const releases = Array.isArray(req.body.versions) ? releasePayload(req.body) : null;
-    if (releases && (!releases.length || !releases.some((release) => release.files.length))) return res.status(400).json({ error: "At least one product file is required." });
+    const isPublished = String(req.body.status === undefined ? product.Status : req.body.status).toLowerCase() === "published";
+    if (releases && (!releases.length || releases.some((release) => !release.files.length))) return res.status(400).json({ error: "Add at least one product file to every version before saving." });
+    if (releases && releases.some((release) => !release.previews.length)) return res.status(400).json({ error: "Add at least one preview asset to every version before saving." });
     if (releases && new Set(releases.map((release) => release.version)).size !== releases.length) return res.status(400).json({ error: "Each product version must have a unique version number." });
+    if (releases && releases.some((release) => !Number.isFinite(release.price) || release.price < 0)) return res.status(400).json({ error: "Each product version must have a valid price." });
     const version = String(req.body.version || "").trim();
     if (!releases && version && await ProductVersion.findOne({ where: { ProductId: product.ProductId, VersionNumber: version } })) return res.status(409).json({ error: `Version ${version} already exists for this product.` });
     await product.update({
       ProductName: name,
       Slug: slug,
       CategoryId: categoryId,
+      ShortDescription: req.body.shortDescription === undefined ? product.ShortDescription : String(req.body.shortDescription).trim(),
       Description: req.body.description === undefined ? product.Description : String(req.body.description).trim(),
       ProductType: req.body.productType === undefined ? product.ProductType : String(req.body.productType),
       Price: price,
-      DiscountPercent: discount,
+      DiscountPercent: discount.percent,
+      DiscountType: discount.type,
+      DiscountAmount: discount.amount,
       Currency: req.body.currency === undefined ? product.Currency : String(req.body.currency).slice(0, 3).toUpperCase(),
       Status: req.body.status === undefined ? product.Status : String(req.body.status).toLowerCase(),
       UpdatedAt: new Date(),
@@ -505,10 +666,12 @@ router.put("/creator/storefronts/:storefrontName/products/:productId", async (re
         const existing = release.id ? existingById.get(release.id) : undefined;
         if (release.id && !existing) throw new Error("A product version could not be found.");
         if (existing) {
-          await existing.update({ VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex });
+          await existing.update({ VersionNumber: release.version, Price: release.isFree ? 0 : release.price, IsFree: release.isFree, LicenseTypeId: release.license ? await resolveLicenseTypeId(release.license) : null, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex });
+          await replaceReleaseLicenses(existing.ProductVersionId, release.licenses);
           await replaceReleaseAssets(product.ProductId, existing.ProductVersionId, release.files, release.previews, new Date());
         } else {
-          const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: new Date() });
+          const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: release.version, Price: release.isFree ? 0 : release.price, IsFree: release.isFree, LicenseTypeId: release.license ? await resolveLicenseTypeId(release.license) : null, ReleaseNotes: release.releaseNotes, IsCurrent: index === currentReleaseIndex, CreatedAt: new Date() });
+          await replaceReleaseLicenses(created.ProductVersionId, release.licenses);
           await replaceReleaseAssets(product.ProductId, created.ProductVersionId, release.files, release.previews, new Date());
         }
       }
@@ -532,6 +695,17 @@ router.put("/creator/storefronts/:storefrontName/products/:productId", async (re
   }
 });
 
+router.delete("/creator/storefronts/:storefrontName/products/:productId", async (req, res) => {
+  try {
+    const { product } = await creatorProduct(req);
+    if (!product) return res.status(404).json({ error: "Product not found." });
+    await product.destroy();
+    return res.status(204).send();
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to delete product." });
+  }
+});
+
 router.get("/creator/storefronts/:storefrontName/products", async (req, res) => {
   try {
     const { storefront } = await databaseStorefront(req);
@@ -540,7 +714,23 @@ router.get("/creator/storefronts/:storefrontName/products", async (req, res) => 
       where: { StorefrontId: storefront.StorefrontId },
       order: [["CreatedAt", "DESC"]],
     });
-    return res.json({ products: databaseProducts.map(serializeProduct) });
+    const products = await Promise.all(databaseProducts.map(async (product) => {
+      const currentVersion = await ProductVersion.findOne({
+        where: { ProductId: product.ProductId, IsCurrent: true },
+        attributes: ["VersionNumber"],
+      });
+      const latestVersion = await ProductVersion.findOne({
+        where: { ProductId: product.ProductId },
+        attributes: ["VersionNumber"],
+        order: [["CreatedAt", "DESC"], ["ProductVersionId", "DESC"]],
+      });
+      return {
+        ...serializeProduct(product),
+        currentVersion: currentVersion?.VersionNumber || null,
+        latestVersion: latestVersion?.VersionNumber || null,
+      };
+    }));
+    return res.json({ products });
   } catch (error) {
     return res.status(500).json({ error: error.message || "Unable to load storefront products." });
   }
@@ -550,7 +740,7 @@ router.post("/creator/storefronts/:storefrontName/product-files", async (req, re
   try {
     const { storefront } = await databaseStorefront(req);
     if (!storefront) return res.status(404).json({ error: "Storefront not found." });
-    const file = await saveProductFile(req.body.data, req.body.fileName, req.body.mimeType);
+    const file = await saveProductFile(req.body.data, req.body.fileName, req.body.mimeType, storefront.StorefrontId);
     return res.status(201).json({ file });
   } catch (error) {
     return res.status(400).json({ error: error.message || "Unable to upload product file." });
@@ -568,11 +758,19 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/versions", 
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
   const versions = await ProductVersion.findAll({ where: { ProductId: product.ProductId }, order: [["CreatedAt", "DESC"]] });
+  const [licenseTypes] = await sequelize.query('SELECT "LicenseTypeId", "LicenseName" FROM "LicenseTypes" WHERE "IsActive" = TRUE');
+  const licenseNames = new Map(licenseTypes.map((licenseType) => [Number(licenseType.LicenseTypeId), licenseType.LicenseName]));
   const versionIds = versions.map((version) => Number(version.ProductVersionId)).filter((id) => Number.isFinite(id));
-  const [files, previews] = await Promise.all([
+  const [files, previews, versionLicenses] = await Promise.all([
     ProductFile.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["CreatedAt", "ASC"]] }),
     ProductPreview.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["SortOrder", "ASC"]] }),
+    versionIds.length ? sequelize.query('SELECT "ProductVersionId", "LicenseTypeId", "Price", "AccessType", "DownloadLimit" FROM "ProductVersionLicenses" WHERE "ProductVersionId" IN (:versionIds) ORDER BY "ProductVersionId", "ProductVersionLicenseId"', { replacements: { versionIds } }).then(([rows]) => rows) : Promise.resolve([]),
   ]);
+  const licensesByVersion = new Map();
+  versionLicenses.forEach((item) => {
+    const versionId = Number(item.ProductVersionId);
+    licensesByVersion.set(versionId, [...(licensesByVersion.get(versionId) || []), { name: String(licenseNames.get(Number(item.LicenseTypeId)) || "All").replace(/\s+License$/i, ""), price: Number(item.Price || 0), access: item.AccessType || "Lifetime Access", downloadLimit: item.DownloadLimit ? Number(item.DownloadLimit) : undefined }]);
+  });
 
   const currentVersionId = versions.find((version) => version.IsCurrent)?.ProductVersionId ?? versions[0]?.ProductVersionId ?? null;
   const filesByVersion = new Map();
@@ -606,7 +804,7 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/versions", 
     previewsByVersion.set(key, [...(previewsByVersion.get(key) || []), nextEntry]);
   });
 
-  return res.json({ versions: versions.map((version) => ({ id: version.ProductVersionId, version: version.VersionNumber, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] })) });
+  return res.json({ versions: versions.map((version) => { const isFree = Boolean(version.IsFree) || Number(version.Price || 0) === 0; const licenses = licensesByVersion.get(Number(version.ProductVersionId)) || [{ name: String(licenseNames.get(Number(version.LicenseTypeId)) || "ALL").replace(/\s+License$/i, ""), price: isFree ? 0 : Number(version.Price || 0), access: "Lifetime Access" }]; return { id: version.ProductVersionId, version: version.VersionNumber, price: Number(version.Price || 0), isFree, license: licenses[0]?.name ?? null, licenses, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] }; }) });
 });
 
 router.post("/creator/storefronts/:storefrontName/products/:productId/versions", async (req, res) => {
@@ -615,19 +813,27 @@ router.post("/creator/storefronts/:storefrontName/products/:productId/versions",
     if (!product) return res.status(404).json({ error: "Product not found." });
     const version = String(req.body.version || "").trim();
     if (!version) return res.status(400).json({ error: "Version number is required." });
+    assertTextLimit("Product version", version, 40);
+    assertTextLimit("Release notes", req.body.summary, 100);
+    if (req.body.description !== undefined) assertWordLimit("Product description", req.body.description, 50);
+    const price = Number(req.body.price ?? product.Price ?? 0);
+    if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: "A valid version price is required." });
     if (await ProductVersion.findOne({ where: { ProductId: product.ProductId, VersionNumber: version } })) return res.status(409).json({ error: `Version ${version} already exists for this product.` });
 
     const now = new Date();
-    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => file?.storageKey && file?.fileName) : [];
+    const files = Array.isArray(req.body.files) ? req.body.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [];
     const previews = Array.isArray(req.body.previews) ? req.body.previews.filter((preview) => preview?.url) : [];
     if (previews.some((preview) => previewDataSize(preview.url) > 10 * 1024 * 1024)) return res.status(400).json({ error: "Preview images must be smaller than 10 MB." });
     const isCurrent = req.body.current !== false;
 
     if (req.body.description !== undefined) await product.update({ Description: String(req.body.description).trim(), UpdatedAt: now });
     if (isCurrent) await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
-    const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, ReleaseNotes: String(req.body.summary || "").trim(), IsCurrent: isCurrent, CreatedAt: now });
+    const isFreeVersion = price === 0;
+    const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, Price: price, IsFree: isFreeVersion, LicenseTypeId: isFreeVersion ? null : await resolveLicenseTypeId(req.body.license), ReleaseNotes: String(req.body.summary || "").trim(), IsCurrent: isCurrent, CreatedAt: now });
+    const requestedLicenses = Array.isArray(req.body.licenses) ? req.body.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [{ name: String(req.body.license || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: "Lifetime Access", downloadLimit: null }];
+    await replaceReleaseLicenses(created.ProductVersionId, requestedLicenses);
     await replaceReleaseAssets(product.ProductId, created.ProductVersionId, files, previews, now);
-    return res.status(201).json({ version: { id: created.ProductVersionId, version: created.VersionNumber, summary: created.ReleaseNotes || "", current: created.IsCurrent, createdAt: created.CreatedAt } });
+    return res.status(201).json({ version: { id: created.ProductVersionId, version: created.VersionNumber, price: Number(created.Price || 0), summary: created.ReleaseNotes || "", current: created.IsCurrent, createdAt: created.CreatedAt } });
   } catch (error) {
     return res.status(400).json({ error: error.message || "Unable to add version." });
   }
@@ -637,14 +843,52 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/files", asy
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
   const files = await ProductFile.findAll({ where: { ProductId: product.ProductId, IsActive: true }, order: [["CreatedAt", "ASC"]] });
-  return res.json({ files: files.map((file) => ({ id: file.ProductFileId, fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType, createdAt: file.CreatedAt, url: `/creator/storefronts/${encodeURIComponent(req.params.storefrontName)}/products/${product.UUID || product.ProductId}/files/${file.ProductFileId}/content` })) });
+  return res.json({ files: files.map((file) => ({ id: file.UUID, productVersionId: file.ProductVersionId, fileName: file.FileName, storageKey: file.StorageKey, fileSize: Number(file.FileSize || 0), mimeType: file.MimeType, createdAt: file.CreatedAt, url: `/creator/storefronts/${encodeURIComponent(req.params.storefrontName)}/products/${product.UUID || product.ProductId}/files/${file.UUID}/content` })) });
+});
+
+router.post("/creator/storefronts/:storefrontName/products/:productId/files", async (req, res) => {
+  try {
+    const { product } = await creatorProduct(req);
+    if (!product) return res.status(404).json({ error: "Product not found." });
+    const versionId = Number(req.body.productVersionId);
+    const version = await ProductVersion.findOne({ where: { ProductVersionId: versionId, ProductId: product.ProductId } });
+    if (!version) return res.status(400).json({ error: "A valid product version is required." });
+    const fileData = await saveProductFile(req.body.data, req.body.fileName, req.body.mimeType, product.StorefrontId);
+    const file = await ProductFile.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, ProductVersionId: version.ProductVersionId, FileName: fileData.fileName, StorageKey: fileData.storageKey, FileSize: fileData.fileSize, MimeType: fileData.mimeType, CreatedAt: new Date() });
+    return res.status(201).json({ file: { id: file.UUID, productVersionId: file.ProductVersionId, fileName: file.FileName, fileSize: Number(file.FileSize), mimeType: file.MimeType, createdAt: file.CreatedAt } });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to add product file." });
+  }
+});
+
+router.put("/creator/storefronts/:storefrontName/products/:productId/files/:fileId", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const file = await ProductFile.findOne({ where: { UUID: req.params.fileId, ProductId: product.ProductId, IsActive: true } });
+  if (!file) return res.status(404).json({ error: "File not found." });
+  const fileName = String(req.body.fileName || "").trim();
+  if (!fileName) return res.status(400).json({ error: "File name is required." });
+  await file.update({ FileName: fileName.slice(0, 255) });
+  return res.json({ file: { id: file.UUID, fileName: file.FileName } });
+});
+
+router.delete("/creator/storefronts/:storefrontName/products/:productId/files/:fileId", async (req, res) => {
+  const { product } = await creatorProduct(req);
+  if (!product) return res.status(404).json({ error: "Product not found." });
+  const file = await ProductFile.findOne({ where: { UUID: req.params.fileId, ProductId: product.ProductId, IsActive: true } });
+  if (!file) return res.status(404).json({ error: "File not found." });
+  const fileCount = await ProductFile.count({ where: { ProductId: product.ProductId, ProductVersionId: file.ProductVersionId, IsActive: true } });
+  if (fileCount <= 1) return res.status(400).json({ error: "Each product version must keep at least one file." });
+  await file.update({ IsActive: false });
+  return res.json({ success: true });
 });
 
 router.get("/creator/storefronts/:storefrontName/products/:productId/files/:fileId/content", async (req, res) => {
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
-  const file = await ProductFile.findOne({ where: { ProductFileId: req.params.fileId, ProductId: product.ProductId, IsActive: true } });
+  const file = await ProductFile.findOne({ where: { UUID: req.params.fileId, ProductId: product.ProductId, IsActive: true } });
   if (!file) return res.status(404).json({ error: "File not found." });
+  if (path.basename(file.StorageKey) !== file.StorageKey) return res.status(404).json({ error: "File not found." });
   try {
     const filePath = path.resolve(__dirname, "../uploads/products", file.StorageKey);
     res.type(file.MimeType || "application/octet-stream").send(await fs.readFile(filePath));
@@ -656,9 +900,17 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/files/:file
 router.post("/creator/storefronts/:storefrontName/products/:productId/previews", async (req, res) => {
   const { product } = await creatorProduct(req);
   if (!product) return res.status(404).json({ error: "Product not found." });
+  const versionId = req.body.productVersionId || req.body.versionId;
+  let productVersionId = null;
+  if (versionId) {
+    const version = await ProductVersion.findOne({ where: { ProductVersionId: versionId, ProductId: product.ProductId } });
+    if (!version) return res.status(400).json({ error: "Selected version does not belong to this product." });
+    productVersionId = version.ProductVersionId;
+  }
   const url = String(req.body.url || "");
+  assertTextLimit("Preview title", req.body.title, 40);
   if (!url || previewDataSize(url) > 10 * 1024 * 1024) return res.status(400).json({ error: "A preview image smaller than 10 MB is required." });
-  const preview = await ProductPreview.create({ ProductId: product.ProductId, PreviewType: String(req.body.type || "image"), Title: String(req.body.title || "").trim(), PreviewUrl: url, SortOrder: Number(req.body.sortOrder || 0), CreatedAt: new Date() });
+  const preview = await ProductPreview.create({ ProductId: product.ProductId, ProductVersionId: productVersionId, PreviewType: String(req.body.type || "image"), Title: String(req.body.title || "").trim(), PreviewUrl: url, SortOrder: Number(req.body.sortOrder || 0), CreatedAt: new Date() });
   return res.status(201).json({ preview: serializePreview(preview) });
 });
 
@@ -667,6 +919,7 @@ router.put("/creator/storefronts/:storefrontName/products/:productId/previews/:p
   if (!product) return res.status(404).json({ error: "Product not found." });
   const preview = await ProductPreview.findOne({ where: { ProductPreviewId: req.params.previewId, ProductId: product.ProductId } });
   if (!preview) return res.status(404).json({ error: "Preview not found." });
+  if (req.body.title !== undefined) assertTextLimit("Preview title", req.body.title, 40);
   await preview.update({ PreviewType: req.body.type ?? preview.PreviewType, Title: req.body.title ?? preview.Title, PreviewUrl: req.body.url ?? preview.PreviewUrl, SortOrder: req.body.sortOrder ?? preview.SortOrder, IsActive: req.body.isActive ?? preview.IsActive });
   return res.json({ preview: serializePreview(preview) });
 });
@@ -678,14 +931,14 @@ router.delete("/creator/storefronts/:storefrontName/products/:productId/previews
   return deleted ? res.status(204).send() : res.status(404).json({ error: "Preview not found." });
 });
 
-function serializeStorefront(storefront) {
+function serializeStorefront(storefront, productCount = 0) {
   if (!storefront) return null;
   return {
     id: storefront.StorefrontId,
     displayName: storefront.StoreName,
     slug: storefront.StoreSlug,
     type: "Digital Products",
-    products: 0,
+    products: productCount,
     revenue: "$0.00",
     description: storefront.Description || "",
     isPublished: storefront.IsPublished,
@@ -700,13 +953,18 @@ router.get("/creator/storefronts", async (req, res) => {
   const profile = await CreatorProfile.findOne({ where: { UserId: req.userId } });
   if (!profile) return res.json({ storefronts: [] });
   const storefronts = await Storefront.findAll({ where: { CreatorProfileId: profile.CreatorProfileId }, order: [["CreatedAt", "ASC"]], });
-  return res.json({ storefronts: storefronts.map(serializeStorefront) });
+  const serializedStorefronts = await Promise.all(storefronts.map(async (storefront) => {
+    const productCount = await Product.count({ where: { StorefrontId: storefront.StorefrontId } });
+    return serializeStorefront(storefront, productCount);
+  }));
+  return res.json({ storefronts: serializedStorefronts });
 });
 
 router.get("/creator/storefronts/:storefrontName", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
-  return res.json({ storefront: serializeStorefront(storefront) });
+  const productCount = await Product.count({ where: { StorefrontId: storefront.StorefrontId } });
+  return res.json({ storefront: serializeStorefront(storefront, productCount) });
 });
 
 router.post("/creator/storefronts", async (req, res) => {
@@ -1184,7 +1442,7 @@ router.post("/creator/storefronts", async (req, res) => {
   };
 
   try {
-    storefront.logoUrl = logoUrl ? mediaUrl(req, await saveEncryptedImage(logoUrl)) : "";
+    storefront.logoUrl = logoUrl ? mediaUrl(req, await saveEncryptedImage(logoUrl, displayName)) : "";
     storefronts = [...storefronts, storefront];
     storefrontState.set(displayName, { branding: { storeName: displayName, description: storefront.description }, settings: {} });
     return res.status(201).json({ storefront });
@@ -1216,7 +1474,7 @@ router.put("/creator/storefronts/:storefrontName", async (req, res) => {
 
   try {
     if (req.body.logoUrl !== undefined && req.body.logoUrl !== current.logoUrl) {
-      next = { ...next, logoUrl: req.body.logoUrl ? mediaUrl(req, await saveEncryptedImage(req.body.logoUrl)) : "" };
+      next = { ...next, logoUrl: req.body.logoUrl ? mediaUrl(req, await saveEncryptedImage(req.body.logoUrl, next.displayName)) : "" };
       if (current.logoUrl && current.logoUrl !== next.logoUrl && !hasLogoReference(current.logoUrl, current)) {
         await deleteEncryptedImage(current.logoUrl);
       }

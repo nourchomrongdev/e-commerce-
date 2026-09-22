@@ -35,6 +35,7 @@ export default function CreatorDashboardSidebar({
   const [storefrontOptions, setStorefrontOptions] = useState<{ name: string; products: number; href: string }[]>([]);
   const [storefrontMenuOpen, setStorefrontMenuOpen] = useState(false);
   const [showStorefrontToast, setShowStorefrontToast] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const matches = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/|$)/) ?? pathname.match(/^\/creator\/([^/]+)(?:\/|$)/);
   const reserved = new Set([
     "overview",
@@ -58,6 +59,12 @@ export default function CreatorDashboardSidebar({
     ? pathname.slice(`${storefrontBasePath}/`.length).split("/")[0]
     : null;
   const isStorefrontOverviewSection = !storefrontSection || ["overview", "branding", "setting", "payment", "summary"].includes(storefrontSection);
+
+  useEffect(() => {
+    const updateModalState = (event: Event) => setModalOpen(Boolean((event as CustomEvent<boolean>).detail));
+    window.addEventListener("creator-modal-state", updateModalState);
+    return () => window.removeEventListener("creator-modal-state", updateModalState);
+  }, []);
 
   useEffect(() => {
     const savedStorefront = window.localStorage.getItem("creator-selected-storefront");
@@ -147,7 +154,7 @@ export default function CreatorDashboardSidebar({
       const storefrontDependent = !["All Stores Overview", "Storefront", "Storefront Overview", "Verification Status", "Payout Information", "Help Center"].includes(label) && !affiliateLabel;
       const isProductCreationPage = pathname.endsWith("/products/new");
       const isFilesPage = pathname.endsWith("/products/files");
-      const isVersionHistoryPage = pathname.endsWith("/products/versions");
+      const isVersionHistoryPage = pathname.includes("/products/versions");
       const isPreviewAssetsPage = pathname.endsWith("/preview-assets");
       const isLicensePage = pathname.includes("/licenses/");
       const isDownloadsPage = pathname.endsWith("/orders/downloads");
@@ -178,7 +185,7 @@ export default function CreatorDashboardSidebar({
         "License Activations": "activations",
         "Revoked Licenses": "revoked",
       };
-      const isActive = label === "All Stores Overview"
+      const isActive = !modalOpen && (label === "All Stores Overview"
         ? pathname === href
         : label === "Storefront Overview"
           ? isStorefrontOverviewSection && (pathname === itemHref || Boolean(selectedStorefront && storefrontSection))
@@ -196,20 +203,25 @@ export default function CreatorDashboardSidebar({
           && (!isReviewsPage || label === "Customer Reviews")
           && (!isAffiliatePage || pathname === affiliateRouteByLabel[label] || pathname.startsWith(`${affiliateRouteByLabel[label] ?? ""}/`))
           ? pathname === itemHref || pathname.startsWith(`${itemHref}/`)
-          : false;
+          : false);
 
       return (
       <Link
         href={itemHref}
         key={label}
         onClick={(event) => {
+          if (modalOpen) {
+            event.preventDefault();
+            return;
+          }
           if (!selectedStorefront && storefrontDependent) {
             event.preventDefault();
             setShowStorefrontToast(true);
           }
           onClose();
         }}
-        className={`flex items-center gap-4 rounded-lg px-4 py-3 text-sm no-underline ${isActive ? "bg-accent-light font-medium text-primary" : "text-[#1d294b] hover:bg-slate-50"}`}
+        aria-disabled={modalOpen}
+        className={`flex items-center gap-4 rounded-lg px-4 py-3 text-sm no-underline ${modalOpen ? "pointer-events-none text-[#1d294b]" : isActive ? "bg-accent-light font-medium text-primary" : "text-[#1d294b] hover:bg-slate-50"}`}
       >
         <PublicIcon name={icon as any} />
         {label}
@@ -245,7 +257,7 @@ export default function CreatorDashboardSidebar({
       </button>
       <aside
         onScroll={() => setStorefrontMenuOpen(false)}
-        className={`scrollbar-hidden fixed inset-y-0 left-0 z-[80] flex w-[70%] max-w-[28rem] flex-col overflow-y-auto overscroll-contain border-r border-[#eaebf5] bg-white px-5 py-5 shadow-xl transition-[width,transform,padding] duration-300 min-[901px]:sticky min-[901px]:top-20 min-[901px]:h-[calc(100vh-5rem)] min-[901px]:translate-x-0 min-[901px]:shadow-none ${open ? "translate-x-0" : "-translate-x-full"} ${collapsed ? "min-[901px]:w-0 min-[901px]:overflow-hidden min-[901px]:border-r-0 min-[901px]:px-0" : "min-[901px]:w-[264px]"}`}
+        className={`scrollbar-hidden fixed inset-y-0 left-0 z-[80] flex w-[70%] max-w-[28rem] flex-col overflow-y-auto overscroll-contain border-r border-[#eaebf5] bg-white px-5 py-5 shadow-xl transition-[width,transform,padding,opacity,filter] duration-300 min-[901px]:sticky min-[901px]:top-20 min-[901px]:h-[calc(100vh-5rem)] min-[901px]:translate-x-0 min-[901px]:shadow-none ${modalOpen ? "pointer-events-none opacity-45 grayscale" : ""} ${open ? "translate-x-0" : "-translate-x-full"} ${collapsed ? "min-[901px]:w-0 min-[901px]:overflow-hidden min-[901px]:border-r-0 min-[901px]:px-0" : "min-[901px]:w-[264px]"}`}
       >
         <button
           type="button"

@@ -277,7 +277,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       <CreatorDashboardHeader onMenuOpen={toggleSidebar} storefrontOpen={storefrontOpen} onStorefrontToggle={setStorefrontOpen} sidebarOpen={menuOpen} />
       <div className="flex min-h-0 flex-1">
         <CreatorDashboardSidebar open={menuOpen} collapsed={sidebarCollapsed} onClose={() => setMenuOpen(false)} onToggle={toggleSidebar} />
-        <section className="min-w-0 flex-1 p-5 sm:p-8">
+        <section className={`dashboard-shell min-w-0 flex-1 p-5 sm:p-8 ${sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
           {isStorefrontRoute && storefrontHeaderAllowed && storefrontName ? (
             <div className="mb-5 w-full">
               <StorefrontHeader

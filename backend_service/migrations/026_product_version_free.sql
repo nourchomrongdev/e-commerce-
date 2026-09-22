@@ -1,0 +1,6 @@
+ALTER TABLE "ProductVersions"
+ADD COLUMN IF NOT EXISTS "IsFree" BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE "ProductVersions"
+SET "IsFree" = TRUE
+WHERE "Price" = 0;

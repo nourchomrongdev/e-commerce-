@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   InputText,
+  MetricTile,
   Modal,
   Select,
   Table,
@@ -98,28 +99,19 @@ function SummaryCard({
   tone?: "orange" | "green" | "blue" | "amber";
 }) {
   const colors = {
-    orange: "bg-orange-50 text-primary",
-    green: "bg-emerald-50 text-status-success",
-    blue: "bg-blue-50 text-status-info",
-    amber: "bg-amber-50 text-status-warning",
+    orange: "text-primary",
+    green: "text-primary",
+    blue: "text-primary",
+    amber: "text-primary",
   };
 
-  return (
-    <article className="rounded-xl border border-[#e8eaf2] bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] text-[#8993aa]">{label}</p>
-          <p className="mt-2 text-lg font-bold text-[#111b40]">{value}</p>
-        </div>
-        <span
-          className={`grid h-9 w-9 place-items-center rounded-lg ${colors[tone]}`}
-        >
-          <PublicIcon name={icon as "dollar"} className="h-5 w-5" />
-        </span>
-      </div>
-      {detail && <p className="mt-2 text-[9px] text-[#8993aa]">{detail}</p>}
-    </article>
-  );
+  return <MetricTile
+    label={label}
+    value={value}
+    change={detail}
+    icon={<PublicIcon name={icon as "dollar"} className="h-5 w-5" />}
+    iconClassName={colors[tone]}
+  />;
 }
 
 export default function CreatorPayoutsPage() {

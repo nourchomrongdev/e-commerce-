@@ -5,6 +5,8 @@ export type Product = {
   uuid?: string;
   name: string;
   description: string;
+  currentVersion?: string | null;
+  latestVersion?: string | null;
   price: string;
   discount: number;
   status: ProductStatus;

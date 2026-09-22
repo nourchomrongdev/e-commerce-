@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+
+
 .preview-assets-page[data-loading="true"] > section:last-of-type {
   position: relative;
   min-height: 13rem;
@@ -17,6 +19,27 @@
 
 .preview-assets-page[data-loading="true"] > section:last-of-type > div:last-child > p {
   visibility: hidden;
+}
+
+.preview-assets-page > .fixed.inset-0 {
+  z-index: 200;
+  overflow-y: auto;
+  padding: 0.75rem;
+}
+
+.preview-assets-page > .fixed.inset-0 > form {
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .preview-assets-page > .fixed.inset-0 {
+    padding: 1rem;
+  }
+
+  .preview-assets-page > .fixed.inset-0 > form {
+    max-height: calc(100dvh - 2rem);
+  }
 }
 @import "react-phone-number-input/style.css";
 

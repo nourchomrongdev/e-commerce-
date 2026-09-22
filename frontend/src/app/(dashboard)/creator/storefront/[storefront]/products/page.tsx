@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import PublicIcon from "@/components/icons/PublicIcon";
 import ProductDiscountDialog from "@/components/products/ProductDiscountDialog";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductTable from "@/components/products/ProductTable";
-import { Modal } from "@/components/ui";
+import { Modal, Toast } from "@/components/ui";
 import type { Product, ProductStatus } from "@/components/products/productTypes";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
+const ClientCaptchaChallenge = dynamic(() => import("@/components/dashboard/CaptchaChallenge"), { ssr: false });
 const iconColors = ["#25376f", "#176b8d", "#1d5c45", "#b27b1b", "#18254f"];
 
 const tabs: Array<"All Products" | ProductStatus> = ["All Products", "Published", "Draft", "Archived"];
@@ -36,6 +38,12 @@ export default function CreatorProductsPage() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [assetProduct, setAssetProduct] = useState<Product | null>(null);
   const [moreProduct, setMoreProduct] = useState<Product | null>(null);
+  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"name" | "captcha">("name");
+  const [deleteNameConfirmation, setDeleteNameConfirmation] = useState("");
+  const [productCaptchaValid, setProductCaptchaValid] = useState(false);
+  const [productNotice, setProductNotice] = useState<{ variant: "success" | "error"; message: string } | null>(null);
   const [assets, setAssets] = useState<{ previews: Array<{ id: number; title: string; url: string }>; files: Array<{ id: number; fileName: string; fileSize: number; mimeType: string; url: string }> }>({ previews: [], files: [] });
   const [assetsLoading, setAssetsLoading] = useState(false);
 
@@ -56,12 +64,14 @@ export default function CreatorProductsPage() {
         if (!response.ok) throw new Error(data.error || "Unable to load products.");
         return data.products ?? [];
       })
-      .then((databaseProducts: Array<{ id?: number; uuid?: string; name: string; description?: string; price: number; discount?: number; status: string; createdAt?: string }>) => {
+      .then((databaseProducts: Array<{ id?: number; uuid?: string; name: string; description?: string; currentVersion?: string | null; latestVersion?: string | null; price: number; discount?: number; status: string; createdAt?: string }>) => {
         const nextProducts = databaseProducts.map((product, index) => ({
           id: product.id,
           uuid: product.uuid,
           name: product.name,
           description: product.description || "",
+          currentVersion: product.currentVersion,
+          latestVersion: product.latestVersion,
           price: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(product.price),
           discount: product.discount ?? 0,
           status: (product.status.charAt(0).toUpperCase() + product.status.slice(1).toLowerCase()) as ProductStatus,
@@ -144,6 +154,45 @@ export default function CreatorProductsPage() {
     setDiscountProduct(null);
   };
 
+  const openDeleteConfirmation = (product: Product) => {
+    setMoreProduct(null);
+    setDeleteStep("name");
+    setDeleteNameConfirmation("");
+    setProductCaptchaValid(false);
+    setDeleteProduct(product);
+  };
+
+  const confirmDeleteName = () => {
+    if (!deleteProduct || deleteNameConfirmation.trim() !== deleteProduct.name.trim()) return;
+    setProductCaptchaValid(false);
+    setDeleteStep("captcha");
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteProduct?.id || !productCaptchaValid) return;
+    setDeletingProduct(true);
+    const token = window.localStorage.getItem("marketplace-token");
+    try {
+      const response = await fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/${deleteProduct.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Unable to delete product.");
+      setProducts((current) => current.filter((product) => product.id !== deleteProduct.id));
+      setDeleteProduct(null);
+      setMoreProduct(null);
+      setProductNotice({ variant: "success", message: "Product deleted successfully." });
+    } catch (deleteError) {
+      setProductNotice({
+        variant: "error",
+        message: deleteError instanceof Error ? deleteError.message : "Unable to delete product.",
+      });
+    } finally {
+      setDeletingProduct(false);
+    }
+  };
+
   const productEditPath = (product: Product) => {
     const productKey = product.uuid ?? product.id;
     return productKey ? `${addProductPath.replace(/\/new$/, "")}/${productKey}/edit` : addProductPath;
@@ -151,6 +200,15 @@ export default function CreatorProductsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px]">
+      {productNotice && (
+        <Toast
+          variant={productNotice.variant}
+          title={productNotice.variant === "success" ? "Product deleted" : "Delete failed"}
+          message={productNotice.message}
+          duration={4000}
+          onClose={() => setProductNotice(null)}
+        />
+      )}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-heading sm:text-[28px]">Products</h1>
@@ -241,7 +299,38 @@ export default function CreatorProductsPage() {
           <button type="button" onClick={() => { setMoreProduct(null); router.push(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/preview-assets?product=${encodeURIComponent(moreProduct.name)}`); }} className="flex items-center gap-3 rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light"><PublicIcon name="edit" className="h-4 w-4 text-primary" />Edit Preview</button>
           <button type="button" onClick={() => { setMoreProduct(null); router.push(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefrontSegment))}/products/files?product=${encodeURIComponent(moreProduct.name)}`); }} className="flex items-center gap-3 rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light"><PublicIcon name="file-search-corner" className="h-4 w-4 text-primary" />Edit File</button>
           <button type="button" onClick={() => { setMoreProduct(null); router.push(`${productEditPath(moreProduct).replace(/\/edit$/, "")}/detail`); }} className="flex items-center gap-3 rounded-lg border border-border-control px-4 py-3 text-left text-xs font-medium text-body hover:border-primary hover:bg-accent-light"><PublicIcon name="view" className="h-4 w-4 text-primary" />View Detail</button>
+          <button type="button" onClick={() => openDeleteConfirmation(moreProduct)} className="flex items-center gap-3 rounded-lg border border-status-danger/20 px-4 py-3 text-left text-xs font-medium text-status-danger hover:bg-status-danger-surface"><PublicIcon name="delete" className="h-4 w-4" />Delete Product</button>
         </div>}
+      </Modal>
+
+      <Modal open={Boolean(deleteProduct)} title={deleteStep === "name" ? "Confirm product deletion" : "Complete CAPTCHA"} onClose={() => !deletingProduct && setDeleteProduct(null)} footer={<>
+        <button type="button" onClick={() => setDeleteProduct(null)} disabled={deletingProduct} className="rounded-lg border border-border-control px-4 py-2 text-xs font-semibold text-body disabled:opacity-50">Cancel</button>
+        {deleteStep === "name" ? (
+          <button type="button" onClick={confirmDeleteName} disabled={deletingProduct || deleteNameConfirmation.trim() !== deleteProduct?.name.trim()} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Continue</button>
+        ) : (
+          <button type="button" onClick={confirmDeleteProduct} disabled={deletingProduct || !productCaptchaValid} className="rounded-lg bg-status-danger px-4 py-2 text-xs font-semibold text-white disabled:cursor-wait disabled:opacity-60">{deletingProduct ? "Deleting..." : "Delete product"}</button>
+        )}
+      </>}>
+        {deleteStep === "name" ? (
+          <div>
+            <p className="text-sm leading-6 text-muted">This will permanently delete <span className="font-semibold text-ink">{deleteProduct?.name ?? "this product"}</span>, including its versions, files, previews, and licences. Type the product name to continue.</p>
+            <label className="mt-4 block text-xs font-semibold text-ink">
+              Product name
+              <input
+                value={deleteNameConfirmation}
+                onChange={(event) => setDeleteNameConfirmation(event.target.value)}
+                placeholder={deleteProduct?.name}
+                autoFocus
+                className="mt-2 h-10 w-full rounded-lg border border-border-control px-3 text-sm font-normal outline-none focus:border-primary focus:ring-2 focus:ring-orange-100"
+              />
+            </label>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm leading-6 text-muted">Enter the alphanumeric CAPTCHA to permanently delete <span className="font-semibold text-ink">{deleteProduct?.name ?? "this product"}</span>.</p>
+            <ClientCaptchaChallenge onValidChange={setProductCaptchaValid} />
+          </div>
+        )}
       </Modal>
 
       <Modal open={Boolean(editProduct)} title="Edit product" onClose={() => setEditProduct(null)}>

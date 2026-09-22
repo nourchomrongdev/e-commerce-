@@ -33,14 +33,15 @@ function parseDataUrl(value) {
   return { buffer, mimeType: match[1], extension };
 }
 
-async function saveEncryptedImage(dataUrl) {
+async function saveEncryptedImage(dataUrl, storefrontKey = "default") {
   if (isStoredImageUrl(dataUrl)) return dataUrl;
   const { buffer, mimeType, extension } = parseDataUrl(dataUrl);
-  const digest = crypto.createHash("sha256").update(buffer).digest("hex");
+  const digest = crypto.createHash("sha256").update(`${String(storefrontKey)}:`).update(buffer).digest("hex");
   const fileName = `${digest}.${extension}`;
   const filePath = path.join(storageDirectory, `${fileName}.enc`);
 
-  await fs.mkdir(storageDirectory, { recursive: true });
+  await fs.mkdir(storageDirectory, { recursive: true, mode: 0o700 });
+  await fs.chmod(storageDirectory, 0o700);
   try {
     await fs.access(filePath);
   } catch {
@@ -54,8 +55,9 @@ async function saveEncryptedImage(dataUrl) {
       tag: cipher.getAuthTag().toString("base64"),
       data: encrypted.toString("base64"),
     });
-    await fs.writeFile(filePath, envelope, { flag: "wx" });
+    await fs.writeFile(filePath, envelope, { flag: "wx", mode: 0o600 });
   }
+  await fs.chmod(filePath, 0o600);
 
   return `/api/media/storefronts/${fileName}`;
 }

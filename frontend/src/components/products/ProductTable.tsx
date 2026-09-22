@@ -18,6 +18,8 @@ export default function ProductTable({ products, discounts, onDiscount, isLoadin
         <thead className="bg-[#fcfcfe] text-[10px] text-[#66718e]">
           <tr>
             <th className="px-6 py-3 font-medium">Product</th>
+            <th className="py-3 font-medium">Current Version</th>
+            <th className="py-3 font-medium">Latest Version</th>
             <th className="py-3 font-medium">Price</th>
             <th className="py-3 font-medium">Discount</th>
             <th className="py-3 font-medium">Status</th>
@@ -29,7 +31,7 @@ export default function ProductTable({ products, discounts, onDiscount, isLoadin
         <tbody>
           {isLoading ? (
             <tr>
-              <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#66718e]">
+              <td colSpan={9} className="px-6 py-12 text-center text-sm text-[#66718e]">
                 Loading products...
               </td>
             </tr>
@@ -41,13 +43,13 @@ export default function ProductTable({ products, discounts, onDiscount, isLoadin
             return (
               <tr key={productKey} className="border-t border-[#edf0f5] text-[#283554] transition hover:bg-[#fffaf6]">
                 <td data-label="Product" className="px-6 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-sm text-white shadow-sm" style={{ backgroundColor: product.icon }}>✦</span>
-                    <span className="min-w-0">
-                      <strong className="block truncate text-[11px] font-semibold text-[#172141]">{product.name}</strong>
-                      <span className="mt-0.5 block truncate text-[9px] text-[#7b849a]">{product.description}</span>
-                    </span>
-                  </div>
+                  <strong className="block truncate text-[11px] font-semibold text-[#172141]">{product.name}</strong>
+                </td>
+                <td data-label="Current Version" className="text-[10px] text-[#66718e]">
+                  {product.currentVersion ? `v${product.currentVersion}` : "-"}
+                </td>
+                <td data-label="Latest Version" className="text-[10px] text-[#66718e]">
+                  {product.latestVersion ? `v${product.latestVersion}` : "-"}
                 </td>
                 <td data-label="Price" className="font-medium text-[#172141]">
                   {discount > 0 ? <><span className="text-primary">${(price * (1 - discount / 100)).toFixed(2)}</span><span className="ml-2 text-[10px] text-[#9aa2b5] line-through">{product.price}</span></> : product.price}

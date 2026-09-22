@@ -11,6 +11,7 @@ type EditableProduct = {
   id: number;
   uuid?: string;
   name: string;
+  shortDescription: string;
   description: string;
   price: number;
   discount: number;

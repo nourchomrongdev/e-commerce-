@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { Card } from "@/components/ui";
 import { addToCart } from "@/lib/cart";
 
 export type Item = {
@@ -46,8 +47,8 @@ export default function ProductCard({
   }
 
   return (
-    <article
-      className={`group relative flex min-w-0 flex-col gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md ${product ? "min-h-32" : "min-h-28"}`}
+    <Card
+      className={`group relative flex min-w-0 flex-col gap-3 rounded-xl p-3 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md ${product ? "min-h-32" : "min-h-28"}`}
     >
       <Link href={product ? productHref : "#"} className="block min-w-0 flex-1 no-underline">
         <div
@@ -76,30 +77,29 @@ export default function ProductCard({
       </Link>
       {product ? (
         item.isFree ? (
-          <Link href={productHref} className="mt-auto ml-auto flex h-9 w-[70%] min-w-[96px] items-center justify-center rounded-md bg-primary px-2 text-center text-[8px] font-semibold leading-none text-white no-underline transition hover:bg-primary-hover sm:text-[9px]">
-            Free Download
+          <Link href={productHref} aria-label={`Download ${item.name}`} title="Download product" className="mt-auto ml-auto grid h-9 w-9 place-items-center rounded-md bg-primary text-white no-underline transition hover:bg-primary-hover">
+            <PublicIcon name="download" className="h-4 w-4" />
           </Link>
         ) : (
-          <div className="mt-auto grid grid-cols-[minmax(0,7fr)_minmax(78px,3fr)] gap-2">
-            <button
-              type="button"
-              aria-label={`Add ${item.name} to cart`}
-              onClick={handleAddToCart}
-              className={`flex h-9 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-2 text-[9px] font-semibold text-white shadow-sm transition ${added ? "bg-emerald-500" : "bg-primary hover:bg-primary-hover"}`}
-            >
-              <PublicIcon name="shopping-cart" className="h-3 w-3" />
-              {added ? "Added" : "Add to Cart"}
-            </button>
-            <Link href={productHref} aria-label={`View ${item.name} details`} title="View product details" className="flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-primary px-1 text-center text-[8px] font-semibold leading-none tracking-tight text-primary no-underline transition hover:bg-accent-light sm:px-2 sm:text-[9px]">
-              View Details
-            </Link>
-          </div>
+          <button
+            type="button"
+            aria-label={`Add ${item.name} to cart`}
+            title={added ? "Added to cart" : "Add to cart"}
+            onClick={handleAddToCart}
+            className={`mt-auto ml-auto grid h-9 w-9 place-items-center rounded-md text-white shadow-sm transition ${added ? "bg-emerald-500" : "bg-primary hover:bg-primary-hover"}`}
+          >
+            <PublicIcon
+              key={added ? "added" : "cart"}
+              name={added ? "check" : "shopping-cart"}
+              className={`h-4 w-4 ${added ? "animate-bounce" : ""}`}
+            />
+          </button>
         )
       ) : (
         <button className="absolute right-3 bottom-3 rounded-md border border-slate-200 px-3 py-1.5 text-[9px] font-medium text-primary hover:border-accent-soft hover:bg-accent-light md:right-3 md:left-3">
           Download
         </button>
       )}
-    </article>
+    </Card>
   );
 }

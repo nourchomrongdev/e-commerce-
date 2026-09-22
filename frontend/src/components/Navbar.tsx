@@ -69,6 +69,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
   >(null);
   const roleLabel = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : "User";
   const isProgramPage = pathname.startsWith("/program/");
+  const isCompanyPage = companyLinks.some((link) => pathname === link.href);
   const mobileInput = useRef<HTMLInputElement>(null);
   const items = active === "products" ? products : apps;
   const results = useMemo(() => {
@@ -302,7 +303,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                 onClick={() =>
                   setDesktopMenu(desktopMenu === "company" ? null : "company")
                 }
-                className="flex items-center py-1 text-[11px] font-medium text-slate-700 hover:text-primary"
+                className={`flex items-center py-1 text-[11px] font-medium hover:text-primary ${isCompanyPage || desktopMenu === "company" ? "text-primary" : "text-slate-700"}`}
               >
                 Company <PublicIcon name="down" className={`ml-1 text-slate-400 transition-transform ${desktopMenu === "company" ? "rotate-180" : ""}`} />
               </button>
@@ -313,7 +314,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                       key={link.label}
                       href={link.href}
                       onClick={() => setDesktopMenu(null)}
-                      className="block rounded-lg px-3 py-2 text-[11px] text-slate-600 no-underline hover:bg-accent-light hover:text-primary"
+                      className={`block rounded-lg px-3 py-2 text-[11px] no-underline hover:bg-accent-light hover:text-primary ${pathname === link.href ? "bg-accent-light font-semibold text-primary" : "text-slate-600"}`}
                     >
                       {link.label}
                     </Link>
@@ -531,7 +532,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
           <button
             type="button"
             onClick={() => toggleMobileMenu("categories")}
-            className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium text-[#2f3b59] hover:bg-accent-light hover:text-primary"
+            className={`flex items-center justify-between rounded-xl px-3 py-3 text-left text-[16px] font-medium hover:bg-accent-light hover:text-primary ${isCompanyPage || mobilePanel === "company" ? "text-primary" : "text-[#2f3b59]"}`}
           >
             Categories <PublicIcon name="right" className="h-4 w-4 text-slate-400" />
           </button>
@@ -576,7 +577,7 @@ export default function Navbar({ active = "home" }: NavbarProps) {
         </div>
         <div className="mt-6 flex flex-col gap-1">
           {mobilePanel === "categories" && categoryLinks.map((category) => <Link key={category} href={routes.digitalProducts()} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{category}</Link>)}
-          {mobilePanel === "company" && companyLinks.map((link) => <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{link.label}</Link>)}
+          {mobilePanel === "company" && companyLinks.map((link) => <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className={`rounded-xl px-3 py-3 text-[16px] no-underline hover:bg-[#f4f6fb] hover:text-primary ${pathname === link.href ? "bg-accent-light font-semibold text-primary" : "text-[#2f3b59]"}`}>{link.label}</Link>)}
           {mobilePanel === "more" && moreLinks.map((link) => <Link key={link.label} href={link.href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[16px] text-[#2f3b59] no-underline hover:bg-[#f4f6fb] hover:text-primary">{link.label}</Link>)}
           {mobilePanel === "programs" && programLinks.map((link) => {
             const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
