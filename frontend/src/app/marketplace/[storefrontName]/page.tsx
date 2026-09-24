@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
+import PublicIcon from "@/components/icons/PublicIcon";
 import StorefrontCartButton from "@/components/StorefrontCartButton";
 
 const products = [
@@ -14,6 +15,25 @@ const products = [
   ["Royalty Free Music Pack", "Audio", "$14", "music"],
   ["Web Development Course", "Video Courses", "$29", "course"],
 ] as const;
+
+const previewImages: Record<string, string> = {
+  landing:
+    "https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&w=900&q=85",
+  mobile:
+    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=85",
+  cards:
+    "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=900&q=85",
+  photos:
+    "https://images.unsplash.com/photo-1516117172878-fd2c41f4a759?auto=format&fit=crop&w=900&q=85",
+  dashboard:
+    "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=85",
+  book:
+    "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=900&q=85",
+  music:
+    "https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=900&q=85",
+  course:
+    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=85",
+};
 
 type Props = { params: Promise<{ storefrontName: string }> };
 
@@ -82,7 +102,7 @@ export default async function StorefrontPage({ params }: Props) {
                 Most Popular　⌄
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 xl:grid-cols-4">
               {products.map(([title, type, price, art], index) => (
                 <ProductTile
                   key={title}
@@ -92,6 +112,7 @@ export default async function StorefrontPage({ params }: Props) {
                   art={art}
                   featured={index === 0}
                   basePath={basePath}
+                  sellerName={name}
                 />
               ))}
             </div>
@@ -113,18 +134,29 @@ export default async function StorefrontPage({ params }: Props) {
           </section>
 
           <aside className="hidden xl:block">
-            <div className="overflow-hidden rounded-md border border-slate-200 bg-white p-3 shadow-sm">
-              <div className="product-art landing grid h-36 place-items-center rounded-md">
-                <span className="rounded bg-white/90 px-3 py-2 text-sm font-bold text-slate-800 shadow">
-                  Startup
-                </span>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div
+                className="product-art relative aspect-video w-full overflow-hidden rounded-none"
+              >
+                <img
+                  src={previewImages.landing}
+                  alt="Modern Landing Page Template preview"
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="p-3">
+              <div className="flex gap-2">
                 {["landing", "mobile", "cards", "course"].map((art) => (
                   <div
                     key={art}
-                    className={`product-art ${art} h-9 flex-1 rounded-md`}
-                  />
+                    className="product-art aspect-video min-w-0 flex-1 overflow-hidden rounded-md"
+                  >
+                    <img
+                      src={previewImages[art]}
+                      alt={`${art} product preview`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 ))}
               </div>
               <h3 className="mt-4 text-sm font-bold">
@@ -141,23 +173,16 @@ export default async function StorefrontPage({ params }: Props) {
                   38% OFF
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-[7fr_3fr] gap-2">
+              <div className="mt-4">
                 <StorefrontCartButton
                   id="modern-landing-page-template"
                   name="Modern Landing Page Template"
                   type="Templates"
                   price="$24"
                   href={`${basePath}/modern-landing-page-template`}
-                  className="h-9 px-2 text-[9px]"
+                  className="h-9 w-full px-2 text-[9px]"
                 />
-                <Link
-                  href={`${basePath}/modern-landing-page-template`}
-                  aria-label="View Modern Landing Page Template details"
-                  title="View product details"
-                  className="flex h-9 items-center justify-center rounded-md border border-primary px-2 text-center text-[9px] font-semibold text-primary no-underline hover:bg-accent-light"
-                >
-                  View Details
-                </Link>
+              </div>
               </div>
             </div>
           </aside>
@@ -184,6 +209,7 @@ function ProductTile({
   art,
   featured,
   basePath,
+  sellerName,
 }: {
   title: string;
   type: string;
@@ -191,45 +217,55 @@ function ProductTile({
   art: string;
   featured?: boolean;
   basePath: string;
+  sellerName: string;
 }) {
   const slug = title.toLowerCase().replaceAll(" ", "-");
   return (
-    <article className="flex min-h-[250px] flex-col rounded-md border border-slate-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+    <article className="group relative flex min-h-[290px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-primary/35 hover:shadow-[0_12px_28px_rgba(17,27,64,0.12)]">
       <Link href={`${basePath}/${slug}`} className="min-w-0 no-underline">
         <div
-          className={`product-art ${art} relative grid aspect-[1.7/1] place-items-center rounded-md`}
+          className="product-art relative aspect-video overflow-hidden rounded-none"
         >
-          <span className="rounded bg-white/85 px-2 py-1 text-[9px] font-bold text-slate-700 shadow-sm">
-            {featured ? "Featured" : title.split(" ")[0]}
-          </span>
+          <img
+            src={previewImages[art]}
+            alt={`${title} preview`}
+            className="h-full w-full object-cover"
+          />
         </div>
-        <h3 className="mt-2 truncate text-[10px] font-bold text-slate-800">
-          {title}
-        </h3>
-        <p className="mt-1 text-[9px] text-primary">{type}</p>
-        <p className="mt-2 text-amber-500 text-[9px]">
-          ★ <span className="text-slate-500">4.8 (124)</span>
-        </p>
-        <b className="mt-1 block text-sm">{price}</b>
       </Link>
-      <div className="mt-auto grid grid-cols-[minmax(0,7fr)_minmax(78px,3fr)] gap-2 pt-3">
+      <div className="min-w-0 px-3 pt-2.5">
+        <Link href={`${basePath}/${slug}`} className="block min-w-0 no-underline">
+          <h3 className="truncate text-[11px] font-bold text-slate-800">
+            {title}
+          </h3>
+          <p className="mt-0.5 text-[8px] text-slate-500">{type}</p>
+        </Link>
+        <Link
+          href={basePath}
+          className="mt-1 block text-[8px] font-semibold text-primary no-underline hover:text-primary-hover"
+        >
+          by {sellerName}
+        </Link>
+        <Link href={`${basePath}/${slug}`} className="block no-underline">
+          <b className="mt-2 block text-[20px] font-bold leading-none text-slate-900">{price}</b>
+          <p className="mt-1 text-[8px] text-amber-500">
+            ★ <span className="text-slate-500">4.8 (124)</span>
+          </p>
+        </Link>
+      </div>
+      <div className="mt-auto px-3 pb-3 pt-2.5">
         <StorefrontCartButton
           id={slug}
           name={title}
           type={type}
           price={price}
           href={`${basePath}/${slug}`}
-          className="h-9 px-2 text-[9px]"
+          className="h-9 w-full px-1 text-[9px]"
         />
-        <Link
-          href={`${basePath}/${slug}`}
-          aria-label={`View ${title} details`}
-          title="View product details"
-          className="flex h-9 min-w-0 items-center justify-center whitespace-nowrap rounded-md border border-primary px-0.5 text-center text-[8px] font-semibold leading-none tracking-tight text-primary no-underline hover:bg-accent-light sm:px-1 sm:text-[9px]"
-        >
-          View Details
-        </Link>
       </div>
+      <button type="button" aria-label={`Save ${title}`} className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full border border-white/70 bg-white/80 text-slate-500 transition hover:text-primary">
+        <PublicIcon name="heart-plus" className="h-3.5 w-3.5 text-slate-500" />
+      </button>
     </article>
   );
 }

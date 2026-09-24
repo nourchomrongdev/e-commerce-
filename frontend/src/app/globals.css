@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-
-
 .preview-assets-page[data-loading="true"] > section:last-of-type {
   position: relative;
   min-height: 13rem;

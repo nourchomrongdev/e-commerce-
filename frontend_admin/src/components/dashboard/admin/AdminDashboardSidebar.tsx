@@ -12,6 +12,7 @@ const sections = [
   { title: "Products & Files", items: [["Products", "product", "/admin/products"], ["Files", "file-search-corner", "/admin/files"], ["Version History", "rotate-ccw", "/admin/versions"], ["Preview Assets", "view", "/admin/preview-assets"]] },
   { title: "Licenses & DRM", items: [["License Types", "type", "/admin/license-types"], ["License Keys", "key", "/admin/license-keys"], ["License Activations", "verification", "/admin/activations"], ["Revoked Licenses", "shield-minus", "/admin/revoked-licenses"]] },
   { title: "Orders & Reports", items: [["Orders", "receipt", "/admin/orders"], ["Download Links", "link", "/admin/download-links"], ["Analytics", "dashboard", "/admin/analytics"]] },
+  { title: "Legal & Policies", items: [["Privacy Policy", "shield-check", "/admin/policies/privacy"], ["Terms & Conditions", "file-search-corner", "/admin/policies/terms"], ["Refund Policy", "rotate-ccw", "/admin/policies/refunds"], ["Cookies Policy", "settings", "/admin/policies/cookies"], ["Acceptable Use", "verified", "/admin/policies/acceptable-use"]] },
 ] as const;
 
 export default function AdminDashboardSidebar({ open, collapsed, onClose, onToggle }: { open: boolean; collapsed: boolean; onClose: () => void; onToggle: () => void }) {

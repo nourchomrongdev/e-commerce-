@@ -82,8 +82,8 @@ export default function ProductDetailPage() {
         <Link href={`${productsPath}/${product.uuid ?? product.id}/edit`} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white no-underline">Edit Product</Link>
       </header>
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_0.6fr]">
-        <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <h2 className="text-base font-bold text-heading">Product information</h2>
+        <section className="border-b border-[#cbd7e8] pb-6">
+          <h2 className="border-l-2 border-primary border-b border-[#cbd7e8] pb-3 pl-3 text-base font-bold text-heading">Product information</h2>
           <dl className="mt-5 grid gap-4 sm:grid-cols-2">
             <div><dt className="text-[10px] text-muted">Short description</dt><dd className="mt-1 text-sm text-body">{product.shortDescription || "No short description."}</dd></div>
             <div className="sm:col-span-2"><dt className="text-[10px] text-muted">Description</dt><dd className="mt-1 text-sm text-body">{product.description || "No description."}</dd></div>
@@ -92,36 +92,36 @@ export default function ProductDetailPage() {
             <div><dt className="text-[10px] text-muted">Discount</dt><dd className="mt-1 text-sm text-body">{product.discount ?? 0}%</dd></div>
           </dl>
         </section>
-        <section className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-          <h2 className="text-base font-bold text-heading">Status</h2>
+        <section className="border-b border-[#cbd7e8] pb-6 lg:border-l lg:border-[#cbd7e8] lg:pl-6">
+          <h2 className="border-l-2 border-primary border-b border-[#cbd7e8] pb-3 pl-3 text-base font-bold text-heading">Status</h2>
           <p className="mt-4 inline-flex rounded-md bg-accent-light px-3 py-2 text-xs font-semibold text-primary">{product.status}</p>
           <p className="mt-4 text-[10px] text-muted">Created {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : "-"}</p>
         </section>
       </div>
-      <section className="mt-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
-        <h2 className="text-base font-bold text-heading">Product versions</h2>
+      <section className="mt-5 border-y border-[#cbd7e8] py-6">
+        <h2 className="border-l-2 border-primary border-b border-[#cbd7e8] pb-3 pl-3 text-base font-bold text-heading">Product versions</h2>
         <div className="mt-4 space-y-5">
           {versions.map((version) => (
-            <article key={version.id} className="overflow-hidden rounded-xl border border-border-control">
-              <header className="flex flex-wrap items-start justify-between gap-3 bg-surface-muted px-4 py-3">
+            <article key={version.id} className="border-b border-[#cbd7e8] pb-5 last:border-b-0">
+              <header className="flex flex-wrap items-start justify-between gap-3 border-l-2 border-primary bg-white py-3 pl-4">
                 <div>
                   <div className="flex items-center gap-2"><h3 className="text-sm font-bold text-heading">Version {version.version}</h3>{version.current && <span className="rounded-md bg-status-success-surface px-2 py-1 text-[9px] font-semibold text-status-success">Current</span>}</div>
                   <p className="mt-1 text-xs text-muted">{version.releaseNotes || "No release notes."}</p>
                   <p className="mt-1 text-[10px] text-muted-soft">{version.createdAt ? new Date(version.createdAt).toLocaleString() : "-"}</p>
                 </div>
               </header>
-              <div className="grid gap-5 p-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="lg:col-span-2 rounded-lg border border-border-control bg-surface-muted px-3 py-3">
+              <div className="grid gap-5 pt-4 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="border-b border-divider pb-4 lg:col-span-2">
                   <h4 className="text-xs font-bold text-heading">Supported licenses</h4>
                   <p className="mt-2 text-xs text-body">{version.licenses?.length ? version.licenses.map((license) => `${license.name} License`).join(", ") : "No licenses selected."}</p>
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-heading">Preview assets ({version.previewAssets.length})</h4>
-                  {version.previewAssets.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{version.previewAssets.map((preview) => <div key={preview.id} className="overflow-hidden rounded-lg border border-border-control"><img src={preview.url} alt={preview.title || `${product.name} ${version.version}`} className="aspect-video w-full bg-surface-muted object-contain" /><p className="truncate px-2 py-2 text-[10px] text-body">{preview.title || "Preview asset"}</p></div>)}</div> : <p className="mt-3 text-xs text-muted">No preview assets for this version.</p>}
+                  {version.previewAssets.length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{version.previewAssets.map((preview) => <div key={preview.id} className="overflow-hidden rounded-lg border border-border-control"><img src={preview.url} alt={preview.title || `${product.name} ${version.version}`} className="aspect-video w-full bg-surface-muted object-contain" /><p className="truncate border-t border-border-control px-2 py-2 text-[10px] text-body">{preview.title || "Preview asset"}</p></div>)}</div> : <p className="mt-3 text-xs text-muted">No preview assets for this version.</p>}
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-heading">Product files ({version.files.length})</h4>
-                  {version.files.length ? <div className="mt-3 space-y-2">{version.files.map((file, index) => <div key={`${file.fileName}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-border-control px-3 py-2 text-xs"><span className="min-w-0 truncate text-primary">{file.fileName}</span><span className="shrink-0 text-[10px] text-muted">{file.mimeType || "File"}</span></div>)}</div> : <p className="mt-3 text-xs text-muted">No product files for this version.</p>}
+                  {version.files.length ? <div className="mt-3 divide-y divide-border-control border-y border-border-control">{version.files.map((file, index) => <div key={`${file.fileName}-${index}`} className="flex items-center justify-between gap-3 py-2 text-xs"><span className="min-w-0 truncate text-primary">{file.fileName}</span><span className="shrink-0 text-[10px] text-muted">{file.mimeType || "File"}</span></div>)}</div> : <p className="mt-3 text-xs text-muted">No product files for this version.</p>}
                 </div>
               </div>
             </article>

@@ -8,19 +8,16 @@ import ProductBreadcrumbs from "@/components/ProductBreadcrumbs";
 type Props = {
   params: Promise<{ storefrontName: string; productSlug: string }>;
 };
-
-const catalog: Record<
-  string,
-  {
-    name: string;
-    type: string;
-    price: string;
-    oldPrice: string;
-    description: string;
-    art: string;
-    isFree?: boolean;
-  }
-> = {
+type Product = {
+  name: string;
+  type: string;
+  price: string;
+  oldPrice: string;
+  description: string;
+  art: string;
+  isFree?: boolean;
+};
+const catalog: Record<string, Product> = {
   "business-plan": {
     name: "Business Plan",
     type: "Template",
@@ -60,6 +57,23 @@ const catalog: Record<
   },
 };
 
+const previewImages: Record<string, string> = {
+  business:
+    "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=1200&q=85",
+  landing:
+    "https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&w=1200&q=85",
+  mobile:
+    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=85",
+  cards:
+    "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=85",
+  book:
+    "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=1200&q=85",
+  dashboard:
+    "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=85",
+  course:
+    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=85",
+};
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { productSlug } = await params;
   const product = catalog[productSlug] ?? catalog["business-plan"];
@@ -79,14 +93,7 @@ export default async function ProductDetailPage({ params }: Props) {
   const basePath = `/marketplace/${encodeURIComponent(storefrontName)}`;
   const productPath = `${basePath}/${productSlug}`;
   const isFree = product.isFree || productSlug.toLowerCase().includes("free");
-  const screenshotTones = [
-    "landing",
-    "mobile",
-    "cards",
-    "book",
-    "dashboard",
-    "course",
-  ];
+  const tones = ["landing", "mobile", "cards", "book", "dashboard", "course"];
 
   return (
     <div className="min-h-screen bg-[#f7f9fd] text-[#142b4d]">
@@ -99,14 +106,10 @@ export default async function ProductDetailPage({ params }: Props) {
             current={product.name}
           />
         </div>
-
         <div className="grid gap-8 border-b border-[#e5ebf4] py-8 lg:grid-cols-[minmax(0,1fr)_270px]">
-          <section className="min-w-0 border border-border bg-white p-5 shadow-sm sm:p-6">
+          <section className="min-w-0 overflow-hidden border border-border bg-white p-5 shadow-sm sm:p-6">
             <div className="p-5">
               <div className="flex flex-wrap items-start gap-4">
-                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-300 to-[#a95119] text-3xl font-bold text-white shadow-lg">
-                  {product.name.charAt(0)}
-                </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-semibold uppercase tracking-[.16em] text-primary">
                     {product.type} / Digital product
@@ -114,7 +117,12 @@ export default async function ProductDetailPage({ params }: Props) {
                   <h1 className="mt-1 text-[30px] font-extrabold leading-tight tracking-tight text-heading sm:text-4xl">
                     {product.name}
                   </h1>
-                  <p className="mt-1 text-xs text-muted">by {seller}</p>
+                  <Link
+                    href={basePath}
+                    className="mt-1 inline-flex text-xs font-semibold text-primary no-underline hover:text-primary-hover"
+                  >
+                    by {seller}
+                  </Link>
                 </div>
                 <div className="w-full sm:w-auto sm:text-right">
                   <div className="text-sm text-amber-500">
@@ -128,12 +136,12 @@ export default async function ProductDetailPage({ params }: Props) {
                   </small>
                 </div>
               </div>
-              <div className="mt-6 flex flex-wrap items-center gap-3 border-y border-divider py-4 text-[10px]">
-                <span className="text-muted">Secure delivery</span>
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-y border-divider py-4 text-[10px] text-muted">
+                <span>Secure delivery</span>
                 <span className="h-3 w-px bg-border" />
-                <span className="text-muted">Instant access</span>
+                <span>Instant access</span>
                 <span className="h-3 w-px bg-border" />
-                <span className="text-muted">Verified creator</span>
+                <span>Verified creator</span>
               </div>
               <div className="mt-6 flex flex-wrap items-end justify-between gap-5">
                 <div>
@@ -155,12 +163,12 @@ export default async function ProductDetailPage({ params }: Props) {
                   </p>
                 </div>
                 {isFree ? (
-                  <button
-                    type="button"
-                    className="flex h-11 w-full max-w-[220px] items-center justify-center rounded-md bg-primary px-5 text-xs font-bold text-white shadow-sm transition hover:bg-primary-hover"
+                  <Link
+                    href={productPath}
+                    className="flex h-11 w-full max-w-[220px] items-center justify-center rounded-md bg-primary px-5 text-xs font-bold text-white no-underline"
                   >
                     Free Download
-                  </button>
+                  </Link>
                 ) : (
                   <div className="flex w-full max-w-[220px] flex-col gap-2 [&>button]:mt-0">
                     <StorefrontCartButton
@@ -184,215 +192,86 @@ export default async function ProductDetailPage({ params }: Props) {
                   </div>
                 )}
               </div>
-              <div className="mt-7 overflow-hidden">
+              <div className="mt-7 -mx-5 overflow-hidden sm:-mx-6">
                 <div
-                  className={`product-art ${product.art === "landing" ? "landing" : "cards"} relative grid min-h-[260px] place-items-center rounded-md p-6`}
+                  className="product-art relative aspect-video min-h-0 w-full overflow-hidden rounded-none"
                 >
-                  <div className="max-w-[68%] text-center text-[#102d55] sm:max-w-[48%]">
-                    <span className="text-[8px] font-bold tracking-[.15em] text-primary">
-                      TESTSTORE STUDIO
-                    </span>
-                    <h2 className="mt-5 text-2xl font-extrabold leading-none">
-                      {product.name}
-                    </h2>
-                    <p className="mt-3 text-[9px] leading-4 text-slate-600">
-                      {product.description}
-                    </p>
-                    <span className="mx-auto mt-6 block h-1.5 w-16 rounded bg-primary" />
-                  </div>
+                  <img
+                    src={previewImages[product.art] ?? previewImages.cards}
+                    alt={`${product.name} preview`}
+                    className="h-full w-full object-cover"
+                  />
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                  {screenshotTones.map((tone, index) => (
+                <div className="grid grid-cols-3 gap-3 p-3 sm:grid-cols-6">
+                  {tones.map((tone, index) => (
                     <div
                       key={tone}
-                      className={`product-art ${tone} h-14 rounded border ${index === 0 ? "border-primary" : "border-border"}`}
-                    />
+                      className={`product-art aspect-video h-auto w-full overflow-hidden rounded border ${index === 0 ? "border-primary" : "border-border"}`}
+                    >
+                      <img
+                        src={previewImages[tone] ?? previewImages.cards}
+                        alt={`${tone} preview`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
-
-            <DarkSection title="About this product">
-              <p>
-                {product.description} This product is designed for practical
-                daily use, with clean files, clear documentation and a workflow
-                that helps you get started quickly.
-              </p>
-              <p>
-                Download the latest version to get the newest improvements,
-                creator updates and all included bonus resources.
-              </p>
-            </DarkSection>
-            <DarkSection title="What's included">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "Editable source files",
-                  "Quick-start documentation",
-                  "Bonus templates and checklists",
-                  "Lifetime product updates",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded border border-border bg-white p-3 text-xs text-muted shadow-sm"
-                  >
-                    <span className="mr-2 text-primary">+</span>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </DarkSection>
-            <DarkSection title="Requirements and information">
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  ["Format", "PDF, ZIP"],
-                  ["File size", "18.4 MB"],
-                  ["License", "Single use"],
-                  ["Updated", "Sep 18, 2026"],
-                  ["Category", product.type],
-                  ["Support", "Included"],
-                ].map(([label, value]) => (
-                  <div key={label} className="border-b border-divider pb-3">
-                    <small className="block text-[9px] uppercase text-muted">
-                      {label}
-                    </small>
-                    <b className="mt-1 block text-xs text-heading">{value}</b>
-                  </div>
-                ))}
-              </div>
-            </DarkSection>
-            <Link
-              href={`${productPath}/versions`}
-              className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-hover"
-            >
-              View all product versions <span>→</span>
-            </Link>
-            <DarkSection title="Rate this product">
-              <div className="flex flex-wrap items-center gap-5">
-                <span className="text-5xl font-light text-heading">4.8</span>
-                <div>
-                  <div className="text-amber-500">★★★★★</div>
-                  <small className="text-[9px] text-muted">
-                    Based on 124 reviews
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className="rounded border border-primary px-4 py-2 text-[10px] font-bold text-primary"
-                >
-                  Write a review
-                </button>
-              </div>
-            </DarkSection>
-            <DarkSection title="Users say">
-              <div className="flex flex-wrap gap-2 text-[10px] text-muted">
-                {[
-                  "Easy to use and well organized",
-                  "Helpful documentation",
-                  "Great value for creators",
-                  "Files are ready immediately",
-                ].map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-border px-3 py-2"
-                  >
-                    ✓ {item}
-                  </span>
-                ))}
-              </div>
-            </DarkSection>
-            <DarkSection title="Comments">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "This product is made thoughtfully.",
-                  "Very useful and visually appealing.",
-                  "Good quality files and support.",
-                  "Excellent product for beginners.",
-                ].map((comment, index) => (
-                  <article
-                    key={comment}
-                    className="rounded-lg bg-white p-4 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <b className="text-xs text-heading">
-                        {["Sokha P.", "Dara K.", "Maly S.", "Narin T."][index]}
-                      </b>
-                      <span className="text-[10px] text-amber-500">★★★★★</span>
-                    </div>
-                    <p className="mt-3 text-[10px] leading-5 text-muted">
-                      {comment}
-                    </p>
-                    <small className="mt-3 block text-[9px] text-muted">
-                      Verified buyer · 2 days ago
-                    </small>
-                  </article>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="mt-4 w-full rounded border border-border py-2 text-[9px] uppercase tracking-[.12em] text-muted"
-              >
-                See more comments
-              </button>
-            </DarkSection>
+            <DetailContent product={product} productPath={productPath} />
           </section>
-
           <aside className="hidden space-y-5 lg:sticky lg:top-5 lg:block lg:self-start">
-            <DarkRail title="Alternatives">
-              <RailItem
-                name="Mobile App UI Kit"
-                detail="A complete UI kit for mobile products"
-                tone="mobile"
-              />
-              <RailItem
-                name="Dashboard UI Kit"
-                detail="Modern admin screens and components"
-                tone="dashboard"
-              />
-              <RailItem
-                name="Business Card Templates"
-                detail="Ready-to-edit professional designs"
-                tone="cards"
-              />
-              <RailItem
-                name="The Ultimate Design"
-                detail="A practical guide for creators"
-                tone="book"
-              />
-            </DarkRail>
-            <DarkRail title="App stores">
-              <RailItem
-                name="Creator Marketplace"
-                detail="Explore more digital products"
-                tone="landing"
-              />
-              <RailItem
-                name="Free downloads"
-                detail="Useful products at no cost"
-                tone="mobile"
-              />
-              <RailItem
-                name="Top sellers"
-                detail="Discover verified creators"
-                tone="course"
-              />
-            </DarkRail>
-            <DarkRail title="Discover tools">
-              <RailItem
-                name="Templates"
-                detail="Build faster with ready-made files"
-                tone="cards"
-              />
-              <RailItem
-                name="eBooks"
-                detail="Learn from practical guides"
-                tone="book"
-              />
-              <RailItem
-                name="Creator support"
-                detail="Help when you need it"
-                tone="dashboard"
-              />
-            </DarkRail>
+            <Rail
+              title="Alternatives"
+              storefrontPath={basePath}
+              storefrontName={seller}
+              items={[
+                [
+                  "Mobile App UI Kit",
+                  "A complete UI kit for mobile products",
+                  "mobile",
+                ],
+                [
+                  "Dashboard UI Kit",
+                  "Modern admin screens and components",
+                  "dashboard",
+                ],
+                [
+                  "Business Card Templates",
+                  "Ready-to-edit professional designs",
+                  "cards",
+                ],
+                [
+                  "The Ultimate Design",
+                  "A practical guide for creators",
+                  "book",
+                ],
+              ]}
+            />
+            <Rail
+              title="App stores"
+              storefrontPath={basePath}
+              storefrontName={seller}
+              items={[
+                [
+                  "Creator Marketplace",
+                  "Explore more digital products",
+                  "landing",
+                ],
+                ["Free downloads", "Useful products at no cost", "mobile"],
+                ["Top sellers", "Discover verified creators", "course"],
+              ]}
+            />
+            <Rail
+              title="Discover tools"
+              storefrontPath={basePath}
+              storefrontName={seller}
+              items={[
+                ["Templates", "Build faster with ready-made files", "cards"],
+                ["eBooks", "Learn from practical guides", "book"],
+                ["Creator support", "Help when you need it", "dashboard"],
+              ]}
+            />
           </aside>
         </div>
       </main>
@@ -401,7 +280,90 @@ export default async function ProductDetailPage({ params }: Props) {
   );
 }
 
-function DarkSection({
+function DetailContent({
+  product,
+  productPath,
+}: {
+  product: Product;
+  productPath: string;
+}) {
+  return (
+    <>
+      <Section title="About this product">
+        <p>
+          {product.description} This product is designed for practical daily
+          use, with clean files, clear documentation and a workflow that helps
+          you get started quickly.
+        </p>
+        <p>
+          Download the latest version to get the newest improvements, creator
+          updates and all included bonus resources.
+        </p>
+      </Section>
+      <Section title="What's included">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            "Editable source files",
+            "Quick-start documentation",
+            "Bonus templates and checklists",
+            "Lifetime product updates",
+          ].map((item) => (
+            <div
+              key={item}
+              className="rounded border border-border bg-white p-3 text-xs text-muted shadow-sm"
+            >
+              <span className="mr-2 text-primary">+</span>
+              {item}
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Section title="Requirements and information">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            ["Format", "PDF, ZIP"],
+            ["File size", "18.4 MB"],
+            ["License", "Single use"],
+            ["Updated", "Sep 18, 2026"],
+            ["Category", product.type],
+            ["Support", "Included"],
+          ].map(([label, value]) => (
+            <div key={label} className="border-b border-divider pb-3">
+              <small className="block text-[9px] uppercase text-muted">
+                {label}
+              </small>
+              <b className="mt-1 block text-xs text-heading">{value}</b>
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Link
+        href={`${productPath}/versions`}
+        className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-hover"
+      >
+        View all product versions <span>→</span>
+      </Link>
+      <Section title="Rate this product">
+        <div className="flex flex-wrap items-center gap-5">
+          <span className="text-5xl font-light text-heading">4.8</span>
+          <div>
+            <div className="text-amber-500">★★★★★</div>
+            <small className="text-[9px] text-muted">
+              Based on 124 reviews
+            </small>
+          </div>
+          <button
+            type="button"
+            className="rounded border border-primary px-4 py-2 text-[10px] font-bold text-primary"
+          >
+            Write a review
+          </button>
+        </div>
+      </Section>
+    </>
+  );
+}
+function Section({
   title,
   children,
 }: {
@@ -417,44 +379,53 @@ function DarkSection({
     </section>
   );
 }
-function DarkRail({
+function Rail({
   title,
-  children,
+  items,
+  storefrontPath,
+  storefrontName,
 }: {
   title: string;
-  children: React.ReactNode;
+  items: [string, string, string][];
+  storefrontPath: string;
+  storefrontName: string;
 }) {
   return (
     <section className="rounded-lg border border-border bg-white p-4 shadow-sm">
       <h2 className="border-l-2 border-primary pl-2 text-sm font-bold text-heading">
         {title}
       </h2>
-      <div className="mt-4 space-y-3">{children}</div>
+      <div className="mt-4 space-y-3">
+        {items.map(([name, detail, tone]) => (
+          <Link
+            href="#"
+            key={name}
+            className="block rounded p-1 no-underline hover:bg-accent-light"
+          >
+            <span
+              className="product-art mx-auto block aspect-video w-[92%] overflow-hidden rounded"
+            >
+              <img
+                src={previewImages[tone] ?? previewImages.cards}
+                alt={`${name} preview`}
+                className="h-full w-full object-cover"
+              />
+            </span>
+            <span className="mt-2 block min-w-0">
+              <b className="block truncate text-[10px] text-heading">{name}</b>
+              <Link
+                href={storefrontPath}
+                className="mt-1 block text-[8px] font-semibold text-primary no-underline hover:text-primary-hover"
+              >
+                by {storefrontName}
+              </Link>
+              <small className="mt-1 block text-[9px] leading-4 text-muted">
+                {detail}
+              </small>
+            </span>
+          </Link>
+        ))}
+      </div>
     </section>
-  );
-}
-function RailItem({
-  name,
-  detail,
-  tone,
-}: {
-  name: string;
-  detail: string;
-  tone: string;
-}) {
-  return (
-    <Link href="#" className="flex gap-3 rounded p-1 hover:bg-accent-light">
-      <span
-        className={`product-art ${tone} grid h-10 w-10 shrink-0 place-items-center rounded text-[9px] font-bold text-white`}
-      >
-        {name.charAt(0)}
-      </span>
-      <span className="min-w-0">
-        <b className="block truncate text-[10px] text-heading">{name}</b>
-        <small className="mt-1 block text-[9px] leading-4 text-muted">
-          {detail}
-        </small>
-      </span>
-    </Link>
   );
 }

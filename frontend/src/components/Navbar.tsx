@@ -7,6 +7,7 @@ import { apps, products } from "./ProductGrid";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { publicNavigation, routes, type PublicRouteKey } from "@/lib/routeController";
 import { CART_UPDATED_EVENT, getCartCount, readCart } from "@/lib/cart";
+import { clearSessionData } from "@/lib/session";
 
 type NavbarProps = { active?: PublicRouteKey | null };
 const links = publicNavigation;
@@ -140,13 +141,14 @@ export default function Navbar({ active = "home" }: NavbarProps) {
       setAuthChecked(true);
     });
   }, []);
-  const signOut = () => {
-    window.localStorage.removeItem("marketplace-token");
+  const signOut = async () => {
+    await clearSessionData();
     setSignedIn(false);
     setUserRole("");
     setUsername("Unknown");
     setEmail("");
     setAccountOpen(false);
+    window.location.replace(routes.auth.login());
   };
   const searchField = (mobile = false) => (
     <div
@@ -430,6 +432,14 @@ export default function Navbar({ active = "home" }: NavbarProps) {
                     <p className="px-4 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-soft">
                       Workspaces
                     </p>
+                    <Link
+                      href="/profile"
+                      onClick={() => setAccountOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-xs text-body no-underline hover:bg-accent-light hover:text-primary"
+                    >
+                      <PublicIcon name="user-round" className="h-4 w-4 text-primary" />
+                      My Profile
+                    </Link>
                     {workspaceLinks.map((workspace) => (
                       <Link
                         key={workspace.label}

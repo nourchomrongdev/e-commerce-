@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
+import { clearSessionData } from "@/lib/session";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 type StorefrontOption = { name: string; products: number; href: string };
@@ -408,11 +409,8 @@ export default function CreatorDashboardHeader({
                 <div className="border-t border-gray-100" />
                 <button
                   type="button"
-                  onClick={() => {
-                    window.localStorage.removeItem("marketplace-token");
-                    window.localStorage.removeItem("marketplace-user");
-                    window.localStorage.removeItem("current-user");
-                    window.localStorage.removeItem("creator-selected-storefront");
+                  onClick={async () => {
+                    await clearSessionData();
                     setAccountOpen(false);
                     router.replace(routes.auth.login());
                   }}

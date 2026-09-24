@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AppBrand, { APP_NAME } from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
 import { routes } from "@/lib/routeController";
+import { clearSessionData } from "@/lib/session";
 
 export default function BuyerDashboardHeader({ onMenuOpen }: { onMenuOpen: () => void }) {
   const [accountOpen, setAccountOpen] = useState(false);
@@ -44,7 +45,7 @@ export default function BuyerDashboardHeader({ onMenuOpen }: { onMenuOpen: () =>
               <Link href={routes.buyer.account()} onClick={closeAccountMenu} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50"><PublicIcon name="user" className="h-5 w-5 text-gray-500" />Profile Settings</Link>
               <Link href={routes.contact()} onClick={closeAccountMenu} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50"><PublicIcon name="help" className="h-5 w-5 text-gray-500" />Help Center</Link>
               <div className="border-t border-gray-100" />
-              <Link href={routes.auth.login()} onClick={() => { window.localStorage.removeItem("marketplace-token"); closeAccountMenu(); }} className="flex items-center gap-3 px-4 py-3 text-sm text-status-danger transition hover:bg-red-50"><PublicIcon name="arrow-left" className="h-5 w-5" />Log out</Link>
+              <Link href={routes.auth.login()} onClick={async (event) => { event.preventDefault(); await clearSessionData(); closeAccountMenu(); window.location.replace(routes.auth.login()); }} className="flex items-center gap-3 px-4 py-3 text-sm text-status-danger transition hover:bg-red-50"><PublicIcon name="arrow-left" className="h-5 w-5" />Log out</Link>
             </div>}
           </div>
         </div>

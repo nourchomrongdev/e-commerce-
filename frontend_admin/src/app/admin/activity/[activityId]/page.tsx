@@ -122,10 +122,10 @@ export default async function ActivityDetailPage({
         </button>
       </header>
 
-      <div className="mt-6 rounded-2xl border border-border bg-white p-3 shadow-sm sm:p-5 lg:p-6">
+      <div className="mt-6 border-t border-divider pt-5 sm:pt-6">
         <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
-          <section className="rounded-xl border border-border-control p-5">
+          <section className="border-b border-[#d6dfed] pb-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-status-success-surface text-status-success"><PublicIcon name="check" className="h-5 w-5" /></span>
@@ -136,15 +136,15 @@ export default async function ActivityDetailPage({
             <div className="mt-4 flex items-center justify-end gap-1 text-[10px] text-muted"><PublicIcon name="shield-check" className="h-3.5 w-3.5" />{activity.module}</div>
           </section>
 
-          <dl className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+          <dl className="grid gap-3 border-b border-[#d6dfed] py-5 sm:grid-cols-2 2xl:grid-cols-4">
             {[
               ["User", activity.user, "user"],
               ["Occurred", timestamp, "clock-9"],
               ["IP Address", activity.ipAddress, "store"],
               ["Module", activity.module, "product"],
             ].map(([label, value, icon]) => (
-              <div key={label} className="min-w-0 rounded-xl border border-border-control bg-surface-muted p-4">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-primary"><PublicIcon name={icon as "user"} className="h-4 w-4" /></span>
+              <div key={label} className="min-w-0 border-l border-[#d6dfed] pl-4 first:border-l-0 first:pl-0">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-light text-primary"><PublicIcon name={icon as "user"} className="h-4 w-4" /></span>
                 <dt className="mt-3 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">{label}</dt>
                 <dd className="mt-1 break-words text-xs font-semibold text-body-strong">{value}</dd>
                 {label === "User" && <dd className="mt-1 text-[10px] text-muted">Administrator</dd>}
@@ -153,9 +153,9 @@ export default async function ActivityDetailPage({
             ))}
           </dl>
 
-          <section className="rounded-xl border border-border-control">
-            <div className="flex items-center gap-2 border-b border-divider px-5 py-4"><PublicIcon name="file-search-corner" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Audit Information</h2></div>
-            <dl className="grid gap-4 p-4 text-xs sm:grid-cols-2 sm:p-5">
+          <section className="border-b border-[#d6dfed] py-6">
+            <div className="flex items-center gap-2 border-b border-[#d6dfed] pb-3"><PublicIcon name="file-search-corner" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Audit Information</h2></div>
+            <dl className="grid gap-4 pt-4 text-xs sm:grid-cols-2">
               <div><dt className="text-muted">Event ID</dt><dd className="mt-1 break-all font-semibold text-body-strong">ACT-{timestamp.replace(/[^0-9]/g, "").slice(0, 12) || "UNKNOWN"}</dd></div>
               <div><dt className="text-muted">Recorded by</dt><dd className="mt-1 font-semibold text-body-strong">Marketplace audit service</dd></div>
               <div><dt className="text-muted">Access level</dt><dd className="mt-1 font-semibold text-body-strong">Administrator</dd></div>
@@ -164,13 +164,13 @@ export default async function ActivityDetailPage({
             </dl>
           </section>
 
-          <section className="rounded-xl border border-border-control p-5"><div className="flex items-center gap-2"><PublicIcon name="verification" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Changes</h2></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-border-control bg-surface-muted p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">Before</p><p className="mt-2 text-xs font-medium text-body-strong">{before}</p></div><div className="rounded-lg border border-border-control bg-surface-muted p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">After</p><p className="mt-2 text-xs font-medium text-status-success">{after}</p></div></div></section>
+          <section className="border-b border-[#d6dfed] py-6"><div className="flex items-center gap-2 border-b border-[#d6dfed] pb-3"><PublicIcon name="verification" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Changes</h2></div><div className="mt-4 grid gap-3 border-l-2 border-primary/40 pl-4 sm:grid-cols-2"><div><p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">Before</p><p className="mt-2 text-xs font-medium leading-5 text-body-strong">{before}</p></div><div><p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">After</p><p className="mt-2 text-xs font-medium leading-5 text-status-success">{after}</p></div></div></section>
 
-          <section className="rounded-xl border border-border-control p-5"><div className="flex items-center gap-2"><PublicIcon name="settings" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Device & Session</h2></div><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3"><div><dt className="text-muted">Device</dt><dd className="mt-1 font-semibold text-body-strong">{device}</dd></div><div><dt className="text-muted">Browser version</dt><dd className="mt-1 font-semibold text-body-strong">{browserVersion}</dd></div><div><dt className="text-muted">Session status</dt><dd className="mt-1 font-semibold text-status-success">{sessionStatus}</dd></div></dl></section>
+          <section className="border-b border-[#d6dfed] py-6"><div className="flex items-center gap-2 border-b border-[#d6dfed] pb-3"><PublicIcon name="settings" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Device & Session</h2></div><dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3"><div><dt className="text-muted">Device</dt><dd className="mt-1 font-semibold text-body-strong">{device}</dd></div><div><dt className="text-muted">Browser version</dt><dd className="mt-1 font-semibold text-body-strong">{browserVersion}</dd></div><div><dt className="text-muted">Session status</dt><dd className="mt-1 font-semibold text-status-success">{sessionStatus}</dd></div></dl></section>
 
         </div>
 
-        <aside className="h-fit rounded-xl border border-border-control p-4"><div className="flex items-center gap-2"><PublicIcon name="clock-9" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Event Timeline</h2></div><div className="mt-4 space-y-0">{[["Event Created", timestamp, "check"], ["User Login", activity.user, "user"], ["Device & Browser", `${device} • ${browserVersion}`, "dashboard"], ["IP Address", activity.ipAddress, "store"], ["Session Status", sessionStatus, "shield-check"]].map(([label, value, icon], index) => <div key={label} className={`flex gap-3 border-b border-divider py-3 last:border-0 ${index === 0 ? "rounded-lg bg-status-success-surface px-2" : ""}`}><span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${index === 0 ? "bg-status-success text-white" : "bg-surface-muted text-muted"}`}><PublicIcon name={icon as "check"} className="h-3.5 w-3.5" /></span><div className="min-w-0"><p className="text-[10px] font-semibold text-body-strong">{label}</p><p className="mt-1 break-words text-[10px] text-muted">{value}</p></div>{index === 0 && <span className="ml-auto text-[9px] font-semibold text-status-success">Now</span>}</div>)}</div><div className="mt-4 rounded-lg bg-surface-muted p-3"><p className="text-[10px] font-semibold text-body-strong">Activity Trail</p><div className="mt-3 space-y-3 text-[10px] text-muted"><p><span className="mr-2 text-status-success">●</span>Event recorded</p><p><span className="mr-2 text-status-success">●</span>Session validated</p><p><span className="mr-2 text-status-success">●</span>Access granted</p></div></div></aside>
+        <aside className="h-fit border-l border-[#cbd7e8] pl-5"><div className="flex items-center gap-2 border-b border-[#d6dfed] pb-3"><PublicIcon name="clock-9" className="h-4 w-4 text-primary" /><h2 className="text-sm font-bold text-heading">Event Timeline</h2></div><div className="mt-4 space-y-0">{[["Event Created", timestamp, "check"], ["User Login", activity.user, "user"], ["Device & Browser", `${device} • ${browserVersion}`, "dashboard"], ["IP Address", activity.ipAddress, "store"], ["Session Status", sessionStatus, "shield-check"]].map(([label, value, icon], index) => <div key={label} className={`flex gap-3 border-b border-[#d6dfed] py-3 last:border-0 ${index === 0 ? "bg-status-success-surface px-2" : ""}`}><span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${index === 0 ? "bg-status-success text-white" : "bg-surface-muted text-muted"}`}><PublicIcon name={icon as "check"} className="h-3.5 w-3.5" /></span><div className="min-w-0"><p className="text-[10px] font-semibold text-body-strong">{label}</p><p className="mt-1 break-words text-[10px] text-muted">{value}</p></div>{index === 0 && <span className="ml-auto text-[9px] font-semibold text-status-success">Now</span>}</div>)}</div><div className="mt-5 border-t border-[#d6dfed] pt-4"><p className="text-[10px] font-semibold text-body-strong">Activity Trail</p><div className="mt-3 space-y-3 text-[10px] text-muted"><p><span className="mr-2 text-status-success">●</span>Event recorded</p><p><span className="mr-2 text-status-success">●</span>Session validated</p><p><span className="mr-2 text-status-success">●</span>Access granted</p></div></div></aside>
       </div>
       </div>
     </div>

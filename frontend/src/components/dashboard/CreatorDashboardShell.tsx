@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Toast } from "@/components/ui";
 import { routes } from "@/lib/routeController";
+import { clearSessionData } from "@/lib/session";
 import CreatorDashboardHeader from "./CreatorDashboardHeader";
 import CreatorDashboardSidebar from "./CreatorDashboardSidebar";
 import StorefrontHeader from "./StorefrontHeader";
@@ -126,7 +127,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     const secondaryDelay = 1500;
     const redirectDelay = 3000;
 
-    const redirectToLogin = (message = "Please log in before continue.") => {
+    const redirectToLogin = async (message = "Please log in before continue.") => {
       if (redirectTimerRef.current !== null) {
         window.clearTimeout(redirectTimerRef.current);
       }
@@ -136,9 +137,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
       setRedirectMessage(primaryMessage);
 
       const next = encodeURIComponent(initialPathRef.current || routes.creator.overview());
-      window.localStorage.removeItem("marketplace-token");
-      window.localStorage.removeItem("marketplace-user");
-      window.localStorage.removeItem("current-user");
+      await clearSessionData();
 
       window.setTimeout(() => {
         setRedirectMessage(message);

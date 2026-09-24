@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+[data-policy-editor-page="true"] .fixed.inset-0 {
+  position: static !important;
+  z-index: auto !important;
+  display: block !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+[data-policy-editor-page="true"] .fixed.inset-0 > [role="dialog"] {
+  max-height: none !important;
+  width: 100% !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  box-shadow: none !important;
+}
+
+[data-policy-editor-page="true"] > header,
+[data-policy-editor-page="true"] > .grid {
+  display: none !important;
+}
+
 :root {
   --storefront-blue: #5b6ef5;
   --storefront-indigo: #4f46e5;

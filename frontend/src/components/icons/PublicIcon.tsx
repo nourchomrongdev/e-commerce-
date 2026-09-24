@@ -18,7 +18,8 @@ type PublicIconName =
   "up" |
   "arrow-right" |
   "arrow-left" |
-  "grip";
+  "grip" |
+  "heart-plus";
 type PublicIconSidebarName = 
   "store" | 
   "product" | 
