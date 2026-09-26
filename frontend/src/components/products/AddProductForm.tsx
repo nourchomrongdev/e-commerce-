@@ -15,7 +15,7 @@ import {
 import Cropper, { type Area } from "react-easy-crop";
 import "react-easy-crop/react-easy-crop.css";
 import PublicIcon from "@/components/icons/PublicIcon";
-import { Card, CardTitle, Toast } from "@/components/ui";
+import { Card, CardTitle, Modal, Toast } from "@/components/ui";
 
 const steps: readonly string[] = [
   "Basic Information",
@@ -69,12 +69,29 @@ type ProductRelease = {
 };
 type LicenseOffer = {
   name: string;
+  price: number;
   access: "Lifetime Access" | "Limited Downloads" | "Subscription";
   downloadLimit?: number;
 };
-const licenseNames = ["All", "Free", "Standard", "Personal", "Commercial", "Professional"];
-const defaultLicenseOffer = (): LicenseOffer => ({
+type LicenseTypeOption = {
+  id: number;
+  storefrontId: number | null;
+  name: string;
+  description: string;
+  duration: string;
+  durationDays: number | null;
+  maxDevices: string;
+  maxActivations: number | null;
+  status: string;
+};
+const normalizeLicenseName = (name: string | undefined, availableNames: string[] = []) => {
+  const licenseName = String(name ?? "All").replace(/\s+License$/i, "").trim();
+  if (licenseName.toLowerCase() === "all") return "All";
+  return availableNames.find((candidate) => candidate.toLowerCase() === licenseName.toLowerCase()) ?? licenseName;
+};
+const defaultLicenseOffer = (price = 0): LicenseOffer => ({
   name: "All",
+  price,
   access: "Lifetime Access",
 });
 type ReleaseErrors = { version?: string; releaseNotes?: string; files?: string; previews?: string; licenses?: string };
@@ -190,6 +207,10 @@ export default function AddProductForm({
   const [category, setCategory] = useState("");
   const [catalogStatus, setCatalogStatus] =
     useState<CatalogStatus>("loading");
+  const [licenseTypes, setLicenseTypes] = useState<LicenseTypeOption[]>([]);
+  const licenseNames = licenseTypes.map((licenseType) => licenseType.name);
+  const [licenseCatalogStatus, setLicenseCatalogStatus] =
+    useState<CatalogStatus>("loading");
   const [releases, setReleases] = useState<ProductRelease[]>([
     {
       id: crypto.randomUUID(),
@@ -197,7 +218,7 @@ export default function AddProductForm({
       price: editProduct?.price ?? 0,
       isFree: editProduct ? editProduct.price === 0 : false,
       license: "All",
-      licenses: [defaultLicenseOffer()],
+      licenses: [defaultLicenseOffer(editProduct?.price ?? 0)],
       releaseNotes: "Initial product release.",
       current: true,
       files: [],
@@ -258,6 +279,12 @@ export default function AddProductForm({
       return release.id === id ? { ...release, ...update } : release;
     }));
   };
+  const addLicenseTypeToCatalog = (licenseType: LicenseTypeOption) => {
+    setLicenseTypes((current) => [...current, licenseType].sort((first, second) =>
+      first.name === "All" ? -1 : second.name === "All" ? 1 : first.name.localeCompare(second.name),
+    ));
+    setLicenseCatalogStatus("ready");
+  };
   const validateReleases = (showMessage = false) => {
     const errors = Object.fromEntries(
       releases.flatMap((release) => {
@@ -272,6 +299,11 @@ export default function AddProductForm({
           releaseError.previews = "Add at least one preview asset.";
         if (release.licenses.length === 0)
           releaseError.licenses = "Choose at least one licence type.";
+        else if (release.licenses.some((license) =>
+          (!release.isFree && (!Number.isFinite(license.price) || license.price < 0)) ||
+          (license.access === "Limited Downloads" && (!Number.isInteger(license.downloadLimit) || Number(license.downloadLimit) < 1)),
+        ))
+          releaseError.licenses = "Enter a valid price and download limit for each licence.";
         return Object.keys(releaseError).length
           ? [[release.id, releaseError]]
           : [];
@@ -296,6 +328,40 @@ export default function AddProductForm({
   }, [releases]);
 
   useEffect(() => {
+    let active = true;
+    const token = window.localStorage.getItem("marketplace-token");
+    fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(storefrontName)}/licenses/types`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (response) => {
+        const data = await readApiResponse(response);
+        if (!response.ok) throw new Error(data.error || "Unable to load license types.");
+        return data;
+      })
+      .then((data) => {
+        if (!active) return;
+        const types = (Array.isArray(data.rows) ? data.rows : [])
+          .map((row: LicenseTypeOption) => ({ ...row, name: normalizeLicenseName(row.name) }))
+          .filter((licenseType: LicenseTypeOption, index: number, allTypes: LicenseTypeOption[]) =>
+            allTypes.findIndex((candidate) => candidate.name.toLowerCase() === licenseType.name.toLowerCase()) === index,
+          );
+        types.sort((first: LicenseTypeOption, second: LicenseTypeOption) =>
+          first.name === "All" ? -1 : second.name === "All" ? 1 : 0,
+        );
+        setLicenseTypes(types);
+        setLicenseCatalogStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setLicenseTypes([]);
+        setLicenseCatalogStatus("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, [storefrontName]);
+
+  useEffect(() => {
     if (!editProduct) return;
     const token = window.localStorage.getItem("marketplace-token");
     const productKey = editProduct.uuid || editProduct.id;
@@ -310,13 +376,15 @@ export default function AddProductForm({
             ...release,
             price: Number(editProduct.price ?? release.price ?? 0),
             isFree: editProduct.price === 0,
-            license: release.license ?? "All",
+            license: normalizeLicenseName(release.license),
             licenses: Array.isArray(release.licenses) && release.licenses.length
               ? release.licenses.map((license: LicenseOffer) => ({
                   ...defaultLicenseOffer(),
                   ...license,
+                  name: normalizeLicenseName(license.name),
+                  price: Number(license.price ?? release.price ?? editProduct.price ?? 0),
                 }))
-              : [{ ...defaultLicenseOffer(), name: release.license ?? "All" }],
+              : [{ ...defaultLicenseOffer(Number(release.price ?? editProduct.price ?? 0)), name: normalizeLicenseName(release.license) }],
             id: String(release.id),
             files: release.files ?? [],
             previewAssets: (release.previewAssets ?? []).map(
@@ -422,6 +490,15 @@ export default function AddProductForm({
         if (firstInvalidStep >= 0) setStep(firstInvalidStep);
         return;
       }
+      if (licenseCatalogStatus !== "ready" || licenseNames.length === 0) {
+        setValidationError(
+          licenseCatalogStatus === "loading"
+            ? "License types are still loading. Please wait before saving."
+            : "License types could not be loaded. Please retry before saving.",
+        );
+        setStep(visibleSteps.indexOf("Pricing & Access"));
+        return;
+      }
       if (!validateReleases(true)) {
         setStep(visibleSteps.indexOf("Pricing & Access"));
         return;
@@ -439,7 +516,7 @@ export default function AddProductForm({
       document.removeEventListener("click", linkClick, true);
       document.removeEventListener("click", saveClick, true);
     };
-  }, [releases, uploadingFiles, visibleSteps]);
+  }, [releases, uploadingFiles, visibleSteps, licenseCatalogStatus, licenseTypes]);
 
   const goToNextStep = () => {
     setConfirmSave(false);
@@ -448,6 +525,14 @@ export default function AddProductForm({
         catalogStatus === "loading"
           ? "Catalog data is still loading. Please wait before continuing."
           : "Catalog data could not be loaded. Please retry before continuing.",
+      );
+      return;
+    }
+    if (visibleSteps[step] === "Pricing & Access" && (licenseCatalogStatus !== "ready" || licenseNames.length === 0)) {
+      setValidationError(
+        licenseCatalogStatus === "loading"
+          ? "License types are still loading. Please wait before continuing."
+          : "License types could not be loaded. Please retry before continuing.",
       );
       return;
     }
@@ -696,7 +781,7 @@ export default function AddProductForm({
               price: release.isFree ? 0 : release.price,
               isFree: release.isFree,
               license: release.license,
-              licenses: release.licenses.map((license) => ({ ...license, price: release.isFree ? 0 : release.price })),
+              licenses: release.licenses.map((license) => ({ ...license, price: release.isFree ? 0 : license.price })),
               releaseNotes: release.releaseNotes.trim(),
               current: release.current,
               files: release.files,
@@ -1024,7 +1109,7 @@ export default function AddProductForm({
                           price: sharedIsFree ? 0 : sharedPrice,
                           isFree: sharedIsFree,
                           license: "All",
-                          licenses: [defaultLicenseOffer()],
+                          licenses: [defaultLicenseOffer(sharedIsFree ? 0 : sharedPrice)],
                           releaseNotes: "",
                           current: false,
                           files: [],
@@ -1158,7 +1243,7 @@ export default function AddProductForm({
                 />
                 </div>
                 <div className="order-3 mt-8 border-t border-divider pt-8">
-                  <LicenseAccess release={releases.find((release) => release.id === selectedReleaseId) ?? releases[0]} releaseErrors={releaseErrors} onUpdateRelease={(update) => updateRelease(selectedReleaseId, update)} />
+                  <LicenseAccess release={releases.find((release) => release.id === selectedReleaseId) ?? releases[0]} isFree={freeProduct} storefrontName={storefrontName} licenseTypes={licenseTypes} licenseNames={licenseNames} licenseCatalogStatus={licenseCatalogStatus} releaseErrors={releaseErrors} onLicenseTypeAdded={addLicenseTypeToCatalog} onUpdateRelease={(update) => updateRelease(selectedReleaseId, update)} />
                 </div>
               </div>
               <div
@@ -2354,25 +2439,83 @@ function ProductFiles({
 }
 function LicenseAccess({
   release,
+  isFree,
+  storefrontName,
+  licenseTypes,
+  licenseNames,
+  licenseCatalogStatus,
   releaseErrors,
+  onLicenseTypeAdded,
   onUpdateRelease,
 }: {
   release: ProductRelease;
+  isFree: boolean;
+  storefrontName: string;
+  licenseTypes: LicenseTypeOption[];
+  licenseNames: string[];
+  licenseCatalogStatus: CatalogStatus;
   releaseErrors: Record<string, ReleaseErrors>;
+  onLicenseTypeAdded: (licenseType: LicenseTypeOption) => void;
   onUpdateRelease: (update: Partial<ProductRelease>) => void;
 }) {
+  const [addingLicenseType, setAddingLicenseType] = useState(false);
+  const [savingLicenseType, setSavingLicenseType] = useState(false);
+  const [addLicenseTypeError, setAddLicenseTypeError] = useState("");
+  const [licenseTypeName, setLicenseTypeName] = useState("");
+  const [licenseTypeDescription, setLicenseTypeDescription] = useState("");
+  const [licenseTypeDuration, setLicenseTypeDuration] = useState("");
+  const [licenseTypeMaxDevices, setLicenseTypeMaxDevices] = useState("");
+  const [viewingLicenseType, setViewingLicenseType] = useState<LicenseTypeOption | null>(null);
   const updateOffers = (licenses: LicenseOffer[]) =>
     onUpdateRelease({ licenses, license: licenses[0]?.name ?? "All" });
-  const selectLicence = (name: string, checked: boolean) => {
-    if (name === "All") {
-      updateOffers([{ ...defaultLicenseOffer(), name: "All" }]);
+  const addLicenseType = async () => {
+    const name = licenseTypeName.trim();
+    const description = licenseTypeDescription.trim();
+    const durationDays = licenseTypeDuration ? Number(licenseTypeDuration) : null;
+    const maxActivations = licenseTypeMaxDevices ? Number(licenseTypeMaxDevices) : null;
+    if (!name || !description) {
+      setAddLicenseTypeError("Enter a license name and description.");
       return;
     }
-    const specificLicences = release.licenses.filter((license) => license.name !== "All");
+    if ([durationDays, maxActivations].some((value) => value !== null && (!Number.isInteger(value) || value < 1))) {
+      setAddLicenseTypeError("Duration and max devices must be positive whole numbers.");
+      return;
+    }
+    setSavingLicenseType(true);
+    setAddLicenseTypeError("");
+    try {
+      const response = await fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(storefrontName)}/licenses/types`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${window.localStorage.getItem("marketplace-token") || ""}`,
+        },
+        body: JSON.stringify({ name, description, durationDays, maxActivations }),
+      });
+      const data = await readApiResponse(response);
+      if (!response.ok) throw new Error(data.error || "Unable to add license type.");
+      onLicenseTypeAdded({ ...data.row, name: normalizeLicenseName(data.row.name) });
+      setLicenseTypeName("");
+      setLicenseTypeDescription("");
+      setLicenseTypeDuration("");
+      setLicenseTypeMaxDevices("");
+      setAddingLicenseType(false);
+    } catch (saveError) {
+      setAddLicenseTypeError(saveError instanceof Error ? saveError.message : "Unable to add license type.");
+    } finally {
+      setSavingLicenseType(false);
+    }
+  };
+  const selectLicence = (name: string, checked: boolean) => {
+    if (name === "All") {
+      updateOffers([{ ...defaultLicenseOffer(isFree ? 0 : release.price), name: "All" }]);
+      return;
+    }
+    const specificLicences = release.licenses.filter((license) => normalizeLicenseName(license.name, licenseNames) !== "All");
     const next = checked
-      ? [...specificLicences, { ...defaultLicenseOffer(), name }]
+      ? [...specificLicences, { ...defaultLicenseOffer(isFree ? 0 : release.price), name }]
       : specificLicences.filter((license) => license.name !== name);
-    updateOffers(next.length ? next : [{ ...defaultLicenseOffer(), name: "All" }]);
+    updateOffers(next.length ? next : [{ ...defaultLicenseOffer(isFree ? 0 : release.price), name: "All" }]);
   };
   return (
     <section>
@@ -2383,66 +2526,60 @@ function LicenseAccess({
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <fieldset className="sm:col-span-2">
           <legend className="text-[11px] font-semibold text-body">Licence types <span className="text-status-danger">*</span></legend>
-          <p className="mt-1 text-[10px] text-muted">Choose up to four supported licences. All Licence is exclusive; choosing a specific licence clears it.</p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] text-muted">Choose up to four supported licences. All Licence is exclusive; choosing a specific licence clears it.</p>
+            <button type="button" onClick={() => { setAddLicenseTypeError(""); setAddingLicenseType(true); }} className="inline-flex items-center gap-1.5 rounded-md border border-border-control px-2.5 py-1.5 text-[10px] font-semibold text-body transition hover:border-primary hover:bg-accent-light hover:text-primary">
+              <PublicIcon name="add" className="h-3 w-3" />Add license type
+            </button>
+          </div>
+          {licenseCatalogStatus === "loading" && <p role="status" className="mt-2 text-[10px] text-muted">Loading license types...</p>}
+          {licenseCatalogStatus === "error" && <p role="alert" className="mt-2 text-[10px] text-status-danger">Unable to load license types from the server.</p>}
+          {licenseCatalogStatus === "ready" && licenseNames.length === 0 && <p role="status" className="mt-2 text-[10px] text-muted">No active license types are available.</p>}
           {releaseErrors[release.id]?.licenses && (
             <p className="mt-1 text-[10px] text-status-danger">
               {releaseErrors[release.id].licenses}
             </p>
           )}
           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {licenseNames.map((name) => {
-              const checked = release.licenses.some((license) => license.name === name);
+            {licenseCatalogStatus === "ready" && licenseNames.map((name) => {
+              const licenseType = licenseTypes.find((candidate) => candidate.name.toLowerCase() === name.toLowerCase());
+              const checked = release.licenses.some((license) =>
+                normalizeLicenseName(license.name, licenseNames).toLowerCase() === name.toLowerCase(),
+              );
               const disabled = name !== "All" && !checked && release.licenses.filter((license) => license.name !== "All").length >= 4;
-              return <label key={name} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${checked ? "border-primary bg-accent-light text-primary" : "border-border-control text-body"} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => selectLicence(name, event.target.checked)} className="accent-primary" />{name} License</label>;
+              return <div key={name} className={`flex min-w-0 items-center gap-1 rounded-lg border px-2 py-2 ${checked ? "border-primary bg-accent-light text-primary" : "border-border-control text-body"}`}>
+                <label className={`flex min-w-0 flex-1 items-center gap-2 px-1 text-xs ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                  <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => selectLicence(name, event.target.checked)} className="accent-primary" />
+                  <span className="truncate">{name} License</span>
+                </label>
+                {licenseType && <button type="button" aria-label={`View ${name} license type details`} title="View details" onClick={() => setViewingLicenseType(licenseType)} className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-white hover:text-primary"><PublicIcon name="view" className="h-3.5 w-3.5" /></button>}
+              </div>;
             })}
           </div>
         </fieldset>
       </div>
-      <div hidden className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-primary bg-accent-light p-4">
-          <p className="text-xs font-semibold text-heading">Standard License</p>
-          <p className="mt-1 text-[10px] text-muted">
-            For personal and commercial use.
-          </p>
-          <ul className="mt-3 space-y-1.5 text-[10px] text-body">
-            <li>✓ One user / single project</li>
-            <li>✓ No redistribution</li>
-            <li>✓ Support via email</li>
-          </ul>
+      <Modal open={addingLicenseType} title="Add License Type" onClose={() => !savingLicenseType && setAddingLicenseType(false)} size="md" footer={<>
+        <button type="button" onClick={() => setAddingLicenseType(false)} disabled={savingLicenseType} className="rounded-lg border border-border-control px-4 py-2 text-xs font-semibold text-body disabled:opacity-50">Cancel</button>
+        <button type="button" onClick={() => void addLicenseType()} disabled={savingLicenseType} className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{savingLicenseType ? "Saving..." : "Save"}</button>
+      </>}>
+        <div className="grid gap-4">
+          <label className="grid gap-1 text-[10px] font-semibold text-body">License Type<input autoFocus required value={licenseTypeName} onChange={(event) => setLicenseTypeName(event.target.value)} className={input} /></label>
+          <label className="grid gap-1 text-[10px] font-semibold text-body">Description<textarea required value={licenseTypeDescription} onChange={(event) => setLicenseTypeDescription(event.target.value)} className={`${input} min-h-20 py-2`} /></label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-1 text-[10px] font-semibold text-body">Duration (days)<input type="number" min="1" step="1" value={licenseTypeDuration} onChange={(event) => setLicenseTypeDuration(event.target.value)} className={input} /></label>
+            <label className="grid gap-1 text-[10px] font-semibold text-body">Max devices<input type="number" min="1" step="1" value={licenseTypeMaxDevices} onChange={(event) => setLicenseTypeMaxDevices(event.target.value)} className={input} /></label>
+          </div>
+          {addLicenseTypeError && <p role="alert" className="text-xs text-status-danger">{addLicenseTypeError}</p>}
         </div>
-        <div className="space-y-4">
-          <label className="flex items-start gap-2 text-xs text-body">
-            <input
-              type="radio"
-              name="accessRule"
-              defaultChecked
-              className="mt-0.5 accent-primary"
-            />
-            <span>
-              <strong className="block">Lifetime access</strong>
-              <span className="text-[10px] text-muted-soft">
-                One-time purchase, unlimited access.
-              </span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2 text-xs text-body">
-            <input
-              type="radio"
-              name="accessRule"
-              className="mt-0.5 accent-primary"
-            />
-            <span>
-              <strong className="block">Limited downloads</strong>
-              <span className="text-[10px] text-muted-soft">
-                Set a maximum download count.
-              </span>
-            </span>
-          </label>
-          <Field label="Download limit">
-            <input type="number" min="1" placeholder="5" className={input} />
-          </Field>
-        </div>
-      </div>
+      </Modal>
+      <Modal open={Boolean(viewingLicenseType)} title={`${viewingLicenseType?.name ?? "License"} details`} onClose={() => setViewingLicenseType(null)}>
+        {viewingLicenseType && <dl className="grid gap-3 text-xs">
+          <div className="flex justify-between gap-4 border-b border-divider pb-3"><dt className="text-muted">Description</dt><dd className="max-w-[65%] text-right text-heading">{viewingLicenseType.description || "-"}</dd></div>
+          <div className="flex justify-between gap-4 border-b border-divider pb-3"><dt className="text-muted">Duration</dt><dd className="text-right text-heading">{viewingLicenseType.duration || "Lifetime"}</dd></div>
+          <div className="flex justify-between gap-4 border-b border-divider pb-3"><dt className="text-muted">Max devices</dt><dd className="text-right text-heading">{viewingLicenseType.maxDevices || "Unlimited"}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-muted">Type</dt><dd className="text-right text-heading">{viewingLicenseType.storefrontId ? "Storefront license" : "System default"}</dd></div>
+        </dl>}
+      </Modal>
     </section>
   );
 }
@@ -2518,7 +2655,13 @@ function ReviewProduct({
         {releases.map((release) => (
           <ReviewBlock key={release.id} title={`Supported licences — ${release.version || "Unnumbered version"}`}>
             <ReviewRow label="Product" value={text("title")} />
-            <ReviewRow label="Supported licences" value={release.licenses.map((license) => `${license.name} License`).join(", ")} />
+            {release.licenses.map((license) => (
+              <ReviewRow
+                key={license.name}
+                label={`${license.name} License`}
+                value={`${release.isFree ? "Free" : `$${Number(license.price).toFixed(2)}`} · ${license.access}${license.access === "Limited Downloads" && license.downloadLimit ? ` · ${license.downloadLimit} downloads` : ""}`}
+              />
+            ))}
           </ReviewBlock>
         ))}
       </div>

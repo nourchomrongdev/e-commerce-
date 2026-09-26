@@ -1,7 +1,7 @@
 "use client";
 
 import PublicIcon from "@/components/icons/PublicIcon";
-import { Badge, Button, Card, InputText, Table, TableHeader, TableRow } from "@/components/ui";
+import { Badge, Button, InputText, MetricTile, Table, TableHeader, TableRow } from "@/components/ui";
 
 type PayoutStatus = "Completed" | "Processing";
 type Payout = { id: string; amount: string; method: string; status: PayoutStatus; date: string };
@@ -18,7 +18,7 @@ const payouts: Payout[] = [
 const statusTone = { Completed: "success", Processing: "warning" } as const;
 
 function SummaryCard({ label, value, detail, icon, tone }: { label: string; value: string; detail: string; icon: string; tone: string }) {
-  return <Card className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] text-muted-soft">{label}</p><p className="mt-2 text-lg font-bold text-ink">{value}</p></div><span className={`grid h-9 w-9 place-items-center rounded-lg ${tone}`}><PublicIcon name={icon as any} className="h-5 w-5" /></span></div><p className="mt-2 text-[9px] text-muted-soft">{detail}</p></Card>;
+  return <MetricTile label={label} value={value} change={detail} icon={<PublicIcon name={icon as any} className="h-5 w-5" />} iconClassName={tone.split(" ").find((className) => className.startsWith("text-")) ?? "text-primary"} />;
 }
 
 export default function CreatorPayoutsPage() {

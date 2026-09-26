@@ -1,6 +1,6 @@
-import LicenseManager from "@/components/dashboard/LicenseManager";
+import { redirect } from "next/navigation";
 
 export default async function LicenseActivationsPage({ params }: { params: Promise<{ storefront: string }> }) {
   const { storefront } = await params;
-  return <LicenseManager view="activations" storefrontName={decodeURIComponent(storefront)} />;
+  redirect(`/creator/storefront/${encodeURIComponent(storefront)}/licenses/orders`);
 }

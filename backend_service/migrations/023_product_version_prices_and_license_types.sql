@@ -27,7 +27,7 @@ ADD CONSTRAINT "CK_Products_DiscountAmount_NonNegative"
 CHECK ("DiscountAmount" >= 0);
 
 UPDATE "LicenseTypes"
-SET "LicenseName" = 'ALL',
+SET "LicenseName" = 'All',
     "Description" = 'All license for personal, non-commercial use.'
 WHERE "LicenseName" = 'All'
   AND NOT EXISTS (
@@ -36,12 +36,7 @@ WHERE "LicenseName" = 'All'
 
 INSERT INTO "LicenseTypes" ("LicenseName", "Description", "IsActive")
 VALUES
-    ('ALL License', 'All license for personal, non-commercial use.', TRUE),
-    ('Free License', 'Free license for personal, non-commercial use.', TRUE),
-    ('Standard License', 'Standard license for ordinary individual use.', TRUE),
-    ('Personal License', 'Personal license for one individual or household.', TRUE),
-    ('Commercial License', 'Commercial license for business and client work.', TRUE),
-    ('Professional License', 'Professional license for advanced commercial use.', TRUE)
+    ('All License', 'All license for personal, non-commercial use.', TRUE),
 ON CONFLICT ("LicenseName") DO UPDATE
 SET "Description" = EXCLUDED."Description",
     "IsActive" = TRUE;

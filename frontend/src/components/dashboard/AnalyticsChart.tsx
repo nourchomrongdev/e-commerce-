@@ -1,11 +1,13 @@
 type AnalyticsChartProps = {
-  values: number[];
-  color: string;
+  values?: number[];
+  color?: string;
   fill?: string;
 };
 
-export default function AnalyticsChart({ values, color, fill = "transparent" }: AnalyticsChartProps) {
-  const max = Math.max(...values);
+const defaultValues = [18, 26, 22, 35, 30, 42, 38, 48];
+
+export default function AnalyticsChart({ values = defaultValues, color = "#ff7a36", fill = "#ff7a36" }: AnalyticsChartProps) {
+  const max = Math.max(...values, 1);
   const points = values
     .map((value, index) => `${(index / (values.length - 1)) * 100},${90 - (value / max) * 72}`)
     .join(" ");

@@ -113,12 +113,10 @@ export const routes = {
       `${routes.creator.storefront(storefrontName)}/licenses`,
     storefrontLicenseTypes: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/licenses/types`,
-    storefrontLicenseRules: (storefrontName: string) =>
-      `${routes.creator.storefront(storefrontName)}/licenses/rules`,
     storefrontLicenseKeys: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/licenses/keys`,
-    storefrontLicenseActivations: (storefrontName: string) =>
-      `${routes.creator.storefront(storefrontName)}/licenses/activations`,
+    storefrontLicenseOrders: (storefrontName: string) =>
+      `${routes.creator.storefront(storefrontName)}/licenses/orders`,
     storefrontRevokedLicenses: (storefrontName: string) =>
       `${routes.creator.storefront(storefrontName)}/licenses/revoked`,
     products: (storefrontName?: string) =>

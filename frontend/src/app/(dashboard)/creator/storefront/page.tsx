@@ -14,6 +14,7 @@ type Storefront = {
   products: number;
   revenue: string;
   isPublished?: boolean;
+  logoUrl?: string;
 };
 
 export default function StorefrontPage() {
@@ -68,109 +69,115 @@ export default function StorefrontPage() {
           {loading && <p className="py-12 text-center text-sm text-[#8993aa]">Loading storefronts...</p>}
           {!loading && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {storefronts.map(
-              ({ displayName: name, type, products, revenue, isPublished }, index) => (
-                <div
-                  key={name}
-                  className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[#e8ecf4] bg-white shadow-[0_4px_20px_rgba(17,27,64,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-[#dce2ef] hover:shadow-[0_12px_30px_rgba(17,27,64,0.08)]"
-                >
-                  {/* Card Header */}
+              {storefronts.map(({ displayName: name, type, products, revenue, isPublished, logoUrl }, index) => {
+                const handleLogoError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+                  const target = event.currentTarget;
+                  if (target.dataset.fallbackApplied === "true") return;
+                  target.dataset.fallbackApplied = "true";
+                  target.src = "/icon.png";
+                };
+
+                return (
                   <div
-                    className={`bg-gradient-to-br ${accents[index % accents.length]} p-4 sm:p-5`}
+                    key={name}
+                    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[#e8ecf4] bg-white shadow-[0_4px_20px_rgba(17,27,64,0.04)] transition-all duration-200 hover:-translate-y-1 hover:border-[#dce2ef] hover:shadow-[0_12px_30px_rgba(17,27,64,0.08)]"
                   >
-                    <div className="flex min-w-0 items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="rounded-md bg-white/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/80 backdrop-blur-sm sm:text-[10px]">
-                            Storefront
-                          </span>
+                    {/* Card Header */}
+                    <div className={`bg-gradient-to-br ${accents[index % accents.length]} p-4 sm:p-5`}>
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-3 flex items-center gap-2">
+                            <span className="rounded-md bg-white/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/80 backdrop-blur-sm sm:text-[10px]">
+                              Storefront
+                            </span>
 
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
 
-                          <span className="text-[10px] font-medium text-white/75">
-                            {isPublished === false ? "Inactive" : "Active"}
-                          </span>
+                            <span className="text-[10px] font-medium text-white/75">
+                              {isPublished === false ? "Inactive" : "Active"}
+                            </span>
+                          </div>
+
+                          <h3
+                            className="truncate text-lg font-bold tracking-tight text-white sm:text-xl"
+                            title={name}
+                          >
+                            {name}
+                          </h3>
+
+                          <p className="mt-1 truncate text-xs text-white/70">{type}</p>
                         </div>
 
-                        <h3
-                          className="truncate text-lg font-bold tracking-tight text-white sm:text-xl"
-                          title={name}
-                        >
-                          {name}
-                        </h3>
-
-                        <p className="mt-1 truncate text-xs text-white/70">
-                          {type}
-                        </p>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Card Content */}
-                  <div className="flex flex-1 flex-col p-4 sm:p-5">
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 divide-x divide-[#edf0f5]">
-                      <div className="min-w-0 pr-3 sm:pr-4">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#8993aa] sm:text-[11px]">
-                          Products
-                        </p>
-
-                        <p className="mt-1 text-xl font-bold tracking-tight text-[#111b40] sm:text-2xl">
-                          {products}
-                        </p>
-                      </div>
-
-                      <div className="min-w-0 pl-3 sm:pl-4">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#8993aa] sm:text-[11px]">
-                          Revenue
-                        </p>
-
-                        <p
-                          className="mt-1 truncate text-xl font-bold tracking-tight text-[#111b40] sm:text-2xl"
-                          title={revenue}
-                        >
-                          {formatCompactCurrency(revenue)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="my-4 h-px bg-[#edf0f5] sm:my-5" />
-
-                    {/* Card Footer */}
-                    <div className="mt-auto flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-[#8993aa] sm:text-[11px]">
-                          Store status
-                        </p>
-
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className={`h-2 w-2 shrink-0 rounded-full ${isPublished === false ? "bg-slate-400" : "bg-emerald-500"}`} />
-
-                          <span className="text-xs font-semibold text-[#263252]">
-                            {isPublished === false ? "Closed" : "Open"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Link
-                          href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
-                          className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
-                        >
-                          Open Store
-
-                          <PublicIcon
-                            name="arrow-right"
-                            className="ml-2 h-3 w-3"
+                        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/40 bg-white/10 backdrop-blur-sm">
+                          <img
+                            src={logoUrl || "/icon.png"}
+                            alt={`${name} logo`}
+                            className="h-full w-full object-cover"
+                            onError={handleLogoError}
                           />
-                        </Link>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Content */}
+                    <div className="flex flex-1 flex-col p-4 sm:p-5">
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 divide-x divide-[#edf0f5]">
+                        <div className="min-w-0 pr-3 sm:pr-4">
+                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#8993aa] sm:text-[11px]">
+                            Products
+                          </p>
+
+                          <p className="mt-1 text-xl font-bold tracking-tight text-[#111b40] sm:text-2xl">
+                            {products}
+                          </p>
+                        </div>
+
+                        <div className="min-w-0 pl-3 sm:pl-4">
+                          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#8993aa] sm:text-[11px]">
+                            Revenue
+                          </p>
+
+                          <p
+                            className="mt-1 truncate text-xl font-bold tracking-tight text-[#111b40] sm:text-2xl"
+                            title={revenue}
+                          >
+                            {formatCompactCurrency(revenue)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="my-4 h-px bg-[#edf0f5] sm:my-5" />
+
+                      {/* Card Footer */}
+                      <div className="mt-auto flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-[#8993aa] sm:text-[11px]">Store status</p>
+
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${isPublished === false ? "bg-slate-400" : "bg-emerald-500"}`} />
+
+                            <span className="text-xs font-semibold text-[#263252]">
+                              {isPublished === false ? "Closed" : "Open"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Link
+                            href={`/creator/storefront/${encodeURIComponent(name)}/overview`}
+                            className="flex shrink-0 items-center rounded-lg bg-[#111b40] px-3 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#1c2850] sm:px-4 sm:text-xs"
+                          >
+                            Open Store
+
+                            <PublicIcon name="arrow-right" className="ml-2 h-3 w-3" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-              )}
+                );
+              })}
 
               <Link
                 href="/creator/storefront/new"

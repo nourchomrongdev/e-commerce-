@@ -25,7 +25,7 @@ type Version = {
   releaseNotes: string;
   current: boolean;
   createdAt?: string;
-  licenses?: Array<{ name: string; access?: string }>;
+  licenses?: Array<{ name: string; price?: number; access?: string; downloadLimit?: number }>;
   files: Array<{ fileName: string; fileSize: number; mimeType?: string }>;
   previewAssets: Array<{ id: string; title: string; type: string; url: string }>;
 };
@@ -114,7 +114,27 @@ export default function ProductDetailPage() {
               <div className="grid gap-5 pt-4 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="border-b border-divider pb-4 lg:col-span-2">
                   <h4 className="text-xs font-bold text-heading">Supported licenses</h4>
-                  <p className="mt-2 text-xs text-body">{version.licenses?.length ? version.licenses.map((license) => `${license.name} License`).join(", ") : "No licenses selected."}</p>
+                  {version.licenses?.length ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {version.licenses.map((license) => (
+                        <article key={license.name} className="border border-divider p-3">
+                          <h5 className="text-xs font-semibold text-heading">{license.name} License</h5>
+                          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                            <dt className="text-muted">Price</dt>
+                            <dd className="text-right font-medium text-body">{Number(license.price ?? version.price) === 0 ? "Free" : `$${Number(license.price ?? version.price).toFixed(2)}`}</dd>
+                            <dt className="text-muted">Access</dt>
+                            <dd className="text-right text-body">{license.access || "Lifetime Access"}</dd>
+                            {license.access === "Limited Downloads" && license.downloadLimit && (
+                              <>
+                                <dt className="text-muted">Download limit</dt>
+                                <dd className="text-right text-body">{license.downloadLimit}</dd>
+                              </>
+                            )}
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                  ) : <p className="mt-2 text-xs text-body">No licenses selected.</p>}
                 </div>
                 <div>
                   <div className="flex items-center justify-between gap-3">

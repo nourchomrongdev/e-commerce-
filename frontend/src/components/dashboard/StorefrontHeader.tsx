@@ -11,6 +11,7 @@ type StorefrontHeaderProps = {
   storefront: {
     displayName: string;
     type: string;
+    logoUrl?: string;
   };
   activeTab: string;
   onTabChange?: (tab: string) => void;
@@ -20,6 +21,8 @@ type StorefrontHeaderProps = {
     Payment?: boolean;
   };
 };
+
+const defaultStorefrontLogo = "/icon.png";
 
 export default function StorefrontHeader({
   storefront,
@@ -36,13 +39,25 @@ export default function StorefrontHeader({
   const editStorePath = routes.creator.storefrontEdit(storefront.displayName);
   const editStoreLabel = isEditMode ? "Done Editing" : "Edit Detail";
 
+  const handleLogoError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    if (target.dataset.fallbackApplied === "true") return;
+    target.dataset.fallbackApplied = "true";
+    target.src = defaultStorefrontLogo;
+  };
+
   return (
     <div className="mb-5 w-full rounded-2xl bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
       <div className="mx-auto max-w-[1600px]">
         <header className="flex min-w-0 flex-col gap-4 overflow-hidden sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#4d5ae8] to-[#3e4dda] text-2xl font-bold text-white shadow-sm sm:h-12 sm:w-12">
-              {storefront.displayName.charAt(0)}
+            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#dfe3ee] bg-gradient-to-br from-[#eff4ff] to-[#f7f9ff] shadow-sm sm:h-12 sm:w-12">
+              <img
+                src={storefront.logoUrl || defaultStorefrontLogo}
+                alt={`${storefront.displayName} logo`}
+                className="h-full w-full object-cover"
+                onError={handleLogoError}
+              />
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-[2.05rem] font-bold leading-none tracking-[-0.02em] text-[#1d2438]">

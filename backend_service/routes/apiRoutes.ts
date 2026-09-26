@@ -253,6 +253,26 @@ function mediaUrl(req, imageUrl) {
   return imageUrl.startsWith("/") ? `${req.protocol}://${req.get("host")}${imageUrl}` : imageUrl;
 }
 
+function capitalizeFirstCharacter(value) {
+  const text = String(value || "");
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text;
+}
+
+function slugifyStorefrontName(value) {
+  return String(value || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function getUpdatedStorefrontNameAndSlug(storefront, body) {
+  const storeName = String(body.storeName ?? storefront.StoreName).trim();
+  const nameChanged = body.storeName !== undefined && storeName.toLowerCase() !== String(storefront.StoreName).toLowerCase();
+  const storeSlug = nameChanged
+    ? slugifyStorefrontName(storeName)
+    : body.slug === undefined
+      ? storefront.StoreSlug
+      : String(body.slug).trim().toLowerCase();
+  return { storeName, storeSlug };
+}
+
 router.get("/health", (req, res) => {
   res.json({ status: "ok", service: "marketplace-api" });
 });
@@ -270,7 +290,7 @@ function serializeProduct(product) {
   return {
     id: product.ProductId,
     uuid: product.UUID,
-    name: product.ProductName,
+    name: capitalizeFirstCharacter(product.ProductName),
     slug: product.Slug,
     shortDescription: product.ShortDescription || "",
     description: product.Description || "",
@@ -427,9 +447,10 @@ async function databaseStorefront(req) {
   const profile = await CreatorProfile.findOne({ where: { UserId: req.userId } });
   if (!profile) return { profile: null, storefront: null };
   const storefrontName = req.params.storefrontName;
+  const { Op, where, fn, col } = require("sequelize");
   const storefront = await Storefront.findOne({
     where: storefrontName
-      ? { CreatorProfileId: profile.CreatorProfileId, [require("sequelize").Op.or]: [{ StoreName: storefrontName }, { StoreSlug: storefrontName }] }
+      ? { CreatorProfileId: profile.CreatorProfileId, [Op.and]: [{ [Op.or]: [where(fn("lower", col("StoreName")), String(storefrontName).toLowerCase()), { StoreSlug: String(storefrontName).toLowerCase() }] }] }
       : { CreatorProfileId: profile.CreatorProfileId },
     order: [["CreatedAt", "ASC"]],
   });
@@ -511,7 +532,7 @@ function releasePayload(body) {
       price: productPrice,
       isFree: productPrice === 0,
       license: String(release.license || body.license || "All").replace(/\s+License$/i, "").trim(),
-      licenses: Array.isArray(release.licenses) ? release.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: productPrice, access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [],
+      licenses: Array.isArray(release.licenses) ? release.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: release.isFree ? 0 : Number(license.price ?? productPrice), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [],
       releaseNotes: String(release.releaseNotes || release.summary || "").trim(),
       current: release.current !== false,
       files: Array.isArray(release.files) ? release.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [],
@@ -548,6 +569,198 @@ async function replaceReleaseLicenses(versionId, licenses) {
     await sequelize.query('INSERT INTO "ProductVersionLicenses" ("ProductVersionId", "LicenseTypeId", "Price", "AccessType", "DownloadLimit") VALUES (:versionId, :licenseTypeId, :price, :accessType, :downloadLimit)', { replacements: { versionId, licenseTypeId, price: license.price, accessType: license.access, downloadLimit: license.downloadLimit } });
   }
 }
+
+async function licenseStorefront(req) {
+  const { storefront } = await databaseStorefront(req);
+  return storefront;
+}
+
+function serializeLicenseType(row) {
+  return {
+    id: Number(row.LicenseTypeId),
+    storefrontId: row.StorefrontId ? Number(row.StorefrontId) : null,
+    name: row.LicenseName,
+    description: row.Description || "",
+    duration: row.DurationDays ? `${Number(row.DurationDays)} days` : "Lifetime",
+    durationDays: row.DurationDays ? Number(row.DurationDays) : null,
+    maxDevices: row.MaxActivations ? `${Number(row.MaxActivations)} devices` : "Unlimited",
+    maxActivations: row.MaxActivations ? Number(row.MaxActivations) : null,
+    status: row.IsActive ? "Active" : "Inactive",
+  };
+}
+
+function serializeLicenseRule(row) {
+  let appliesTo = row.AppliesTo;
+  try { appliesTo = JSON.parse(row.AppliesTo); } catch { /* legacy rule text */ }
+  return {
+    id: Number(row.LicenseRuleId),
+    storefrontId: row.StorefrontId ? Number(row.StorefrontId) : null,
+    name: row.RuleName,
+    appliesTo: row.AppliesToNames || (Array.isArray(appliesTo) ? "" : appliesTo),
+    appliesToIds: Array.isArray(appliesTo) ? appliesTo.map(Number) : [],
+    description: row.Description || "",
+    status: row.IsActive ? "Active" : "Inactive",
+  };
+}
+
+function parseLicenseLimit(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const text = String(value).trim();
+  if (!/^\d{1,4}$/.test(text)) return Number.NaN;
+  const parsed = Number(text);
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : Number.NaN;
+}
+
+function validateLicenseNameAndText(name, description) {
+  if (!name || name.length > 20) return "Name is required and must be 20 characters or fewer.";
+  if (!description || description.length > 50) return "Description is required and must be 50 characters or fewer.";
+  return null;
+}
+
+router.get("/creator/storefronts/:storefrontName/licenses/:view", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const view = String(req.params.view);
+    const search = String(req.query.search || "").trim();
+    if (view === "types") {
+      const [rows] = await sequelize.query('SELECT "LicenseTypeId", "LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive" FROM "LicenseTypes" WHERE "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) AND ("LicenseName" ILIKE :search OR COALESCE("Description", \'\') ILIKE :search) ORDER BY "LicenseTypeId" ASC', { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
+      const [rules] = await sequelize.query('SELECT "RuleName", "AppliesTo", "Description" FROM "LicenseRules" WHERE "StorefrontId" = :storefrontId', { replacements: { storefrontId: storefront.StorefrontId } });
+      const rulesByType = new Map();
+      for (const rule of rules) {
+        let typeIds = [];
+        try { const parsed = JSON.parse(rule.AppliesTo); if (Array.isArray(parsed)) typeIds = parsed.map(Number); } catch { /* legacy text rule */ }
+        for (const typeId of typeIds) rulesByType.set(typeId, [...(rulesByType.get(typeId) || []), { name: capitalizeFirstCharacter(rule.RuleName), description: capitalizeFirstCharacter(rule.Description || "") }]);
+      }
+      return res.json({ rows: rows.map((row) => { const licenseRules = rulesByType.get(Number(row.LicenseTypeId)) || []; return { ...serializeLicenseType(row), licenseRuleCount: licenseRules.length, licenseRules: JSON.stringify(licenseRules) }; }) });
+    }
+    if (view === "rules") {
+      const [rows] = await sequelize.query(`SELECT r."LicenseRuleId", r."StorefrontId", r."RuleName", r."AppliesTo", r."Description", r."IsActive", COALESCE((SELECT string_agg(lt."LicenseName", ', ' ORDER BY lt."LicenseName") FROM "LicenseTypes" lt WHERE lt."LicenseTypeId" = ANY(CASE WHEN r."AppliesTo" ~ '^\\s*\\[' THEN ARRAY(SELECT jsonb_array_elements_text(r."AppliesTo"::jsonb)::int) ELSE ARRAY[]::int[] END)), r."AppliesTo") AS "AppliesToNames" FROM "LicenseRules" r WHERE r."StorefrontId" = :storefrontId AND (r."RuleName" ILIKE :search OR r."Description" ILIKE :search) ORDER BY r."CreatedAt" DESC`, { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
+      return res.json({ rows: rows.map(serializeLicenseRule) });
+    }
+    if (view === "keys" || view === "revoked") {
+      const status = view === "revoked" ? "revoked" : null;
+      const [rows] = await sequelize.query('SELECT l."LicenseId", l."UUID", l."LicenseKey", l."Status", l."IssuedAt", l."RevokedAt", l."RevocationReason", p."ProductName", lt."LicenseName", u."Email" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "LicenseTypes" lt ON lt."LicenseTypeId" = l."LicenseTypeId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" WHERE p."StorefrontId" = :storefrontId AND (:status IS NULL OR l."Status" = :status) AND (l."LicenseKey" ILIKE :search OR p."ProductName" ILIKE :search OR COALESCE(lt."LicenseName", \'\') ILIKE :search) ORDER BY l."IssuedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, status, search: `%${search}%` } });
+      return res.json({ rows: rows.map((row) => ({ id: Number(row.LicenseId), key: row.LicenseKey, product: capitalizeFirstCharacter(row.ProductName), licenseType: row.LicenseName || "All", status: row.Status === "active" ? "Active" : "Revoked", activatedBy: row.Email || "-", activatedOn: row.IssuedAt, revokedOn: row.RevokedAt, reason: row.RevocationReason || "-" })) });
+    }
+    if (view === "activations") {
+      const [rows] = await sequelize.query('SELECT a."ActivationId", a."UUID", a."DeviceName", a."IPAddress", a."ActivatedAt", a."IsActive", l."LicenseKey", p."ProductName", u."Email" FROM "LicenseActivations" a JOIN "Licenses" l ON l."LicenseId" = a."LicenseId" JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" WHERE p."StorefrontId" = :storefrontId AND (l."LicenseKey" ILIKE :search OR p."ProductName" ILIKE :search OR COALESCE(u."Email", \'\') ILIKE :search) ORDER BY a."ActivatedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
+      return res.json({ rows: rows.map((row) => ({ id: Number(row.ActivationId), key: row.LicenseKey, product: capitalizeFirstCharacter(row.ProductName), activatedBy: row.Email || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", activatedOn: row.ActivatedAt, status: row.IsActive ? "Active" : "Inactive" })) });
+    }
+    return res.status(400).json({ error: "Unsupported license view." });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Unable to load licenses." });
+  }
+});
+
+router.post("/creator/storefronts/:storefrontName/licenses/types", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const name = String(req.body.name || "").trim();
+    const description = String(req.body.description || "").trim();
+    const maxActivations = parseLicenseLimit(req.body.maxActivations);
+    const durationDays = parseLicenseLimit(req.body.durationDays);
+    const validationError = validateLicenseNameAndText(name, description);
+    if (validationError) return res.status(400).json({ error: validationError });
+    if (Number.isNaN(maxActivations) || Number.isNaN(durationDays)) return res.status(400).json({ error: "Duration and max devices must be whole numbers from 1 to 9999." });
+    const [rows] = await sequelize.query('INSERT INTO "LicenseTypes" ("LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive") VALUES (:name, :description, :maxActivations, :durationDays, :storefrontId, TRUE) RETURNING "LicenseTypeId", "LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive"', { replacements: { name, description, maxActivations, durationDays, storefrontId: storefront.StorefrontId } });
+    return res.status(201).json({ row: serializeLicenseType(rows[0]) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to create license type." });
+  }
+});
+
+router.put("/creator/storefronts/:storefrontName/licenses/types/:id", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const name = req.body.name === undefined ? null : String(req.body.name).trim();
+    const description = req.body.description === undefined ? null : String(req.body.description).trim();
+    if (name !== null && (!name || name.length > 20)) return res.status(400).json({ error: "Name is required and must be 20 characters or fewer." });
+    if (description !== null && (!description || description.length > 50)) return res.status(400).json({ error: "Description is required and must be 50 characters or fewer." });
+    const maxActivations = parseLicenseLimit(req.body.maxActivations);
+    const durationDays = parseLicenseLimit(req.body.durationDays);
+    if (Number.isNaN(maxActivations) || Number.isNaN(durationDays)) return res.status(400).json({ error: "Duration and max devices must be whole numbers from 1 to 9999." });
+    const [rows] = await sequelize.query('UPDATE "LicenseTypes" SET "LicenseName" = COALESCE(:name, "LicenseName"), "Description" = COALESCE(:description, "Description"), "MaxActivations" = :maxActivations, "DurationDays" = :durationDays WHERE "LicenseTypeId" = :id AND "StorefrontId" = :storefrontId RETURNING "LicenseTypeId", "LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId, name: name?.toLowerCase() || null, description: description?.toLowerCase() || null, maxActivations, durationDays } });
+    return rows[0] ? res.json({ row: serializeLicenseType(rows[0]) }) : res.status(404).json({ error: "License type not found." });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to update license type." });
+  }
+});
+
+router.delete("/creator/storefronts/:storefrontName/licenses/types/:id", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const [rows] = await sequelize.query('DELETE FROM "LicenseTypes" WHERE "LicenseTypeId" = :id AND "StorefrontId" = :storefrontId RETURNING "LicenseTypeId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+    return rows[0] ? res.status(204).send() : res.status(404).json({ error: "License type not found." });
+  } catch (error) {
+    return res.status(400).json({ error: "This license type is in use and cannot be deleted." });
+  }
+});
+
+router.post("/creator/storefronts/:storefrontName/licenses/rules", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const name = String(req.body.name || "").trim().toLowerCase();
+    const description = String(req.body.description || "").trim().toLowerCase();
+    const validationError = validateLicenseNameAndText(name, description);
+    if (validationError) return res.status(400).json({ error: validationError.replace("Name", "Rule name") });
+    const licenseTypeIds = Array.isArray(req.body.appliesTo) ? [...new Set(req.body.appliesTo.map(Number))] : [];
+    const [validTypes] = await sequelize.query('SELECT "LicenseTypeId" FROM "LicenseTypes" WHERE "LicenseTypeId" IN (:ids) AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) AND "IsActive" = TRUE', { replacements: { ids: licenseTypeIds.length ? licenseTypeIds : [0], storefrontId: storefront.StorefrontId } });
+    if (validTypes.length !== licenseTypeIds.length) return res.status(400).json({ error: "Select valid license types for this store." });
+    const [rows] = await sequelize.query('INSERT INTO "LicenseRules" ("StorefrontId", "RuleName", "AppliesTo", "Description") VALUES (:storefrontId, :name, :appliesTo, :description) RETURNING "LicenseRuleId", "RuleName", "AppliesTo", "Description", "IsActive"', { replacements: { storefrontId: storefront.StorefrontId, name, appliesTo: JSON.stringify(licenseTypeIds), description } });
+    return res.status(201).json({ row: serializeLicenseRule(rows[0]) });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to create license rule." });
+  }
+});
+
+router.put("/creator/storefronts/:storefrontName/licenses/rules/:id", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const name = req.body.name === undefined ? null : String(req.body.name).trim();
+    const description = req.body.description === undefined ? null : String(req.body.description).trim();
+    if (name !== null && (!name || name.length > 20)) return res.status(400).json({ error: "Rule name is required and must be 20 characters or fewer." });
+    if (description !== null && (!description || description.length > 50)) return res.status(400).json({ error: "Description is required and must be 50 characters or fewer." });
+    const licenseTypeIds = Array.isArray(req.body.appliesTo) ? [...new Set(req.body.appliesTo.map(Number))] : null;
+    if (licenseTypeIds) {
+      const [validTypes] = await sequelize.query('SELECT "LicenseTypeId" FROM "LicenseTypes" WHERE "LicenseTypeId" IN (:ids) AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) AND "IsActive" = TRUE', { replacements: { ids: licenseTypeIds.length ? licenseTypeIds : [0], storefrontId: storefront.StorefrontId } });
+      if (validTypes.length !== licenseTypeIds.length) return res.status(400).json({ error: "Select valid license types for this store." });
+    }
+    const [rows] = await sequelize.query('UPDATE "LicenseRules" SET "RuleName" = COALESCE(:name, "RuleName"), "AppliesTo" = COALESCE(:appliesTo, "AppliesTo"), "Description" = COALESCE(:description, "Description"), "UpdatedAt" = CURRENT_TIMESTAMP WHERE "LicenseRuleId" = :id AND "StorefrontId" = :storefrontId RETURNING "LicenseRuleId", "RuleName", "AppliesTo", "Description", "IsActive"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId, name: name?.toLowerCase() || null, appliesTo: licenseTypeIds ? JSON.stringify(licenseTypeIds) : null, description: description?.toLowerCase() || null } });
+    return rows[0] ? res.json({ row: serializeLicenseRule(rows[0]) }) : res.status(404).json({ error: "License rule not found." });
+  } catch (error) {
+    return res.status(400).json({ error: error.message || "Unable to update license rule." });
+  }
+});
+
+router.delete("/creator/storefronts/:storefrontName/licenses/rules/:id", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const [rows] = await sequelize.query('DELETE FROM "LicenseRules" WHERE "LicenseRuleId" = :id AND "StorefrontId" = :storefrontId RETURNING "LicenseRuleId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+  return rows[0] ? res.status(204).send() : res.status(404).json({ error: "License rule not found." });
+});
+
+router.patch("/creator/storefronts/:storefrontName/licenses/keys/:id", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const status = String(req.body.status || "").toLowerCase();
+  if (!["active", "revoked"].includes(status)) return res.status(400).json({ error: "Status must be active or revoked." });
+  const [rows] = await sequelize.query('UPDATE "Licenses" l SET "Status" = :status, "RevokedAt" = CASE WHEN :status = \'revoked\' THEN CURRENT_TIMESTAMP ELSE NULL END, "RevocationReason" = CASE WHEN :status = \'revoked\' THEN COALESCE(:reason, "RevocationReason") ELSE NULL END FROM "Products" p WHERE l."LicenseId" = :id AND p."ProductId" = l."ProductId" AND p."StorefrontId" = :storefrontId RETURNING l."LicenseId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId, status, reason: req.body.reason || null } });
+  return rows[0] ? res.json({ success: true }) : res.status(404).json({ error: "License key not found." });
+});
+
+router.patch("/creator/storefronts/:storefrontName/licenses/:licenseView/:id", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  if (!["activations", "orders"].includes(String(req.params.licenseView))) return res.status(400).json({ error: "Unsupported license action." });
+  const [rows] = await sequelize.query('UPDATE "LicenseActivations" a SET "IsActive" = :isActive, "DeactivatedAt" = CASE WHEN :isActive THEN NULL ELSE CURRENT_TIMESTAMP END FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" WHERE a."ActivationId" = :id AND a."LicenseId" = l."LicenseId" AND p."StorefrontId" = :storefrontId RETURNING a."ActivationId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId, isActive: Boolean(req.body.isActive) } });
+  return rows[0] ? res.json({ success: true }) : res.status(404).json({ error: "Activation not found." });
+});
 
 async function replaceReleaseAssets(productId, versionId, files, previews, now) {
   if (previews.some((preview) => previewDataSize(preview.url) > 10 * 1024 * 1024)) throw new Error("Preview images must be smaller than 10 MB.");
@@ -830,7 +1043,7 @@ router.post("/creator/storefronts/:storefrontName/products/:productId/versions",
     if (isCurrent) await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
     const isFreeVersion = price === 0;
     const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, Price: price, IsFree: isFreeVersion, LicenseTypeId: isFreeVersion ? null : await resolveLicenseTypeId(req.body.license), ReleaseNotes: String(req.body.summary || "").trim(), IsCurrent: isCurrent, CreatedAt: now });
-    const requestedLicenses = Array.isArray(req.body.licenses) ? req.body.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [{ name: String(req.body.license || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: "Lifetime Access", downloadLimit: null }];
+    const requestedLicenses = Array.isArray(req.body.licenses) ? req.body.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : Number(license.price ?? price), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [{ name: String(req.body.license || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: "Lifetime Access", downloadLimit: null }];
     await replaceReleaseLicenses(created.ProductVersionId, requestedLicenses);
     await replaceReleaseAssets(product.ProductId, created.ProductVersionId, files, previews, now);
     return res.status(201).json({ version: { id: created.ProductVersionId, version: created.VersionNumber, price: Number(created.Price || 0), summary: created.ReleaseNotes || "", current: created.IsCurrent, createdAt: created.CreatedAt } });
@@ -935,7 +1148,7 @@ function serializeStorefront(storefront, productCount = 0) {
   if (!storefront) return null;
   return {
     id: storefront.StorefrontId,
-    displayName: storefront.StoreName,
+    displayName: capitalizeFirstCharacter(storefront.StoreName),
     slug: storefront.StoreSlug,
     type: "Digital Products",
     products: productCount,
@@ -985,7 +1198,13 @@ router.post("/creator/storefronts", async (req, res) => {
 router.put("/creator/storefronts/:storefrontName", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
-  await storefront.update({ StoreName: String(req.body.storeName ?? storefront.StoreName).trim(), Description: String(req.body.description ?? storefront.Description).trim(), LogoUrl: req.body.logoUrl ?? storefront.LogoUrl, IsPublished: req.body.isPublished ?? storefront.IsPublished });
+  const { storeName, storeSlug } = getUpdatedStorefrontNameAndSlug(storefront, req.body);
+  if (!storeName || !storeSlug) return res.status(400).json({ error: "Store name and URL are required." });
+  try {
+    await storefront.update({ StoreName: storeName, StoreSlug: storeSlug, Description: String(req.body.description ?? storefront.Description).trim(), LogoUrl: req.body.logoUrl ?? storefront.LogoUrl, IsPublished: req.body.isPublished ?? storefront.IsPublished });
+  } catch (error) {
+    return res.status(409).json({ error: error.message || "That storefront URL is already in use." });
+  }
   return res.json({ storefront: serializeStorefront(storefront) });
 });
 
@@ -1003,14 +1222,14 @@ router.get("/creator/storefronts/:storefrontName/overview", async (req, res) => 
   const revenue = Number(await OrderItem.sum("TotalAmount", { where: { StorefrontId: storefront.StorefrontId } })) || 0;
   const orders = await OrderItem.count({ distinct: true, col: "OrderId", where: { StorefrontId: storefront.StorefrontId } });
   const recentProducts = await Product.findAll({ where: { StorefrontId: storefront.StorefrontId }, order: [["CreatedAt", "DESC"]], limit: 5 });
-  return res.json({ storefront: serializeStorefront(storefront), stats: { products: productCount, revenue, orders, conversion: 0 }, recentProducts: recentProducts.map((product) => ({ name: product.ProductName, status: product.Status, sales: "Database product" })) });
+  return res.json({ storefront: serializeStorefront(storefront), stats: { products: productCount, revenue, orders, conversion: 0 }, recentProducts: recentProducts.map((product) => ({ name: capitalizeFirstCharacter(product.ProductName), status: product.Status, sales: "Database product" })) });
 });
 
 router.get("/creator/storefronts/:storefrontName/branding", async (req, res) => {
   try {
     const { storefront } = await databaseStorefront(req);
     if (!storefront) return res.status(404).json({ error: "Storefront not found" });
-    return res.json({ storefrontName: storefront.StoreName, storefront: serializeStorefront(storefront), branding: { storeName: storefront.StoreName, description: storefront.Description, ...(storefront.ThemeSettings || {}) } });
+    return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), storefront: serializeStorefront(storefront), branding: { storeName: capitalizeFirstCharacter(storefront.StoreName), description: storefront.Description, ...(storefront.ThemeSettings || {}) } });
   } catch (error) {
     return res.status(500).json({ error: error.message || "Unable to load storefront branding." });
   }
@@ -1020,21 +1239,27 @@ router.put("/creator/storefronts/:storefrontName/branding", async (req, res) => 
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   const themeSettings = { ...(storefront.ThemeSettings || {}), ...req.body };
-  await storefront.update({ StoreName: String(req.body.storeName ?? storefront.StoreName).trim(), Description: String(req.body.description ?? storefront.Description).trim(), ThemeSettings: themeSettings });
-  return res.json({ storefrontName: storefront.StoreName, branding: { storeName: storefront.StoreName, description: storefront.Description, ...themeSettings } });
+  const { storeName, storeSlug } = getUpdatedStorefrontNameAndSlug(storefront, req.body);
+  if (!storeName || !storeSlug) return res.status(400).json({ error: "Store name and URL are required." });
+  try {
+    await storefront.update({ StoreName: storeName, StoreSlug: storeSlug, Description: String(req.body.description ?? storefront.Description).trim(), ThemeSettings: themeSettings });
+  } catch (error) {
+    return res.status(409).json({ error: error.message || "That storefront URL is already in use." });
+  }
+  return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), branding: { storeName: capitalizeFirstCharacter(storefront.StoreName), description: storefront.Description, ...themeSettings } });
 });
 
 router.get("/creator/storefronts/:storefrontName/settings", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
-  return res.json({ storefrontName: storefront.StoreName, settings: { ...(storefront.ThemeSettings || {}), storeUrl: `${req.protocol}://${req.get("host")}/marketplace/${storefront.StoreName}` } });
+  return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), settings: { ...(storefront.ThemeSettings || {}), storeUrl: `${req.protocol}://${req.get("host")}/marketplace/${storefront.StoreSlug}` } });
 });
 
 router.put("/creator/storefronts/:storefrontName/settings", async (req, res) => {
   const { storefront } = await databaseStorefront(req);
   if (!storefront) return res.status(404).json({ error: "Storefront not found" });
   await storefront.update({ ThemeSettings: { ...(storefront.ThemeSettings || {}), ...req.body } });
-  return res.json({ storefrontName: storefront.StoreName, settings: storefront.ThemeSettings });
+  return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), settings: storefront.ThemeSettings });
 });
 
 router.get("/creator/storefronts/:storefrontName/payment", async (req, res) => {
@@ -1119,7 +1344,7 @@ router.get("/creator/storefronts/:storefrontName/payment", async (req, res) => {
     savedCards,
   };
 
-  return res.json({ storefrontName: storefront.StoreName, payment: responsePayment });
+  return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), payment: responsePayment });
 });
 
 router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
@@ -1215,7 +1440,7 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
     const saved = payout ? await payout.update(values) : await CreatorPayoutInfo.create(values);
 
     return res.json({
-      storefrontName: storefront.StoreName,
+      storefrontName: capitalizeFirstCharacter(storefront.StoreName),
       payment: {
         methods: nextMethods,
         primaryMethod: nextPrimaryMethod,
@@ -1307,7 +1532,7 @@ router.put("/creator/storefronts/:storefrontName/payment", async (req, res) => {
   const saved = payout ? await payout.update(values) : await CreatorPayoutInfo.create(values);
 
   return res.json({
-    storefrontName: storefront.StoreName,
+    storefrontName: capitalizeFirstCharacter(storefront.StoreName),
     payment: {
       methods,
       primaryMethod,
@@ -1394,7 +1619,7 @@ router.get("/creator/storefronts/:storefrontName/summary", async (req, res) => {
   const buyerPayments = Number(await OrderItem.sum("TotalAmount", { where: { StorefrontId: storefront.StorefrontId } })) || 0;
   const systemFees = Number((buyerPayments * 0.1).toFixed(2));
   const transactions = await OrderItem.findAll({ where: { StorefrontId: storefront.StorefrontId }, include: [{ model: Order, as: "order" }], order: [["CreatedAt", "DESC"]], limit: 10 });
-  return res.json({ storefrontName: storefront.StoreName, summary: { totalEarnings: buyerPayments - systemFees, buyerPayments, systemFees, creatorEarnings: buyerPayments - systemFees, payouts: [], transactions: transactions.map((item) => ({ description: item.ProductName, amount: Number(item.TotalAmount), date: item.CreatedAt, status: item.order?.Status || "completed" })) } });
+  return res.json({ storefrontName: capitalizeFirstCharacter(storefront.StoreName), summary: { totalEarnings: buyerPayments - systemFees, buyerPayments, systemFees, creatorEarnings: buyerPayments - systemFees, payouts: [], transactions: transactions.map((item) => ({ description: capitalizeFirstCharacter(item.ProductName), amount: Number(item.TotalAmount), date: item.CreatedAt, status: item.order?.Status || "completed" })) } });
 });
 
 router.get("/creator/overview", (req, res) => {

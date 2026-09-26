@@ -35,6 +35,27 @@ type FormErrors = {
   logo?: string;
 };
 
+const defaultStorefrontLogo = "/icon.png";
+
+function StorefrontLogo({ src, alt, className, fallbackClassName }: { src?: string | null; alt: string; className?: string; fallbackClassName?: string }) {
+  const fallbackImage = fallbackClassName ?? className ?? "";
+
+  return (
+    <img
+      src={src || defaultStorefrontLogo}
+      alt={alt}
+      className={className}
+      onError={(event) => {
+        const target = event.currentTarget;
+        if (target.dataset.fallbackApplied === "true") return;
+        target.dataset.fallbackApplied = "true";
+        target.src = defaultStorefrontLogo;
+        if (fallbackClassName) target.className = fallbackClassName;
+      }}
+    />
+  );
+}
+
 const createCroppedImage = async (imageSrc: string, pixelCrop: Area) => {
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const imageElement = new Image();
@@ -230,11 +251,11 @@ export default function StorefrontForm({ mode, storefrontName }: StorefrontFormP
           </div>
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
             <div><span className="mb-2 block text-[11px] font-semibold text-[#33405d]">Store Logo <b className="text-red-500">*</b></span><label className={`flex min-h-[150px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center transition hover:border-primary hover:bg-orange-50/30 ${errors.logo ? "border-red-400 bg-red-50/40" : "border-[#d8dfec] bg-[#fcfdff]"}`}><PublicIcon name="up" className="h-7 w-7 text-[#8a99b2]" /><span className="mt-2 text-[10px] font-semibold text-[#33405d]">{logo ? "Click to change image" : "Click to upload or drag and drop"}</span><span className="mt-1 text-[9px] text-[#9aa2b5]">PNG, JPG, WEBP (Max 2MB)</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} className="sr-only" /></label>{errors.logo && <p className="mt-1 text-[10px] font-medium text-red-500">{errors.logo}</p>}{logoSource && <LogoCropEditor source={logoSource} onCropped={setCroppedLogo} onClose={() => setLogoSource(null)} />}</div>
-            <div><span className="mb-2 block text-[11px] font-semibold text-[#33405d]">Preview</span><div className="flex min-h-[150px] flex-col items-center justify-center rounded-lg border border-[#edf0f5] bg-[#fcfdff]"><span className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-xl bg-white text-primary shadow-[0_3px_12px_rgba(17,27,64,0.1)]">{previewLogo ? <img src={previewLogo} alt="Store logo" className="h-full w-full object-cover" /> : <img src="/icon.png" alt="KhmerDigital logo" className="h-16 w-16 object-contain" />}</span><span className="mt-2 max-w-[140px] truncate text-[9px] text-[#8993aa]">{logo || "Store Logo"}</span></div></div>
+            <div><span className="mb-2 block text-[11px] font-semibold text-[#33405d]">Preview</span><div className="flex min-h-[150px] flex-col items-center justify-center rounded-lg border border-[#edf0f5] bg-[#fcfdff]"><span className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-xl bg-white text-primary shadow-[0_3px_12px_rgba(17,27,64,0.1)]"><StorefrontLogo src={previewLogo} alt="Store logo" className="h-full w-full object-cover" fallbackClassName="h-16 w-16 object-contain" /></span><span className="mt-2 max-w-[140px] truncate text-[9px] text-[#8993aa]">{logo || "Store Logo"}</span></div></div>
           </div>
         </section>
 
-        <section className="border-t border-[#edf0f5] p-5 sm:p-6"><div className="flex items-start gap-3"><PublicIcon name="view" className="mt-0.5 h-5 w-5 text-[#24345c]" /><div><h2 className="text-sm font-bold text-[#263252]">Preview</h2><p className="mt-1 text-[11px] text-[#8993aa]">See how your storefront will look with your information.</p></div></div><div className="mt-5 overflow-hidden rounded-lg bg-gradient-to-r from-[#6d4df5] to-[#8c55ef] p-4 text-white"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold">{name || "Your Store Name"}</p><p className="mt-1 truncate text-[10px] text-white/75">Digital Products &nbsp;•&nbsp; Templates &nbsp;•&nbsp; More</p></div><span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-primary">{previewLogo ? <img src={previewLogo} alt="Store logo" className="h-full w-full object-cover" /> : <img src="/icon.png" alt="KhmerDigital logo" className="h-10 w-10 object-contain" />}</span></div></div><div className="mt-2 flex items-center gap-2 rounded-lg border border-[#e9edf5] px-3 py-2 text-[10px] text-[#8993aa]"><PublicIcon name="link" className="h-3.5 w-3.5" />{storeUrl}<PublicIcon name="right" className="ml-auto h-3 w-3" /></div></section>
+        <section className="border-t border-[#edf0f5] p-5 sm:p-6"><div className="flex items-start gap-3"><PublicIcon name="view" className="mt-0.5 h-5 w-5 text-[#24345c]" /><div><h2 className="text-sm font-bold text-[#263252]">Preview</h2><p className="mt-1 text-[11px] text-[#8993aa]">See how your storefront will look with your information.</p></div></div><div className="mt-5 overflow-hidden rounded-lg bg-gradient-to-r from-[#6d4df5] to-[#8c55ef] p-4 text-white"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold">{name || "Your Store Name"}</p><p className="mt-1 truncate text-[10px] text-white/75">Digital Products &nbsp;•&nbsp; Templates &nbsp;•&nbsp; More</p></div><span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-primary"><StorefrontLogo src={previewLogo} alt="Store logo" className="h-full w-full object-cover" fallbackClassName="h-10 w-10 object-contain" /></span></div></div><div className="mt-2 flex items-center gap-2 rounded-lg border border-[#e9edf5] px-3 py-2 text-[10px] text-[#8993aa]"><PublicIcon name="link" className="h-3.5 w-3.5" />{storeUrl}<PublicIcon name="right" className="ml-auto h-3 w-3" /></div></section>
 
         {isEdit && <section className="border-t border-[#edf0f5] p-5 sm:p-6"><div className="flex items-start gap-3"><PublicIcon name="settings" className="mt-0.5 h-5 w-5 text-[#24345c]" /><div><h2 className="text-sm font-bold text-[#263252]">Additional Settings</h2><p className="mt-1 text-[11px] text-[#8993aa]">Manage additional options for your storefront.</p></div></div><div className="mt-4 divide-y divide-[#edf0f5]">{[["Store Status", "Make your store visible to customers.", isPublished, setIsPublished, "Active"], ["Featured Store", "Showcase your store on the marketplace homepage.", isFeatured, setIsFeatured, "Inactive"], ["Allow Guest Purchase", "Let customers purchase without an account.", guestPurchase, setGuestPurchase, "Enabled"]].map(([label, hint, value, setter, stateLabel]) => <div key={label as string} className="flex items-center justify-between gap-4 py-3"><div><p className="text-xs font-semibold text-[#263252]">{label as string}</p><p className="mt-1 text-[10px] text-[#8993aa]">{hint as string}</p></div><button type="button" role="switch" aria-checked={value as boolean} onClick={() => (setter as (value: boolean) => void)(!(value as boolean))} className={`flex shrink-0 items-center gap-2 text-[10px] font-semibold ${value ? "text-[#263252]" : "text-[#8993aa]"}`}><span className={`relative h-5 w-9 rounded-full transition ${value ? "bg-emerald-600" : "bg-[#d7deea]"}`}><span className={`absolute top-1 h-3 w-3 rounded-full bg-white shadow-sm transition ${value ? "left-5" : "left-1"}`} /></span>{value ? "Enabled" : stateLabel as string}</button></div>)}</div></section>}
 

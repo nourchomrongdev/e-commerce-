@@ -3,7 +3,7 @@
 import { useState } from "react";
 import PublicIcon from "@/components/icons/PublicIcon";
 import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
-import { Badge, Toast } from "@/components/ui";
+import { Badge, Card, MetricTile, Toast } from "@/components/ui";
 
 const stats = [["Total Earnings", "$1,245.80", "+12.5%", "dollar"], ["Clicks", "2,458", "+12.5%", "up"], ["Conversions", "186", "+9.3%", "receipt"], ["Conversion Rate", "7.56%", "+2.1%", "dashboard"], ["Pending Payout", "$345.20", "", "payout"]] as const;
 const topProducts = [["Premium Template Pack", "$450.00"], ["UI Design Kit", "$320.00"], ["Icon Set Collection", "$280.00"], ["WordPress Plugin", "$195.00"], ["Mobile App UI Kit", "$120.00"]];
@@ -11,5 +11,125 @@ const conversions = [["Premium Template Pack", "$49.00", "$9.80", "Approved"], [
 
 export default function AffiliateDashboard() {
   const [notice, setNotice] = useState(false);
-  return <div className="mx-auto w-full max-w-[1400px]">{notice && <Toast variant="success" message="Affiliate dashboard data exported successfully." onClose={() => setNotice(false)} />}<header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-2xl font-bold tracking-tight text-heading sm:text-[28px]">Good evening, Affiliate</h1><p className="mt-1 text-sm text-muted">Track your performance and earnings.</p></div><div className="flex gap-2"><button type="button" className="inline-flex items-center gap-2 rounded-lg border border-border-control bg-white px-3 py-2 text-xs font-medium text-body"><PublicIcon name="search" className="h-3.5 w-3.5" />Search anything...</button><button type="button" onClick={() => setNotice(true)} className="inline-flex items-center gap-2 rounded-lg border border-border-control bg-white px-3 py-2 text-xs font-semibold text-body hover:bg-surface-control"><PublicIcon name="down" className="h-3.5 w-3.5 rotate-180" /> Export</button></div></header><section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{stats.map(([label, value, change, icon]) => <article key={label} className="rounded-xl border border-border bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><p className="text-[10px] text-muted-soft">{label}</p><span className="grid h-8 w-8 place-items-center rounded-lg bg-orange-50 text-primary"><PublicIcon name={icon as any} className="h-4 w-4" /></span></div><p className="mt-2 text-lg font-bold text-ink">{value}</p>{change && <p className="mt-1 text-[9px] font-semibold text-status-success">{change}</p>}</article>)}</section><div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"><section className="rounded-2xl border border-border bg-white p-5 shadow-sm sm:p-6"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-heading">Performance Overview</h2><button type="button" className="select-chevron rounded-lg border border-border-control bg-white px-3 py-1.5 pr-8 text-[10px] text-body">This Month</button></div><div className="mt-5 grid h-52 grid-cols-[32px_1fr] gap-3"><div className="flex flex-col justify-between text-[9px] text-muted-soft"><span>1.1K</span><span>750</span><span>500</span><span>250</span><span>0</span></div><div className="relative border-b border-l border-divider"><div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_24%,#eef1f6_25%,transparent_26%,transparent_49%,#eef1f6_50%,transparent_51%,transparent_74%,#eef1f6_75%,transparent_76%)]" /><AnalyticsChart values={[18, 32, 48, 36, 65, 52, 70, 58, 83, 68, 91, 76, 95]} color="#19b5a5" fill="#19b5a5" /></div></div><div className="mt-2 flex justify-between pl-11 text-[9px] text-muted-soft"><span>Aug 1</span><span>Aug 6</span><span>Aug 11</span><span>Aug 16</span><span>Aug 21</span><span>Aug 26</span><span>Aug 31</span></div></section><section className="rounded-2xl border border-border bg-white p-5 shadow-sm"><h2 className="text-sm font-bold text-heading">Top Performing Products</h2><div className="mt-4 space-y-3">{topProducts.map(([name, amount], index) => <div key={name} className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-md bg-blue-50 text-status-info text-[10px] font-bold">{index + 1}</span><span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-body">{name}</span><strong className="text-[10px] text-body-strong">{amount}</strong></div>)}</div></section></div><div className="mt-5 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"><section className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm"><div className="flex items-center justify-between px-5 py-4"><h2 className="text-sm font-bold text-heading">Recent Conversions</h2><button type="button" className="text-[10px] font-semibold text-primary">View all</button></div><div className="overflow-x-auto"><table className="w-full min-w-[580px] text-left text-xs"><thead className="bg-surface-muted text-[10px] text-muted"><tr><th className="px-5 py-3 font-medium">Product</th><th className="py-3 font-medium">Amount</th><th className="py-3 font-medium">Commission</th><th className="py-3 font-medium">Status</th></tr></thead><tbody>{conversions.map(([product, amount, commission, status]) => <tr key={product} className="border-t border-divider"><td className="px-5 py-3 text-[10px] font-medium text-body">{product}</td><td className="py-3 text-[10px] text-body">{amount}</td><td className="py-3 text-[10px] font-semibold text-body-strong">{commission}</td><td className="py-3"><Badge tone={status === "Approved" ? "success" : "warning"}>{status}</Badge></td></tr>)}</tbody></table></div></section><section className="rounded-2xl border border-border bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><h2 className="text-sm font-bold text-heading">Commission Overview</h2><button type="button" className="select-chevron rounded-lg border border-border-control bg-white px-2.5 py-1.5 pr-7 text-[10px] text-body">This Month</button></div><div className="mt-5 flex items-center gap-5"><div className="grid h-32 w-32 shrink-0 place-items-center rounded-full bg-[conic-gradient(#19b5a5_0_72%,#f59e0b_72%_96%,#e2e8f0_96%_100%)]"><div className="grid h-20 w-20 place-items-center rounded-full bg-white text-center"><strong className="text-lg text-heading">1.25K</strong><span className="text-[9px] text-muted">Total</span></div></div><div className="space-y-3 text-[10px] text-body"><p><i className="mr-2 inline-block h-2 w-2 rounded-full bg-status-success" />Approved <span className="ml-3 text-muted">$900.50</span></p><p><i className="mr-2 inline-block h-2 w-2 rounded-full bg-amber-500" />Pending <span className="ml-3 text-muted">$345.20</span></p><p><i className="mr-2 inline-block h-2 w-2 rounded-full bg-slate-300" />Canceled <span className="ml-3 text-muted">$0.10</span></p></div></div></section></div></div>;
+
+  return (
+    <div className="mx-auto w-full max-w-[1400px]">
+      {notice && (
+        <Toast
+          variant="success"
+          message="Affiliate dashboard data exported successfully."
+          onClose={() => setNotice(false)}
+        />
+      )}
+
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-heading sm:text-[28px]">Good evening, Affiliate</h1>
+          <p className="mt-1 text-sm text-muted">Track your performance and earnings.</p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 rounded-lg border border-border-control bg-white px-3 py-2 text-xs font-medium text-body"
+          >
+            <PublicIcon name="search" className="h-3.5 w-3.5" />Search anything...
+          </button>
+          <button
+            type="button"
+            onClick={() => setNotice(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border-control bg-white px-3 py-2 text-xs font-semibold text-body hover:bg-surface-control"
+          >
+            <PublicIcon name="down" className="h-3.5 w-3.5 rotate-180" /> Export
+          </button>
+        </div>
+      </header>
+
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {stats.map(([label, value, change, icon]) => (
+          <MetricTile
+            key={label}
+            label={label}
+            value={value}
+            change={change || undefined}
+            icon={<PublicIcon name={icon as any} className="h-5 w-5" />}
+            iconClassName="text-primary"
+          />
+        ))}
+      </section>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card className="p-5 sm:p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-heading">Performance Overview</h2>
+            <button
+              type="button"
+              className="select-chevron rounded-lg border border-border-control bg-white px-3 py-1.5 text-[10px] font-medium text-body"
+            >
+              This month
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-divider bg-surface-muted p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Top products</h3>
+              <div className="mt-4 space-y-3">
+                {topProducts.map(([product, amount]) => (
+                  <div key={product} className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-medium text-ink">{product}</span>
+                    <span className="text-xs font-semibold text-heading">{amount}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-divider bg-surface-muted p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Conversations</h3>
+              <div className="mt-4 space-y-3">
+                {conversions.map(([product, amount, commission, status]) => (
+                  <div key={product} className="rounded-lg bg-white p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm font-medium text-ink">{product}</span>
+                      <Badge tone={status === "Approved" ? "success" : "warning"}>{status}</Badge>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-muted">
+                      <span>Sale</span>
+                      <span>{amount}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted">
+                      <span>Commission</span>
+                      <span>{commission}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5 sm:p-6">
+          <h2 className="text-sm font-bold text-heading">Performance chart</h2>
+          <div className="mt-4 grid grid-cols-[32px_1fr] gap-3">
+            <div className="flex h-40 flex-col justify-between text-[9px] text-muted-soft">
+              <span>100</span>
+              <span>75</span>
+              <span>50</span>
+              <span>0</span>
+            </div>
+            <div>
+              <div className="relative h-40 border-b border-l border-divider bg-[linear-gradient(to_bottom,transparent_24%,#eef1f6_25%,transparent_26%,transparent_49%,#eef1f6_50%,transparent_51%,transparent_74%,#eef1f6_75%,transparent_76%)]">
+                <AnalyticsChart />
+              </div>
+              <div className="mt-2 flex justify-between text-[9px] text-muted-soft">
+                <span>Week 1</span>
+                <span>Week 2</span>
+                <span>Week 3</span>
+                <span>Week 4</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
 }

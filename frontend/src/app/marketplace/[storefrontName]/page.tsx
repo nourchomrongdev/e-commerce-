@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicIcon from "@/components/icons/PublicIcon";
 import StorefrontCartButton from "@/components/StorefrontCartButton";
+import StorefrontLicenseTable from "@/components/StorefrontLicenseTable";
 
 const products = [
   ["Modern Landing Page Template", "Templates", "$24", "landing"],
@@ -116,6 +117,7 @@ export default async function StorefrontPage({ params }: Props) {
                 />
               ))}
             </div>
+            <StorefrontLicenseTable compact />
             <div className="mt-3 rounded-xl border border-[#e5ebf4] bg-white p-4 shadow-sm">
               <div className="flex gap-6 border-b border-[#edf1f7] text-[10px] font-semibold text-indigo-500">
                 <span className="border-b-2 border-indigo-500 pb-3">

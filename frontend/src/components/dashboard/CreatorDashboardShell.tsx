@@ -36,6 +36,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
   const [showIncompleteBrandingToast, setShowIncompleteBrandingToast] = useState(() => getStoredToastState("storefront-branding-toast", true));
   const [showIncompleteSettingsToast, setShowIncompleteSettingsToast] = useState(() => getStoredToastState("storefront-settings-toast", true));
   const [showIncompletePaymentToast, setShowIncompletePaymentToast] = useState(() => getStoredToastState("storefront-payment-toast", true));
+  const [storefrontLogoUrl, setStorefrontLogoUrl] = useState<string | null>(null);
   const [incompleteTabs, setIncompleteTabs] = useState<{
     Branding?: boolean;
     Settings?: boolean;
@@ -82,6 +83,12 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     Promise.all([
+      fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(nextStorefrontName)}`, { headers })
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) return {};
+          return data.storefront || {};
+        }),
       fetch(`${apiUrl}/creator/storefronts/${encodeURIComponent(nextStorefrontName)}/branding`, { headers })
         .then(async (response) => {
           const data = await response.json();
@@ -101,7 +108,8 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
           return data.payment || {};
         }),
     ])
-      .then(([branding, settings, payment]) => {
+      .then(([storefront, branding, settings, payment]) => {
+        setStorefrontLogoUrl(storefront?.logoUrl || null);
         setIncompleteTabs({
           Branding: !String(branding?.storeName ?? "").trim() || !String(branding?.description ?? "").trim(),
           Settings:
@@ -117,6 +125,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
         });
       })
       .catch(() => {
+        setStorefrontLogoUrl(null);
         setIncompleteTabs({});
       });
   }, [authorized, isStorefrontRoute, pathname, storefrontName]);
@@ -283,6 +292,7 @@ export default function CreatorDashboardShell({ children }: { children: ReactNod
                 storefront={{
                   displayName: storefrontName,
                   type: "Digital Products",
+                  logoUrl: storefrontLogoUrl || undefined,
                 }}
                 activeTab={activeTab}
                 incompleteTabs={incompleteTabs}

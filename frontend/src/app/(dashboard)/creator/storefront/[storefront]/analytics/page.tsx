@@ -1,6 +1,6 @@
 import PublicIcon from "@/components/icons/PublicIcon";
 import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
-import { Button } from "@/components/ui";
+import { Button, MetricTile } from "@/components/ui";
 import { formatCompactCurrency } from "@/lib/formatCurrency";
 
 const storefrontData: Record<string, { displayName: string; type: string }> = {
@@ -68,11 +68,14 @@ export default async function StorefrontAnalyticsPage({ params }: { params: Prom
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {metrics.map(([label, value, change, icon, iconColor, iconBg]) => (
-          <article key={label} className="rounded-xl border border-border bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2"><p className="text-[10px] text-muted-soft">{label}</p><span className={`grid h-7 w-7 place-items-center rounded-lg ${iconBg} ${iconColor}`}><PublicIcon name={icon as any} className="h-3.5 w-3.5" /></span></div>
-            <p className="mt-2 text-lg font-bold text-ink">{value.startsWith("$") ? formatCompactCurrency(value) : value}</p>
-            <p className="mt-1 text-[9px] text-status-success">↑ {change} vs. last month</p>
-          </article>
+          <MetricTile
+            key={label}
+            label={label}
+            value={value.startsWith("$") ? formatCompactCurrency(value) : value}
+            change={`↑ ${change} vs. last month`}
+            icon={<PublicIcon name={icon as any} className="h-5 w-5" />}
+            iconClassName={iconColor}
+          />
         ))}
       </section>
 

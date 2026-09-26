@@ -258,6 +258,10 @@ a[class*="border-border-action"]:has(> span[style*="view.svg"]) > span {
   -webkit-mask: url("/icons/ellipsis-vertical.svg") center / contain no-repeat !important;
 }
 
+button[aria-label="More actions"] + div {
+  display: none !important;
+}
+
 /* Wide data tables use compact cards on phones; desktop keeps the existing table layout. */
 @media (max-width: 767px) {
   .overflow-x-auto:has(> table) {

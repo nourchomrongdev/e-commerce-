@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import StorefrontCartButton from "@/components/StorefrontCartButton";
 import ProductBreadcrumbs from "@/components/ProductBreadcrumbs";
+import StorefrontLicenseTable from "@/components/StorefrontLicenseTable";
 
 type Props = {
   params: Promise<{ storefrontName: string; productSlug: string }>;
@@ -337,6 +338,7 @@ function DetailContent({
           ))}
         </div>
       </Section>
+      <StorefrontLicenseTable />
       <Link
         href={`${productPath}/versions`}
         className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-hover"

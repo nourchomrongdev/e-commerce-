@@ -1,6 +1,6 @@
-import LicenseManager from "@/components/dashboard/LicenseManager";
+import { redirect } from "next/navigation";
 
 export default async function LicenseRulesPage({ params }: { params: Promise<{ storefront: string }> }) {
   const { storefront } = await params;
-  return <LicenseManager view="rules" storefrontName={decodeURIComponent(storefront)} />;
+  redirect(`/creator/storefront/${encodeURIComponent(decodeURIComponent(storefront))}/licenses/types`);
 }
