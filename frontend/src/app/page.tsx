@@ -11,9 +11,9 @@ const features = [
 ];
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden bg-background text-slate-800">
+    <main className="flex min-h-screen flex-col overflow-hidden bg-background text-slate-800">
       <Navbar />
-      <div className="w-full px-4 pb-8 sm:px-8 lg:px-[5%]">
+      <div className="w-full flex-1 px-4 pb-8 sm:px-8 lg:px-[5%]">
         <HeroSection />
         <section className="mt-10 grid gap-8 border-b border-slate-100 pb-10 lg:grid-cols-[.8fr_2fr] lg:items-end">
           <div className="mb-4 flex items-end justify-between gap-3">

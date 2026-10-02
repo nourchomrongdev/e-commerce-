@@ -32,7 +32,6 @@ export const creatorLicenseNavigation: NavItem[] = [
   { label: "License Types", href: "/creator/storefront/TestStore/licenses/types", icon: "type" },
   { label: "License Keys", href: "/creator/storefront/TestStore/licenses/keys", icon: "key" },
   { label: "License Orders", href: "/creator/storefront/TestStore/licenses/orders", icon: "receipt" },
-  { label: "Revoked Licenses", href: "/creator/storefront/TestStore/licenses/revoked", icon: "shield-minus" },
 ];
 
 export const creatorOrderNavigation: NavItem[] = [

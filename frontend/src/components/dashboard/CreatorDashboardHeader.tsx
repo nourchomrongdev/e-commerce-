@@ -161,6 +161,11 @@ export default function CreatorDashboardHeader({
   const isReviewerContext = workspace === "reviewer";
   const isAdminContext = workspace === "admin";
   const activeStorefrontName = isAllStoresOverview || !selectedStorefront ? "All Stores Overview" : selectedStorefront;
+  const currentStorefrontMatch = pathname.match(/^\/creator\/storefront\/([^/]+)(?:\/(.*))?$/);
+  const currentPathStorefront = currentStorefrontMatch ? decodeURIComponent(currentStorefrontMatch[1]) : "";
+  const currentStorefrontSection = currentPathStorefront === selectedStorefront
+    ? currentStorefrontMatch?.[2] ?? "overview"
+    : "overview";
 
   useEffect(() => {
     if (isAffiliateContext || isReviewerContext || isAdminContext) return;
@@ -286,8 +291,9 @@ export default function CreatorDashboardHeader({
                   {isAllStoresOverview && <span className="text-base font-bold text-primary">✓</span>}
                 </Link>
 
-                {storefrontOptions.map(({ name, products, href }) => {
+                {storefrontOptions.map(({ name, products }) => {
                   const isSelected = !isAllStoresOverview && selectedStorefront === name;
+                  const href = `${routes.creator.storefront(name)}/${currentStorefrontSection}`;
 
                   return (
                     <Link
@@ -398,7 +404,7 @@ export default function CreatorDashboardHeader({
                     <div className="border-t border-gray-100" />
                   </>
                 )}
-                <Link href="/affiliate/profile" onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
+                <Link href={pathname.startsWith("/affiliate") ? "/affiliate/profile" : "/creator/profile"} onClick={() => setAccountOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50">
                   <PublicIcon name="user" className="h-5 w-5 text-gray-500" />
                   Profile Settings
                 </Link>

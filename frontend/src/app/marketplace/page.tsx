@@ -13,10 +13,9 @@ const sectionClass = "mt-5";
 
 export default function DigitalProductsPage() {
   return (
-    <main className="w-full overflow-x-hidden">
-      <div className="min-h-screen w-full overflow-x-hidden bg-background">
+    <main className="flex min-h-screen w-full flex-col overflow-x-hidden bg-background">
         <Navbar active="products" />
-        <div className="mx-auto w-full max-w-[1440px] px-3 pb-10 sm:px-6">
+        <div className="mx-auto w-full max-w-[1440px] flex-1 px-3 pb-10 sm:px-6">
           <HeroSection product />
           <section className={sectionClass}>
           <div className="mb-2 flex items-center justify-between">
@@ -31,7 +30,6 @@ export default function DigitalProductsPage() {
           </section>
         </div>
         <PublicFooter />
-      </div>
     </main>
   );
 }

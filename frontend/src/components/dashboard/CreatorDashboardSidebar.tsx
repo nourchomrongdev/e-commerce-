@@ -135,7 +135,6 @@ export default function CreatorDashboardSidebar({
     "License Types": selectedStorefront ? `${storefrontBasePath}/licenses/types` : "/creator/storefront",
     "License Keys": selectedStorefront ? `${storefrontBasePath}/licenses/keys` : "/creator/storefront",
     "License Orders": selectedStorefront ? `${storefrontBasePath}/licenses/orders` : "/creator/storefront",
-    "Revoked Licenses": selectedStorefront ? `${storefrontBasePath}/licenses/revoked` : "/creator/storefront",
     Orders: selectedStorefront ? `${storefrontBasePath}/orders` : "/creator/storefront",
     "Download Activity": selectedStorefront ? `${storefrontBasePath}/orders/downloads` : "/creator/storefront",
     "Re-download Requests": selectedStorefront ? `${storefrontBasePath}/orders/redownloads` : "/creator/storefront",
@@ -181,13 +180,12 @@ export default function CreatorDashboardSidebar({
         "License Types": "types",
         "License Keys": "keys",
         "License Orders": "orders",
-        "Revoked Licenses": "revoked",
       };
       const isActive = !modalOpen && (label === "All Stores Overview"
         ? pathname === href
         : label === "Storefront Overview"
           ? isStorefrontOverviewSection && (pathname === itemHref || Boolean(selectedStorefront && storefrontSection))
-        : ["Storefront", "Storefront Overview", "Store Settings", "Customers", "Analytics", "Verification Status", "Payout Information", "My Products", "Add Product", "Files", "Version History", "Preview Assets", "License Types", "License Keys", "License Orders", "Revoked Licenses", "Orders", "Download Activity", "Re-download Requests", "Refund Requests", "Customer Reviews", "My Responses", "Affiliate Dashboard", "My Profile", "Affiliate Status", "Browse Products", "Affiliate Links", "Create Affiliate Link", "Clicks", "Conversions", "Conversion Rate", "Referral History", "Commission Earnings", "Commission History", "Payout Overview"].includes(label)
+        : ["Storefront", "Storefront Overview", "Store Settings", "Customers", "Analytics", "Verification Status", "Payout Information", "My Products", "Add Product", "Files", "Version History", "Preview Assets", "License Types", "License Keys", "License Orders", "Orders", "Download Activity", "Re-download Requests", "Refund Requests", "Customer Reviews", "My Responses", "Affiliate Dashboard", "My Profile", "Affiliate Status", "Browse Products", "Affiliate Links", "Create Affiliate Link", "Clicks", "Conversions", "Conversion Rate", "Referral History", "Commission Earnings", "Commission History", "Payout Overview"].includes(label)
           && (!storefrontDependent || Boolean(selectedStorefront))
           && (!isProductCreationPage || label === "Add Product")
           && (!isFilesPage || label === "Files")

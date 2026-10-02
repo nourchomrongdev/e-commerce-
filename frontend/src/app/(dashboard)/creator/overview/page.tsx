@@ -6,9 +6,19 @@ import { formatCompactCurrency } from "@/lib/formatCurrency";
 const stats = [
   { label: "Total Sales", value: "$1,284.50", change: "↑ 12.5%", icon: "cart" },
   { label: "Revenue", value: "$1,152.30", change: "↑ 8.2%", icon: "dollar" },
-  { label: "Products", value: "24", change: "+3 this week", icon: "shopping-basket" },
+  {
+    label: "Products",
+    value: "24",
+    change: "+3 this week",
+    icon: "shopping-basket",
+  },
   { label: "Customers", value: "386", change: "↑ 15.4%", icon: "user" },
-  { label: "Total Storefronts", value: "3", change: "+1 this month", icon: "store" },
+  {
+    label: "Total Storefronts",
+    value: "3",
+    change: "+1 this month",
+    icon: "store",
+  },
 ];
 
 const products = [
@@ -45,7 +55,9 @@ export default function CreatorOverview() {
               <MetricTile
                 key={label}
                 label={label}
-                value={value.startsWith("$") ? formatCompactCurrency(value) : value}
+                value={
+                  value.startsWith("$") ? formatCompactCurrency(value) : value
+                }
                 change={change}
                 icon={<PublicIcon name={icon as any} className="h-7 w-7" />}
               />
@@ -56,9 +68,13 @@ export default function CreatorOverview() {
             <Card className="p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-[#111b40]">Sales Overview</h2>
-                <span className="rounded-lg border border-[#e4e7ef] px-3 py-2 text-xs text-[#283554]">
-                  This Month　⌄
-                </span>
+                <button
+                  type="button"
+                  className="flex items-center justify-center rounded-lg border border-[#e7ebf4] bg-[#f7f9fd] px-3 py-1.5 text-xs font-medium text-[#33405d]"
+                >
+                  This Month
+                  <PublicIcon name="down" className="inline-block h-3 w-3" />
+                </button>
               </div>
 
               <div className="mt-6 flex gap-3">
@@ -84,8 +100,16 @@ export default function CreatorOverview() {
                         <stop offset="1" stopColor="#ff5a1f" stopOpacity="0" />
                       </linearGradient>
                     </defs>
-                    <path d="M0 135 30 150 60 132 90 126 120 100 150 64 180 94 210 91 240 30 270 95 300 84 330 78 360 32 390 90 420 48 450 68 480 65 510 20 525 -10 555 40 585 34 615 12 660 5V180H0Z" fill="url(#sales)" />
-                    <path d="M0 135 30 150 60 132 90 126 120 100 150 64 180 94 210 91 240 30 270 95 300 84 330 78 360 32 390 90 420 48 450 68 480 65 510 20 525 -10 555 40 585 34 615 12 660 5" fill="none" stroke="#ff5a1f" strokeWidth="2.5" />
+                    <path
+                      d="M0 135 30 150 60 132 90 126 120 100 150 64 180 94 210 91 240 30 270 95 300 84 330 78 360 32 390 90 420 48 450 68 480 65 510 20 525 -10 555 40 585 34 615 12 660 5V180H0Z"
+                      fill="url(#sales)"
+                    />
+                    <path
+                      d="M0 135 30 150 60 132 90 126 120 100 150 64 180 94 210 91 240 30 270 95 300 84 330 78 360 32 390 90 420 48 450 68 480 65 510 20 525 -10 555 40 585 34 615 12 660 5"
+                      fill="none"
+                      stroke="#ff5a1f"
+                      strokeWidth="2.5"
+                    />
                   </svg>
                   <div className="flex justify-between text-[11px] text-[#6f7894]">
                     <span>Aug 1</span>
@@ -99,11 +123,12 @@ export default function CreatorOverview() {
                 </div>
               </div>
             </Card>
-
           </section>
 
           <Card className="overflow-hidden">
-            <h2 className="px-5 py-4 font-semibold text-[#111b40]">Recent Products</h2>
+            <h2 className="px-5 py-4 font-semibold text-[#111b40]">
+              Recent Products
+            </h2>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[650px] text-left text-xs">
                 <thead className="border-y border-[#edf0f5] bg-[#fcfcfe] text-[#4c5675]">
@@ -119,21 +144,32 @@ export default function CreatorOverview() {
                   {products.map(([name, status, sales, revenue, color]) => (
                     <tr key={name} className="border-b border-[#edf0f5]">
                       <td className="px-7 py-2">
-                        <span className="mr-4 inline-grid h-9 w-9 place-items-center rounded-md text-white" style={{ background: color }}>
+                        <span
+                          className="mr-4 inline-grid h-9 w-9 place-items-center rounded-md text-white"
+                          style={{ background: color }}
+                        >
                           ✦
                         </span>
                         {name}
                       </td>
                       <td>
-                        <span className={`rounded px-4 py-1.5 text-[10px] ${status === "Published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        <span
+                          className={`rounded px-4 py-1.5 text-[10px] ${status === "Published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+                        >
                           {status}
                         </span>
                       </td>
                       <td>{sales}</td>
                       <td>{revenue}</td>
                       <td>
-                        <Link href="/creator/products" className="flex items-center gap-2 font-medium text-primary no-underline">
-                          <PublicIcon name="edit" className="h-4 w-4 text-primary" />
+                        <Link
+                          href="/creator/products"
+                          className="flex items-center gap-2 font-medium text-primary no-underline"
+                        >
+                          <PublicIcon
+                            name="edit"
+                            className="h-4 w-4 text-primary"
+                          />
                           Edit
                         </Link>
                       </td>
@@ -142,7 +178,10 @@ export default function CreatorOverview() {
                 </tbody>
               </table>
             </div>
-            <Link href="/creator/products" className="block py-4 text-center text-xs font-medium text-primary no-underline">
+            <Link
+              href="/creator/products"
+              className="block py-4 text-center text-xs font-medium text-primary no-underline"
+            >
               <span className="inline-flex items-center gap-1">
                 <span>View all products</span>
                 <PublicIcon name="right" className="shrink-0 text-primary" />
@@ -154,14 +193,16 @@ export default function CreatorOverview() {
         <aside className="space-y-5">
           <Card className="p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-[#111b40]">Store Performance</h2>
-            <button
-              type="button"
-              className="flex items-center justify-center rounded-lg border border-[#e7ebf4] bg-[#f7f9fd] px-3 py-1.5 text-xs font-medium text-[#33405d]"
-            >
-                This Month 
-              <PublicIcon name="down" className="inline-block h-3 w-3" />
-            </button>
+              <h2 className="font-semibold text-[#111b40]">
+                Store Performance
+              </h2>
+              <button
+                type="button"
+                className="flex items-center justify-center rounded-lg border border-[#e7ebf4] bg-[#f7f9fd] px-3 py-1.5 text-xs font-medium text-[#33405d]"
+              >
+                This Month
+                <PublicIcon name="down" className="inline-block h-3 w-3" />
+              </button>
             </div>
             <div className="mt-4 space-y-0">
               {[
@@ -170,10 +211,17 @@ export default function CreatorOverview() {
                 ["Avg. Order Value", "$24.65", "↑ 4.8%"],
                 ["Return Customers", "68", "↑ 12.1%"],
               ].map(([label, value, change]) => (
-                <div key={label} className="flex items-center justify-between border-b border-[#edf0f5] py-3 last:border-0">
+                <div
+                  key={label}
+                  className="flex items-center justify-between border-b border-[#edf0f5] py-3 last:border-0"
+                >
                   <span className="text-xs text-[#273252]">{label}</span>
-                  <span className="text-xs font-medium text-[#111b40]">{value}</span>
-                  <span className="text-[10px] font-medium text-emerald-600">{change}</span>
+                  <span className="text-xs font-medium text-[#111b40]">
+                    {value}
+                  </span>
+                  <span className="text-[10px] font-medium text-emerald-600">
+                    {change}
+                  </span>
                 </div>
               ))}
             </div>
@@ -182,16 +230,24 @@ export default function CreatorOverview() {
           <article className="rounded-2xl bg-gradient-to-br from-primary to-secondary p-5 text-white shadow-sm">
             <p className="flex items-center text-sm font-semibold">
               Verification Status
-              <img src="/icons/verified.svg" alt="Verified" className="ml-2 h-6 w-6" />
+              <img
+                src="/icons/verified.svg"
+                alt="Verified"
+                className="ml-2 h-6 w-6"
+              />
             </p>
             <span className="mt-5 inline-flex items-center rounded bg-white px-3 py-1.5 text-xs font-semibold text-primary">
               Verified Creator
             </span>
             <p className="mt-4 text-xs leading-5 text-orange-50">
-              Your account is verified.<br />
+              Your account is verified.
+              <br />
               Your storefront displays the verified badge.
             </p>
-            <Link href="/creator/verification" className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-xs font-medium text-primary no-underline">
+            <Link
+              href="/creator/verification"
+              className="mt-4 inline-block rounded-lg bg-white px-5 py-2.5 text-xs font-medium text-primary no-underline"
+            >
               View Details
             </Link>
           </article>
@@ -199,18 +255,29 @@ export default function CreatorOverview() {
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-[#111b40]">Recent Orders</h2>
-              <Link href="/creator/orders" className="text-xs font-medium text-primary no-underline">View all</Link>
+              <Link
+                href="/creator/orders"
+                className="text-xs font-medium text-primary no-underline"
+              >
+                View all
+              </Link>
             </div>
             <div className="mt-4 space-y-3">
               {orders.map(([number, price, time]) => (
                 <div key={number} className="flex items-center gap-2">
-                  <span className="grid h-7 w-7 place-items-center rounded bg-[#13295a] text-[10px] text-white">✦</span>
+                  <span className="grid h-7 w-7 place-items-center rounded bg-[#13295a] text-[10px] text-white">
+                    ✦
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-medium text-[#1b2748]">{number}</p>
+                    <p className="text-[10px] font-medium text-[#1b2748]">
+                      {number}
+                    </p>
                     <p className="text-[9px] text-[#79819a]">{time}</p>
                   </div>
                   <span className="text-[10px] font-medium">{price}</span>
-                  <span className="rounded bg-emerald-50 px-1.5 py-1 text-[8px] text-emerald-700">Completed</span>
+                  <span className="rounded bg-emerald-50 px-1.5 py-1 text-[8px] text-emerald-700">
+                    Completed
+                  </span>
                 </div>
               ))}
             </div>

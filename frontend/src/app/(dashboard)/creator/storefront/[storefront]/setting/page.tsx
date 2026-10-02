@@ -57,6 +57,8 @@ const timezoneOptions = [
 
 type Storefront = {
   displayName: string;
+  uuid?: string;
+  logoUrl?: string;
   type: string;
   description?: string;
 };
@@ -238,6 +240,8 @@ export default function StorefrontSettingPage({
       .then(([loadedStorefront, settings, branding, payment]) => {
         setStorefront({
           displayName: loadedStorefront.displayName,
+          uuid: loadedStorefront.uuid,
+          logoUrl: loadedStorefront.logoUrl,
           type: loadedStorefront.type || "Digital Products",
           description: loadedStorefront.description || "",
         });
@@ -308,8 +312,8 @@ export default function StorefrontSettingPage({
   };
 
   const storeUrl = siteOrigin
-    ? new URL(routes.marketplaceStorefront(storefront.displayName), siteOrigin).toString()
-    : routes.marketplaceStorefront(storefront.displayName);
+    ? new URL(routes.marketplaceStorefront(storefront.uuid || storefront.displayName), siteOrigin).toString()
+    : routes.marketplaceStorefront(storefront.uuid || storefront.displayName);
 
   const downloadQrCode = () => {
     const canvas = qrCodeRef.current;
@@ -441,7 +445,20 @@ export default function StorefrontSettingPage({
             </div>
 
             <div className="mt-4 flex flex-col items-center rounded-xl border border-[#e2e7f1] bg-white p-4 text-center">
-              <QRCodeCanvas ref={qrCodeRef} value={storeUrl} size={180} bgColor="#ffffff" fgColor="#111b40" includeMargin />
+              <QRCodeCanvas
+                ref={qrCodeRef}
+                value={storeUrl}
+                size={180}
+                bgColor="#ffffff"
+                fgColor="#111b40"
+                includeMargin
+                imageSettings={{
+                  src: storefront.logoUrl || "/icon.png",
+                  width: 36,
+                  height: 36,
+                  excavate: true,
+                }}
+              />
               <p className="mt-3 text-[11px] text-[#8993aa]">Scan to open your public storefront</p>
               <button
                 type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Navbar from "@/components/Navbar";
 import PublicFooter from "@/components/PublicFooter";
 import PublicIcon from "@/components/icons/PublicIcon";
@@ -36,7 +36,7 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
 }
 
-export default function ProfilePage() {
+export default function ProfilePage({ dashboard = false }: { dashboard?: boolean }) {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,6 +67,7 @@ export default function ProfilePage() {
   const role = roleNames[0] ? roleNames[0].charAt(0).toUpperCase() + roleNames[0].slice(1) : "Buyer";
   const hasCreatorRole = roleNames.includes("creator");
   const hasAffiliateRole = roleNames.includes("affiliate");
+  const useSectionedProfileLayout = dashboard || user !== null;
   const roleLinks = hasCreatorRole
     ? [
         ["Creator Studio", "/creator", "store" as const],
@@ -89,9 +90,9 @@ export default function ProfilePage() {
         ];
 
   return (
-    <main className="min-h-screen bg-[#f7f9fd] text-[#142b4d]">
-      <Navbar active={null} />
-      <div className="mx-auto max-w-[1180px] px-4 pb-12 pt-8 sm:px-6 lg:px-8">
+    <main className={dashboard ? "text-[#142b4d]" : "flex min-h-screen flex-col bg-[#f7f9fd] text-[#142b4d]"}>
+      {!dashboard && <Navbar active={null} />}
+      <div className={dashboard ? "w-full" : "mx-auto w-full max-w-[1180px] flex-1 px-4 pb-12 pt-8 sm:px-6 lg:px-8"}>
         <div className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Account</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-heading">My Profile</h1>
@@ -107,6 +108,54 @@ export default function ProfilePage() {
             <Link href="/login" className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-xs font-bold text-white no-underline hover:bg-primary-hover">Sign in</Link>
           </div>
         ) : (
+          useSectionedProfileLayout ? (
+            <div className="overflow-hidden border border-border bg-white">
+              <section className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(250px,0.34fr)] lg:gap-10">
+                <div>
+                  <SectionTitle>Profile information</SectionTitle>
+                  <div className="mt-6 flex flex-wrap items-center gap-4 border-b border-divider pb-6">
+                    <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-500 text-xl font-bold text-white">{initials(name)}</div>
+                    <div className="min-w-0 flex-1"><h2 className="text-lg font-bold text-heading">{name}</h2><p className="mt-1 text-sm text-muted">{user?.email || "Email not available"}</p><div className="mt-2 flex flex-wrap gap-2">{roleNames.map((roleName) => <span key={roleName} className="inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-bold capitalize text-primary">{roleName}</span>)}</div></div>
+                    <button type="button" className="rounded-md border border-primary px-4 py-2 text-xs font-bold text-primary hover:bg-orange-50">Edit profile</button>
+                  </div>
+                  <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+                    <ProfileField label="Full name" value={name} />
+                    <ProfileField label="Username" value={user?.username || "Not available"} />
+                    <ProfileField label="Email address" value={user?.email || "Not available"} />
+                    <ProfileField label="Phone number" value={user?.phone || "Not added"} />
+                  </div>
+                </div>
+                <aside className="border-t border-divider pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                  <SectionTitle>Status</SectionTitle>
+                  <div className="mt-6 space-y-5">
+                    <ProfileField label="Email verification" value={user?.isVerified ? "Verified" : "Not verified"} />
+                    <ProfileField label="Member since" value={formatDate(user?.createdAt)} />
+                  </div>
+                </aside>
+              </section>
+              <section className="border-t border-divider px-6 py-6 sm:px-8">
+                <SectionTitle>Account activity</SectionTitle>
+                <div className="mt-5 grid gap-5 sm:grid-cols-3">
+                  <Stat icon="shopping-cart" label="Purchases" value="0" />
+                  <Stat icon="download" label="Downloads" value="0" />
+                  <Stat icon="heart-plus" label="Saved products" value="0" />
+                </div>
+              </section>
+              <section className="grid gap-8 border-t border-divider px-6 py-6 sm:px-8 lg:grid-cols-2">
+                <div><SectionTitle>Payment method</SectionTitle><div className="mt-5"><PaymentSettings /></div></div>
+                <div><SectionTitle>Quick links</SectionTitle><div className="mt-3 space-y-1"><QuickLink href="/buyer/account" icon="settings" label="Account settings" />{roleLinks.map(([label, href, icon]) => <QuickLink key={label} href={href} icon={icon} label={label} />)}<QuickLink href="/marketplace" icon="product" label="Browse marketplace" /></div></div>
+              </section>
+              <section className="border-t border-divider px-6 py-6 sm:px-8">
+                <SectionTitle>Advanced settings</SectionTitle>
+                <div className="mt-4 divide-y divide-divider">
+                  <SettingLink label="Security and password" detail="Password, sessions, and two-step verification" />
+                  <SettingLink label="Notifications" detail="Email and marketplace updates" />
+                  <SettingLink label="Privacy" detail="Profile visibility and data preferences" />
+                  <SettingLink label="Connected accounts" detail="Google and social sign-in connections" />
+                </div>
+              </section>
+            </div>
+          ) : (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
             <section className="space-y-5">
               <div className="rounded-xl border border-border bg-white p-5 shadow-sm sm:p-7">
@@ -172,15 +221,24 @@ export default function ProfilePage() {
               </section>
             </aside>
           </div>
+          )
         )}
       </div>
-      <PublicFooter />
+      {!dashboard && <PublicFooter />}
     </main>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
   return <div><p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-soft">{label}</p><p className="mt-1 break-words text-sm font-semibold text-heading">{value}</p></div>;
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="border-l-2 border-primary pl-3 text-sm font-bold text-heading">{children}</h2>;
+}
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs text-muted">{label}</p><p className="mt-1 break-words text-sm font-medium text-heading">{value}</p></div>;
 }
 
 function Stat({ icon, label, value }: { icon: "shopping-cart" | "download" | "heart-plus"; label: string; value: string }) {

@@ -1,5 +1,6 @@
 const express = require("express");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const fs = require("fs/promises");
 const path = require("path");
 const { sequelize, UserAccount, UserRole, UserAccountRole, CreatorProfile, Storefront, CreatorPayoutInfo, CardInfo, Product, ProductFile, ProductPreview, ProductVersion, Order, OrderItem } = require("../models");
@@ -10,6 +11,7 @@ const { ensureCreatorRoleForUser, findByToken } = require("../controllers/authHe
 const { deleteEncryptedImage, readEncryptedImage, saveEncryptedImage } = require("../services/encryptedImageService");
 const { saveProductFile } = require("../services/productFileService");
 const { setupPaymentToken } = require("../services/paypalService");
+const { sendSecurityEmail } = require("../services/mailService");
 
 const router = express.Router();
 const MARKETPLACE_FEE_RATE = 0.2;
@@ -47,6 +49,11 @@ function decryptSensitiveValue(value) {
   }
 
   return value;
+}
+
+function maskLicenseKey(value) {
+  const key = String(value || "");
+  return key.length > 8 ? `${key.slice(0, 4)}****${key.slice(-4)}` : "********";
 }
 
 function isValidCardNumber(cardNumber) {
@@ -623,6 +630,12 @@ router.get("/creator/storefronts/:storefrontName/licenses/:view", async (req, re
     if (!storefront) return res.status(404).json({ error: "Storefront not found." });
     const view = String(req.params.view);
     const search = String(req.query.search || "").trim();
+    if (view === "options") {
+      const [orderItems] = await sequelize.query('SELECT oi."OrderItemId" AS "orderItemId", oi."ProductId" AS "productId", oi."ProductName" AS "productName", oi."Quantity" - COALESCE(issued."IssuedCount", 0) AS "remaining", o."OrderNumber" AS "orderNumber", ui."Email" AS "buyerEmail" FROM "OrderItems" oi JOIN "Orders" o ON o."OrderId" = oi."OrderId" JOIN "Products" p ON p."ProductId" = oi."ProductId" LEFT JOIN "UserAccounts" ua ON ua."UserId" = o."UserId" LEFT JOIN "UserInfo" ui ON ui."UserInfoId" = ua."UserInfoId" LEFT JOIN (SELECT "OrderItemId", COUNT(*) AS "IssuedCount" FROM "Licenses" GROUP BY "OrderItemId") issued ON issued."OrderItemId" = oi."OrderItemId" WHERE oi."StorefrontId" = :storefrontId AND o."Status" IN (\'paid\', \'processing\', \'completed\') AND oi."Quantity" > COALESCE(issued."IssuedCount", 0) ORDER BY o."CreatedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId } });
+      const [products] = await sequelize.query('SELECT "ProductId" AS id, "ProductName" AS name FROM "Products" WHERE "StorefrontId" = :storefrontId ORDER BY "ProductName"', { replacements: { storefrontId: storefront.StorefrontId } });
+      const [licenseTypes] = await sequelize.query('SELECT "LicenseTypeId" AS id, "LicenseName" AS name, "DurationDays" AS "durationDays" FROM "LicenseTypes" WHERE "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) ORDER BY "LicenseName"', { replacements: { storefrontId: storefront.StorefrontId } });
+      return res.json({ orderItems, products, licenseTypes });
+    }
     if (view === "types") {
       const [rows] = await sequelize.query('SELECT "LicenseTypeId", "LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive" FROM "LicenseTypes" WHERE "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) AND ("LicenseName" ILIKE :search OR COALESCE("Description", \'\') ILIKE :search) ORDER BY "LicenseTypeId" ASC', { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
       const [rules] = await sequelize.query('SELECT "RuleName", "AppliesTo", "Description" FROM "LicenseRules" WHERE "StorefrontId" = :storefrontId', { replacements: { storefrontId: storefront.StorefrontId } });
@@ -640,12 +653,25 @@ router.get("/creator/storefronts/:storefrontName/licenses/:view", async (req, re
     }
     if (view === "keys" || view === "revoked") {
       const status = view === "revoked" ? "revoked" : null;
-      const [rows] = await sequelize.query('SELECT l."LicenseId", l."UUID", l."LicenseKey", l."Status", l."IssuedAt", l."RevokedAt", l."RevocationReason", p."ProductName", lt."LicenseName", u."Email" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "LicenseTypes" lt ON lt."LicenseTypeId" = l."LicenseTypeId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" WHERE p."StorefrontId" = :storefrontId AND (:status IS NULL OR l."Status" = :status) AND (l."LicenseKey" ILIKE :search OR p."ProductName" ILIKE :search OR COALESCE(lt."LicenseName", \'\') ILIKE :search) ORDER BY l."IssuedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, status, search: `%${search}%` } });
-      return res.json({ rows: rows.map((row) => ({ id: Number(row.LicenseId), key: row.LicenseKey, product: capitalizeFirstCharacter(row.ProductName), licenseType: row.LicenseName || "All", status: row.Status === "active" ? "Active" : "Revoked", activatedBy: row.Email || "-", activatedOn: row.IssuedAt, revokedOn: row.RevokedAt, reason: row.RevocationReason || "-" })) });
+      const [rows] = await sequelize.query('SELECT l."LicenseId", l."UUID", l."LicenseKey", l."LicenseTypeId", l."OrderItemId", l."Status", l."IssuedAt", l."RevokedAt", l."RevocationReason", p."ProductId", p."ProductName", lt."LicenseName", ui."Email", la."DeviceName", la."IPAddress", la."ActivatedAt" AS "ActivationActivatedAt" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "LicenseTypes" lt ON lt."LicenseTypeId" = l."LicenseTypeId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" LEFT JOIN "UserInfo" ui ON ui."UserInfoId" = u."UserInfoId" LEFT JOIN LATERAL (SELECT "DeviceName", "IPAddress", "ActivatedAt" FROM "LicenseActivations" WHERE "LicenseId" = l."LicenseId" ORDER BY "ActivatedAt" DESC LIMIT 1) la ON TRUE WHERE p."StorefrontId" = :storefrontId AND (:status IS NULL OR l."Status" = :status) ORDER BY l."IssuedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, status } });
+      const licenseRows = rows.map((row) => {
+        const licenseKey = decryptSensitiveValue(row.LicenseKey);
+        return { id: Number(row.LicenseId), uuid: row.UUID, key: maskLicenseKey(licenseKey), searchText: licenseKey, orderItemId: row.OrderItemId ? Number(row.OrderItemId) : null, productId: Number(row.ProductId), licenseTypeId: row.LicenseTypeId ? Number(row.LicenseTypeId) : null, product: capitalizeFirstCharacter(row.ProductName), licenseType: row.LicenseName || "All", status: row.Status === "active" ? "Active" : "Revoked", activatedBy: row.Email || "-", activatedOn: row.IssuedAt || row.ActivationActivatedAt, revokedOn: row.RevokedAt, reason: row.RevocationReason || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", buyerEmail: row.Email || "-" };
+      });
+      const filteredRows = search ? licenseRows.filter((row) => {
+        const searchable = [row.product, row.licenseType, row.status, row.activatedBy, row.reason, row.revokedOn, row.activatedOn].filter((value) => value !== null && value !== undefined && value !== "-");
+        return searchable.some((value) => String(value).toLowerCase().includes(search.toLowerCase()));
+      }) : licenseRows;
+      return res.json({ rows: filteredRows.map(({ searchText, ...row }) => row) });
     }
     if (view === "activations") {
-      const [rows] = await sequelize.query('SELECT a."ActivationId", a."UUID", a."DeviceName", a."IPAddress", a."ActivatedAt", a."IsActive", l."LicenseKey", p."ProductName", u."Email" FROM "LicenseActivations" a JOIN "Licenses" l ON l."LicenseId" = a."LicenseId" JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" WHERE p."StorefrontId" = :storefrontId AND (l."LicenseKey" ILIKE :search OR p."ProductName" ILIKE :search OR COALESCE(u."Email", \'\') ILIKE :search) ORDER BY a."ActivatedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
-      return res.json({ rows: rows.map((row) => ({ id: Number(row.ActivationId), key: row.LicenseKey, product: capitalizeFirstCharacter(row.ProductName), activatedBy: row.Email || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", activatedOn: row.ActivatedAt, status: row.IsActive ? "Active" : "Inactive" })) });
+      const [rows] = await sequelize.query('SELECT a."ActivationId", a."UUID", a."DeviceName", a."IPAddress", a."ActivatedAt", a."IsActive", l."LicenseId", l."LicenseKey", p."ProductName", ui."Email" FROM "LicenseActivations" a JOIN "Licenses" l ON l."LicenseId" = a."LicenseId" JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" LEFT JOIN "UserInfo" ui ON ui."UserInfoId" = u."UserInfoId" WHERE p."StorefrontId" = :storefrontId ORDER BY a."ActivatedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId } });
+      const activationRows = rows.map((row) => {
+        const licenseKey = decryptSensitiveValue(row.LicenseKey);
+        return { id: Number(row.ActivationId), licenseId: Number(row.LicenseId), key: maskLicenseKey(licenseKey), searchText: licenseKey, product: capitalizeFirstCharacter(row.ProductName), activatedBy: row.Email || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", activatedOn: row.ActivatedAt, status: row.IsActive ? "Active" : "Inactive" };
+      });
+      const filteredRows = search ? activationRows.filter((row) => Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(search.toLowerCase()))) : activationRows;
+      return res.json({ rows: filteredRows.map(({ searchText, ...row }) => row) });
     }
     return res.status(400).json({ error: "Unsupported license view." });
   } catch (error) {
@@ -743,6 +769,146 @@ router.delete("/creator/storefronts/:storefrontName/licenses/rules/:id", async (
   if (!storefront) return res.status(404).json({ error: "Storefront not found." });
   const [rows] = await sequelize.query('DELETE FROM "LicenseRules" WHERE "LicenseRuleId" = :id AND "StorefrontId" = :storefrontId RETURNING "LicenseRuleId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
   return rows[0] ? res.status(204).send() : res.status(404).json({ error: "License rule not found." });
+});
+
+router.post("/creator/storefronts/:storefrontName/licenses/keys", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const orderItemId = req.body.orderItemId ? Number(req.body.orderItemId) : null;
+    let productId = Number(req.body.productId) || 0;
+    let userId = null;
+    if (orderItemId) {
+      const [items] = await sequelize.query('SELECT oi."OrderItemId", oi."ProductId", oi."Quantity", o."UserId" FROM "OrderItems" oi JOIN "Orders" o ON o."OrderId" = oi."OrderId" WHERE oi."OrderItemId" = :orderItemId AND oi."StorefrontId" = :storefrontId AND o."Status" IN (\'paid\', \'processing\', \'completed\')', { replacements: { orderItemId, storefrontId: storefront.StorefrontId } });
+      if (!items[0]) return res.status(400).json({ error: "Select an eligible paid order item." });
+      const [issuedRows] = await sequelize.query('SELECT COUNT(*) AS count FROM "Licenses" WHERE "OrderItemId" = :orderItemId', { replacements: { orderItemId } });
+      if (Number(issuedRows[0].count) >= Number(items[0].Quantity)) return res.status(409).json({ error: "All licenses for this order item have already been issued." });
+      productId = Number(items[0].ProductId);
+      userId = Number(items[0].UserId);
+    } else {
+      const [products] = await sequelize.query('SELECT "ProductId" FROM "Products" WHERE "ProductId" = :productId AND "StorefrontId" = :storefrontId', { replacements: { productId, storefrontId: storefront.StorefrontId } });
+      if (!products[0]) return res.status(400).json({ error: "Select a product from this storefront." });
+    }
+    const licenseTypeId = req.body.licenseTypeId ? Number(req.body.licenseTypeId) : null;
+    if (!licenseTypeId) return res.status(400).json({ error: "Select a license type." });
+    let durationDays = null;
+    if (licenseTypeId) {
+      const [types] = await sequelize.query('SELECT "DurationDays" FROM "LicenseTypes" WHERE "LicenseTypeId" = :licenseTypeId AND "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL)', { replacements: { licenseTypeId, storefrontId: storefront.StorefrontId } });
+      if (!types[0]) return res.status(400).json({ error: "Select a valid license type." });
+      durationDays = types[0].DurationDays;
+    }
+    const licenseKey = String(req.body.key || "").trim();
+    if (!licenseKey || licenseKey.length > 255) return res.status(400).json({ error: "License key is required and must be 255 characters or fewer." });
+    const licenseKeyHash = crypto.createHash("sha256").update(licenseKey).digest("hex");
+    const expiresAt = durationDays ? new Date(Date.now() + Number(durationDays) * 86400000) : null;
+    const [rows] = await sequelize.query('INSERT INTO "Licenses" ("LicenseKey", "LicenseKeyHash", "OrderItemId", "ProductId", "UserId", "LicenseTypeId", "ExpiresAt", "Status") VALUES (:licenseKey, :licenseKeyHash, :orderItemId, :productId, :userId, :licenseTypeId, :expiresAt, \'active\') RETURNING "LicenseId"', { replacements: { licenseKey: encryptSensitiveValue(licenseKey), licenseKeyHash, orderItemId, productId, userId, licenseTypeId, expiresAt } });
+    return res.status(201).json({ id: Number(rows[0].LicenseId), key: licenseKey });
+  } catch (error) {
+    return res.status(error.name === "SequelizeUniqueConstraintError" ? 409 : 400).json({ error: error.message || "Unable to create license key." });
+  }
+});
+
+router.put("/creator/storefronts/:storefrontName/licenses/keys/:id", async (req, res) => {
+  try {
+    const storefront = await licenseStorefront(req);
+    if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+    const [existingRows] = await sequelize.query('SELECT l."LicenseKey", l."LicenseTypeId" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" WHERE l."LicenseId" = :id AND p."StorefrontId" = :storefrontId', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+    if (!existingRows[0]) return res.status(404).json({ error: "License key not found." });
+    const licenseTypeId = req.body.licenseTypeId === undefined ? existingRows[0].LicenseTypeId : req.body.licenseTypeId ? Number(req.body.licenseTypeId) : null;
+    if (!licenseTypeId) return res.status(400).json({ error: "Select a license type." });
+    if (licenseTypeId) {
+      const [types] = await sequelize.query('SELECT "LicenseTypeId" FROM "LicenseTypes" WHERE "LicenseTypeId" = :licenseTypeId AND "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL)', { replacements: { licenseTypeId, storefrontId: storefront.StorefrontId } });
+      if (!types[0]) return res.status(400).json({ error: "Select a valid license type." });
+    }
+    const licenseKey = req.body.key === undefined ? null : String(req.body.key).trim();
+    if (licenseKey !== null && (!licenseKey || licenseKey.length > 255)) return res.status(400).json({ error: "License key is required and must be 255 characters or fewer." });
+    const values = licenseKey === null ? { licenseKey: existingRows[0].LicenseKey, licenseKeyHash: null } : { licenseKey: encryptSensitiveValue(licenseKey), licenseKeyHash: crypto.createHash("sha256").update(licenseKey).digest("hex") };
+    const [rows] = await sequelize.query('UPDATE "Licenses" SET "LicenseKey" = :licenseKey, "LicenseKeyHash" = COALESCE(:licenseKeyHash, "LicenseKeyHash"), "LicenseTypeId" = :licenseTypeId WHERE "LicenseId" = :id RETURNING "LicenseId"', { replacements: { ...values, licenseTypeId, id: req.params.id } });
+    return rows[0] ? res.json({ success: true }) : res.status(404).json({ error: "License key not found." });
+  } catch (error) {
+    return res.status(error.name === "SequelizeUniqueConstraintError" ? 409 : 400).json({ error: error.message || "Unable to update license key." });
+  }
+});
+
+router.post("/creator/storefronts/:storefrontName/licenses/keys/:id/reveal-otp", async (req, res) => {
+  try {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const [licenses] = await sequelize.query('SELECT l."LicenseId" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" WHERE l."LicenseId" = :id AND p."StorefrontId" = :storefrontId', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+  if (!licenses[0]) return res.status(404).json({ error: "License key not found." });
+  const [accounts] = await sequelize.query('SELECT ua."LicenseRevealOtpHash", ua."LicenseRevealOtpExpiresAt", ui."Email" FROM "UserAccounts" ua JOIN "UserInfo" ui ON ui."UserInfoId" = ua."UserInfoId" WHERE ua."UserId" = :userId', { replacements: { userId: req.userId } });
+  const account = accounts[0];
+  if (!account?.Email) return res.status(404).json({ error: "Account email is unavailable." });
+  const [localPart, domain] = String(account.Email).split("@");
+  const maskedEmail = `${localPart.slice(0, 1)}***@${domain}`;
+  if (account.LicenseRevealOtpHash && account.LicenseRevealOtpExpiresAt && new Date(account.LicenseRevealOtpExpiresAt) > new Date()) {
+    return res.status(429).json({ error: "A reveal code was already sent. Enter it below.", codeAlreadySent: true, maskedEmail });
+  }
+  const otp = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+  const otpHash = crypto.createHash("sha256").update(`${req.params.id}:${otp}`).digest("hex");
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await sequelize.query('UPDATE "UserAccounts" SET "LicenseRevealOtpHash" = :otpHash, "LicenseRevealOtpExpiresAt" = :expiresAt, "LicenseRevealOtpAttempts" = 0 WHERE "UserId" = :userId', { replacements: { otpHash, expiresAt, userId: req.userId } });
+  const sent = await sendSecurityEmail({ to: account.Email, subject: "License key reveal code", text: `Your license key reveal code is ${otp}. It expires in 10 minutes and can be used only once.` });
+  if (!sent) {
+    await sequelize.query('UPDATE "UserAccounts" SET "LicenseRevealOtpHash" = NULL, "LicenseRevealOtpExpiresAt" = NULL, "LicenseRevealOtpAttempts" = 0 WHERE "UserId" = :userId', { replacements: { userId: req.userId } });
+    return res.status(503).json({ error: "Email delivery is unavailable. Use password verification or try later." });
+  }
+  return res.json({ message: "A reveal code was sent.", maskedEmail });
+  } catch (error) {
+    console.error("License reveal OTP request failed:", error);
+    const databaseMessage = String(error.original?.message ?? error.message ?? "");
+    if (/LicenseRevealOtp(?:Hash|ExpiresAt|Attempts)/i.test(databaseMessage)) {
+      return res.status(503).json({ error: "License reveal verification is not initialized. Run the backend database migrations, then retry." });
+    }
+    return res.status(500).json({ error: "Unable to send the license reveal code." });
+  }
+});
+
+router.post("/creator/storefronts/:storefrontName/licenses/keys/:id/reveal", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const [licenses] = await sequelize.query('SELECT l."LicenseId", l."LicenseKey" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" WHERE l."LicenseId" = :id AND p."StorefrontId" = :storefrontId', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+  if (!licenses[0]) return res.status(404).json({ error: "License key not found." });
+
+  if (req.body.password) {
+    const account = await UserAccount.findByPk(req.userId);
+    if (!account?.PasswordHash) return res.status(400).json({ error: "Password verification is unavailable for this account. Use email OTP." });
+    if (!(await bcrypt.compare(String(req.body.password), account.PasswordHash))) return res.status(401).json({ error: "Password is incorrect." });
+  } else if (req.body.otp) {
+    const otp = String(req.body.otp).trim();
+    if (!/^\d{6}$/.test(otp)) return res.status(400).json({ error: "Enter the six-digit email code." });
+    const [accounts] = await sequelize.query('SELECT "LicenseRevealOtpHash", "LicenseRevealOtpExpiresAt", "LicenseRevealOtpAttempts" FROM "UserAccounts" WHERE "UserId" = :userId', { replacements: { userId: req.userId } });
+    const account = accounts[0];
+    const attempts = Number(account?.LicenseRevealOtpAttempts || 0);
+    if (!account?.LicenseRevealOtpHash || !account.LicenseRevealOtpExpiresAt || new Date(account.LicenseRevealOtpExpiresAt) <= new Date()) return res.status(401).json({ error: "The reveal code is invalid or expired. Request another code." });
+    if (attempts >= 5) return res.status(429).json({ error: "Too many incorrect codes. Request a new code after this one expires." });
+    const expectedHash = crypto.createHash("sha256").update(`${req.params.id}:${otp}`).digest("hex");
+    const actualHash = String(account.LicenseRevealOtpHash);
+    const matches = crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(actualHash));
+    if (!matches) {
+      await sequelize.query('UPDATE "UserAccounts" SET "LicenseRevealOtpAttempts" = "LicenseRevealOtpAttempts" + 1 WHERE "UserId" = :userId', { replacements: { userId: req.userId } });
+      return res.status(401).json({ error: "The reveal code is incorrect." });
+    }
+    await sequelize.query('UPDATE "UserAccounts" SET "LicenseRevealOtpHash" = NULL, "LicenseRevealOtpExpiresAt" = NULL, "LicenseRevealOtpAttempts" = 0 WHERE "UserId" = :userId', { replacements: { userId: req.userId } });
+  } else {
+    return res.status(400).json({ error: "Enter your password or an email OTP." });
+  }
+
+  return res.json({ key: decryptSensitiveValue(licenses[0].LicenseKey) });
+});
+
+router.delete("/creator/storefronts/:storefrontName/licenses/keys/:id", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const [rows] = await sequelize.query('DELETE FROM "Licenses" l USING "Products" p WHERE l."LicenseId" = :id AND p."ProductId" = l."ProductId" AND p."StorefrontId" = :storefrontId RETURNING l."LicenseId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+  return rows[0] ? res.status(204).send() : res.status(404).json({ error: "License key not found." });
+});
+
+router.delete("/creator/storefronts/:storefrontName/licenses/orders/:id", async (req, res) => {
+  const storefront = await licenseStorefront(req);
+  if (!storefront) return res.status(404).json({ error: "Storefront not found." });
+  const [rows] = await sequelize.query('DELETE FROM "LicenseActivations" a USING "Licenses" l, "Products" p WHERE a."ActivationId" = :id AND l."LicenseId" = a."LicenseId" AND p."ProductId" = l."ProductId" AND p."StorefrontId" = :storefrontId RETURNING a."ActivationId"', { replacements: { id: req.params.id, storefrontId: storefront.StorefrontId } });
+  return rows[0] ? res.status(204).send() : res.status(404).json({ error: "License activation not found." });
 });
 
 router.patch("/creator/storefronts/:storefrontName/licenses/keys/:id", async (req, res) => {
@@ -1148,6 +1314,7 @@ function serializeStorefront(storefront, productCount = 0) {
   if (!storefront) return null;
   return {
     id: storefront.StorefrontId,
+    uuid: storefront.UUID,
     displayName: capitalizeFirstCharacter(storefront.StoreName),
     slug: storefront.StoreSlug,
     type: "Digital Products",

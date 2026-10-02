@@ -1,0 +1,3 @@
+ALTER TABLE "Licenses"
+    ALTER COLUMN "OrderItemId" DROP NOT NULL,
+    ALTER COLUMN "UserId" DROP NOT NULL;
