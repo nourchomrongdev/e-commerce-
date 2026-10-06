@@ -539,7 +539,7 @@ function releasePayload(body) {
       price: productPrice,
       isFree: productPrice === 0,
       license: String(release.license || body.license || "All").replace(/\s+License$/i, "").trim(),
-      licenses: Array.isArray(release.licenses) ? release.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: release.isFree ? 0 : Number(license.price ?? productPrice), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [],
+      licenses: Array.isArray(release.licenses) ? release.licenses.map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: release.isFree ? 0 : Number(license.price ?? productPrice), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [],
       releaseNotes: String(release.releaseNotes || release.summary || "").trim(),
       current: release.current !== false,
       files: Array.isArray(release.files) ? release.files.filter((file) => isSafeProductStorageKey(file?.storageKey) && file?.fileName) : [],
@@ -550,7 +550,7 @@ function releasePayload(body) {
   }
   releases.forEach((release) => {
     if (!release.licenses.length) release.licenses = [{ name: release.license, price: release.isFree ? 0 : release.price, access: "Lifetime Access", downloadLimit: null }];
-    release.licenses = release.licenses.filter((license, index, all) => license.name && Number.isFinite(license.price) && license.price >= 0 && all.findIndex((item) => item.name.toLowerCase() === license.name.toLowerCase()) === index).slice(0, 4);
+    release.licenses = release.licenses.filter((license, index, all) => license.name && Number.isFinite(license.price) && license.price >= 0 && all.findIndex((item) => item.name.toLowerCase() === license.name.toLowerCase()) === index);
     if (!release.licenses.length) throw new Error("Choose at least one licence for every product version.");
     release.license = release.licenses[0]?.name ?? null;
     if (release.files.length > MAX_PRODUCT_FILES)
@@ -586,7 +586,7 @@ function serializeLicenseType(row) {
   return {
     id: Number(row.LicenseTypeId),
     storefrontId: row.StorefrontId ? Number(row.StorefrontId) : null,
-    name: row.LicenseName,
+    name: capitalizeFirstCharacter(String(row.LicenseName || "").toLowerCase()),
     description: row.Description || "",
     duration: row.DurationDays ? `${Number(row.DurationDays)} days` : "Lifetime",
     durationDays: row.DurationDays ? Number(row.DurationDays) : null,
@@ -599,11 +599,15 @@ function serializeLicenseType(row) {
 function serializeLicenseRule(row) {
   let appliesTo = row.AppliesTo;
   try { appliesTo = JSON.parse(row.AppliesTo); } catch { /* legacy rule text */ }
+  const appliesToNames = String(row.AppliesToNames || (Array.isArray(appliesTo) ? "" : appliesTo))
+    .split(",")
+    .map((name) => capitalizeFirstCharacter(name.trim().toLowerCase()))
+    .join(", ");
   return {
     id: Number(row.LicenseRuleId),
     storefrontId: row.StorefrontId ? Number(row.StorefrontId) : null,
     name: row.RuleName,
-    appliesTo: row.AppliesToNames || (Array.isArray(appliesTo) ? "" : appliesTo),
+    appliesTo: appliesToNames,
     appliesToIds: Array.isArray(appliesTo) ? appliesTo.map(Number) : [],
     description: row.Description || "",
     status: row.IsActive ? "Active" : "Inactive",
@@ -634,7 +638,7 @@ router.get("/creator/storefronts/:storefrontName/licenses/:view", async (req, re
       const [orderItems] = await sequelize.query('SELECT oi."OrderItemId" AS "orderItemId", oi."ProductId" AS "productId", oi."ProductName" AS "productName", oi."Quantity" - COALESCE(issued."IssuedCount", 0) AS "remaining", o."OrderNumber" AS "orderNumber", ui."Email" AS "buyerEmail" FROM "OrderItems" oi JOIN "Orders" o ON o."OrderId" = oi."OrderId" JOIN "Products" p ON p."ProductId" = oi."ProductId" LEFT JOIN "UserAccounts" ua ON ua."UserId" = o."UserId" LEFT JOIN "UserInfo" ui ON ui."UserInfoId" = ua."UserInfoId" LEFT JOIN (SELECT "OrderItemId", COUNT(*) AS "IssuedCount" FROM "Licenses" GROUP BY "OrderItemId") issued ON issued."OrderItemId" = oi."OrderItemId" WHERE oi."StorefrontId" = :storefrontId AND o."Status" IN (\'paid\', \'processing\', \'completed\') AND oi."Quantity" > COALESCE(issued."IssuedCount", 0) ORDER BY o."CreatedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId } });
       const [products] = await sequelize.query('SELECT "ProductId" AS id, "ProductName" AS name FROM "Products" WHERE "StorefrontId" = :storefrontId ORDER BY "ProductName"', { replacements: { storefrontId: storefront.StorefrontId } });
       const [licenseTypes] = await sequelize.query('SELECT "LicenseTypeId" AS id, "LicenseName" AS name, "DurationDays" AS "durationDays" FROM "LicenseTypes" WHERE "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) ORDER BY "LicenseName"', { replacements: { storefrontId: storefront.StorefrontId } });
-      return res.json({ orderItems, products, licenseTypes });
+      return res.json({ orderItems, products, licenseTypes: licenseTypes.map((licenseType) => ({ ...licenseType, name: capitalizeFirstCharacter(String(licenseType.name || "").toLowerCase()) })) });
     }
     if (view === "types") {
       const [rows] = await sequelize.query('SELECT "LicenseTypeId", "LicenseName", "Description", "MaxActivations", "DurationDays", "StorefrontId", "IsActive" FROM "LicenseTypes" WHERE "IsActive" = TRUE AND ("StorefrontId" = :storefrontId OR "StorefrontId" IS NULL) AND ("LicenseName" ILIKE :search OR COALESCE("Description", \'\') ILIKE :search) ORDER BY "LicenseTypeId" ASC', { replacements: { storefrontId: storefront.StorefrontId, search: `%${search}%` } });
@@ -656,7 +660,7 @@ router.get("/creator/storefronts/:storefrontName/licenses/:view", async (req, re
       const [rows] = await sequelize.query('SELECT l."LicenseId", l."UUID", l."LicenseKey", l."LicenseTypeId", l."OrderItemId", l."Status", l."IssuedAt", l."RevokedAt", l."RevocationReason", p."ProductId", p."ProductName", lt."LicenseName", ui."Email", la."DeviceName", la."IPAddress", la."ActivatedAt" AS "ActivationActivatedAt" FROM "Licenses" l JOIN "Products" p ON p."ProductId" = l."ProductId" LEFT JOIN "LicenseTypes" lt ON lt."LicenseTypeId" = l."LicenseTypeId" LEFT JOIN "UserAccounts" u ON u."UserId" = l."UserId" LEFT JOIN "UserInfo" ui ON ui."UserInfoId" = u."UserInfoId" LEFT JOIN LATERAL (SELECT "DeviceName", "IPAddress", "ActivatedAt" FROM "LicenseActivations" WHERE "LicenseId" = l."LicenseId" ORDER BY "ActivatedAt" DESC LIMIT 1) la ON TRUE WHERE p."StorefrontId" = :storefrontId AND (:status IS NULL OR l."Status" = :status) ORDER BY l."IssuedAt" DESC', { replacements: { storefrontId: storefront.StorefrontId, status } });
       const licenseRows = rows.map((row) => {
         const licenseKey = decryptSensitiveValue(row.LicenseKey);
-        return { id: Number(row.LicenseId), uuid: row.UUID, key: maskLicenseKey(licenseKey), searchText: licenseKey, orderItemId: row.OrderItemId ? Number(row.OrderItemId) : null, productId: Number(row.ProductId), licenseTypeId: row.LicenseTypeId ? Number(row.LicenseTypeId) : null, product: capitalizeFirstCharacter(row.ProductName), licenseType: row.LicenseName || "All", status: row.Status === "active" ? "Active" : "Revoked", activatedBy: row.Email || "-", activatedOn: row.IssuedAt || row.ActivationActivatedAt, revokedOn: row.RevokedAt, reason: row.RevocationReason || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", buyerEmail: row.Email || "-" };
+        return { id: Number(row.LicenseId), uuid: row.UUID, key: maskLicenseKey(licenseKey), searchText: licenseKey, orderItemId: row.OrderItemId ? Number(row.OrderItemId) : null, productId: Number(row.ProductId), licenseTypeId: row.LicenseTypeId ? Number(row.LicenseTypeId) : null, product: capitalizeFirstCharacter(row.ProductName), licenseType: capitalizeFirstCharacter(String(row.LicenseName || "All").toLowerCase()), status: row.Status === "active" ? "Active" : "Revoked", activatedBy: row.Email || "-", activatedOn: row.IssuedAt || row.ActivationActivatedAt, revokedOn: row.RevokedAt, reason: row.RevocationReason || "-", device: row.DeviceName || "Unknown device", location: row.IPAddress || "-", buyerEmail: row.Email || "-" };
       });
       const filteredRows = search ? licenseRows.filter((row) => {
         const searchable = [row.product, row.licenseType, row.status, row.activatedBy, row.reason, row.revokedOn, row.activatedOn].filter((value) => value !== null && value !== undefined && value !== "-");
@@ -683,7 +687,7 @@ router.post("/creator/storefronts/:storefrontName/licenses/types", async (req, r
   try {
     const storefront = await licenseStorefront(req);
     if (!storefront) return res.status(404).json({ error: "Storefront not found." });
-    const name = String(req.body.name || "").trim();
+    const name = String(req.body.name || "").trim().toLowerCase();
     const description = String(req.body.description || "").trim();
     const maxActivations = parseLicenseLimit(req.body.maxActivations);
     const durationDays = parseLicenseLimit(req.body.durationDays);
@@ -1148,7 +1152,7 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/versions", 
   const licensesByVersion = new Map();
   versionLicenses.forEach((item) => {
     const versionId = Number(item.ProductVersionId);
-    licensesByVersion.set(versionId, [...(licensesByVersion.get(versionId) || []), { name: String(licenseNames.get(Number(item.LicenseTypeId)) || "All").replace(/\s+License$/i, ""), price: Number(item.Price || 0), access: item.AccessType || "Lifetime Access", downloadLimit: item.DownloadLimit ? Number(item.DownloadLimit) : undefined }]);
+    licensesByVersion.set(versionId, [...(licensesByVersion.get(versionId) || []), { name: capitalizeFirstCharacter(String(licenseNames.get(Number(item.LicenseTypeId)) || "All").replace(/\s+License$/i, "").toLowerCase()), price: Number(item.Price || 0), access: item.AccessType || "Lifetime Access", downloadLimit: item.DownloadLimit ? Number(item.DownloadLimit) : undefined }]);
   });
 
   const currentVersionId = versions.find((version) => version.IsCurrent)?.ProductVersionId ?? versions[0]?.ProductVersionId ?? null;
@@ -1183,7 +1187,7 @@ router.get("/creator/storefronts/:storefrontName/products/:productId/versions", 
     previewsByVersion.set(key, [...(previewsByVersion.get(key) || []), nextEntry]);
   });
 
-  return res.json({ versions: versions.map((version) => { const isFree = Boolean(version.IsFree) || Number(version.Price || 0) === 0; const licenses = licensesByVersion.get(Number(version.ProductVersionId)) || [{ name: String(licenseNames.get(Number(version.LicenseTypeId)) || "ALL").replace(/\s+License$/i, ""), price: isFree ? 0 : Number(version.Price || 0), access: "Lifetime Access" }]; return { id: version.ProductVersionId, version: version.VersionNumber, price: Number(version.Price || 0), isFree, license: licenses[0]?.name ?? null, licenses, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] }; }) });
+  return res.json({ versions: versions.map((version) => { const isFree = Boolean(version.IsFree) || Number(version.Price || 0) === 0; const licenses = licensesByVersion.get(Number(version.ProductVersionId)) || [{ name: capitalizeFirstCharacter(String(licenseNames.get(Number(version.LicenseTypeId)) || "ALL").replace(/\s+License$/i, "").toLowerCase()), price: isFree ? 0 : Number(version.Price || 0), access: "Lifetime Access" }]; const selectedLicense = licenseNames.get(Number(version.LicenseTypeId)) || licenses[0]?.name || "All"; return { id: version.ProductVersionId, version: version.VersionNumber, price: Number(version.Price || 0), isFree, license: capitalizeFirstCharacter(String(selectedLicense).replace(/\s+License$/i, "").toLowerCase()), licenses, releaseNotes: version.ReleaseNotes || "", current: version.IsCurrent, createdAt: version.CreatedAt, files: filesByVersion.get(Number(version.ProductVersionId)) || [], previewAssets: previewsByVersion.get(Number(version.ProductVersionId)) || [] }; }) });
 });
 
 router.post("/creator/storefronts/:storefrontName/products/:productId/versions", async (req, res) => {
@@ -1209,7 +1213,7 @@ router.post("/creator/storefronts/:storefrontName/products/:productId/versions",
     if (isCurrent) await ProductVersion.update({ IsCurrent: false }, { where: { ProductId: product.ProductId } });
     const isFreeVersion = price === 0;
     const created = await ProductVersion.create({ UUID: crypto.randomUUID(), ProductId: product.ProductId, VersionNumber: version, Price: price, IsFree: isFreeVersion, LicenseTypeId: isFreeVersion ? null : await resolveLicenseTypeId(req.body.license), ReleaseNotes: String(req.body.summary || "").trim(), IsCurrent: isCurrent, CreatedAt: now });
-    const requestedLicenses = Array.isArray(req.body.licenses) ? req.body.licenses.slice(0, 4).map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : Number(license.price ?? price), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [{ name: String(req.body.license || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: "Lifetime Access", downloadLimit: null }];
+    const requestedLicenses = Array.isArray(req.body.licenses) ? req.body.licenses.map((license) => ({ name: String(license.name || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : Number(license.price ?? price), access: String(license.access || "Lifetime Access"), downloadLimit: license.downloadLimit ? Number(license.downloadLimit) : null })) : [{ name: String(req.body.license || "All").replace(/\s+License$/i, "").trim(), price: isFreeVersion ? 0 : price, access: "Lifetime Access", downloadLimit: null }];
     await replaceReleaseLicenses(created.ProductVersionId, requestedLicenses);
     await replaceReleaseAssets(product.ProductId, created.ProductVersionId, files, previews, now);
     return res.status(201).json({ version: { id: created.ProductVersionId, version: created.VersionNumber, price: Number(created.Price || 0), summary: created.ReleaseNotes || "", current: created.IsCurrent, createdAt: created.CreatedAt } });
