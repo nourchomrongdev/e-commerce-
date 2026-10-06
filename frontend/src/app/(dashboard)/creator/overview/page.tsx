@@ -67,7 +67,7 @@ export default function CreatorOverview() {
           <section>
             <Card className="p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-semibold text-[#111b40]">Sales Overview</h2>
+                <h2 className="font-semibold text-[#66718e]">Sales Overview</h2>
                 <button
                   type="button"
                   className="flex items-center justify-center rounded-lg border border-[#e7ebf4] bg-[#f7f9fd] px-3 py-1.5 text-xs font-medium text-[#33405d]"
@@ -126,7 +126,7 @@ export default function CreatorOverview() {
           </section>
 
           <Card className="overflow-hidden">
-            <h2 className="px-5 py-4 font-semibold text-[#111b40]">
+            <h2 className="px-5 py-4 font-semibold text-[#66718e]">
               Recent Products
             </h2>
             <div className="overflow-x-auto">
@@ -193,7 +193,7 @@ export default function CreatorOverview() {
         <aside className="space-y-5">
           <Card className="p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-[#111b40]">
+              <h2 className="font-semibold text-[#66718e]">
                 Store Performance
               </h2>
               <button
@@ -216,7 +216,7 @@ export default function CreatorOverview() {
                   className="flex items-center justify-between border-b border-[#edf0f5] py-3 last:border-0"
                 >
                   <span className="text-xs text-[#273252]">{label}</span>
-                  <span className="text-xs font-medium text-[#111b40]">
+                  <span className="text-[11px] font-medium text-[#111b40]">
                     {value}
                   </span>
                   <span className="text-[10px] font-medium text-emerald-600">
@@ -254,7 +254,7 @@ export default function CreatorOverview() {
 
           <Card className="p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-[#111b40]">Recent Orders</h2>
+              <h2 className="font-semibold text-[#66718e]">Recent Orders</h2>
               <Link
                 href="/creator/orders"
                 className="text-xs font-medium text-primary no-underline"
