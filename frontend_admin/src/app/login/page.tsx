@@ -1,15 +1,70 @@
 "use client";
 
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import AppBrand from "@/components/AppBrand";
 import PublicIcon from "@/components/icons/PublicIcon";
+import { Toast } from "@/components/ui";
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const adminLoginDestinationKey = "admin-login-next";
+
+function isAdminDestination(value: string | null): value is string {
+  return Boolean(value && (value === "/admin" || value.startsWith("/admin/")) && !value.startsWith("//"));
+}
+type LoginToast = { variant: "success" | "error"; message: string };
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [toast, setToast] = useState<LoginToast | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    const legacyDestination = new URLSearchParams(window.location.search).get("next");
+    if (isAdminDestination(legacyDestination)) {
+      window.sessionStorage.setItem(adminLoginDestinationKey, legacyDestination);
+    }
+    if (window.location.search) {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
+  }, []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    router.push("/admin");
+    setPasswordError("");
+    setToast(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${apiUrl}/auth/admin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to sign in.");
+      if (!data.token || !["admin", "superadmin"].some((role) => data.user?.roles?.includes(role) || data.user?.role === role)) {
+        throw new Error("This account does not have admin access.");
+      }
+      window.localStorage.setItem("marketplace-token", data.token);
+      setToast({ variant: "success", message: "Signed in successfully. Redirecting to the admin dashboard..." });
+      const savedDestination = window.sessionStorage.getItem(adminLoginDestinationKey);
+      window.sessionStorage.removeItem(adminLoginDestinationKey);
+      window.setTimeout(() => {
+        router.replace(isAdminDestination(savedDestination) ? savedDestination : "/admin");
+      }, 900);
+    } catch (loginError) {
+      const message = loginError instanceof Error ? loginError.message : "Unable to sign in.";
+      if (message === "Invalid email or password.") {
+        setPasswordError(message);
+      } else {
+        setToast({ variant: "error", message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -43,15 +98,22 @@ export default function LoginPage() {
           <h2 className="text-base font-bold text-heading">Sign in to your account</h2>
 
           <div className="mt-6">
-            <form className="min-w-0 w-full space-y-4" noValidate onSubmit={handleSubmit}>
+            <form className="min-w-0 w-full space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-[10px] font-medium text-body">
                   Email address
                   <span className="relative mt-1.5 block">
                     <input
                       type="email"
-                      defaultValue="admin@khmerdigital.com"
+                      value={email}
+                      onChange={(event) => {
+                        setEmail(event.target.value);
+                        setPasswordError("");
+                        setToast(null);
+                      }}
                       placeholder="Enter your email"
+                      autoComplete="username"
+                      required
                       className="h-10 w-full rounded-lg border border-border-control bg-white px-3 text-xs text-body outline-none transition placeholder:text-muted-faint focus:border-primary focus:ring-2 focus:ring-orange-100"
                     />
                   </span>
@@ -64,19 +126,30 @@ export default function LoginPage() {
                   <span className="relative mt-1.5 block">
                     <input
                       type="password"
-                      defaultValue="admin123"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        setPasswordError("");
+                        setToast(null);
+                      }}
                       placeholder="Enter your password"
+                      autoComplete="current-password"
+                      required
+                      aria-invalid={Boolean(passwordError)}
+                      aria-describedby={passwordError ? "login-password-error" : undefined}
                       className="h-10 w-full rounded-lg border border-border-control bg-white px-3 text-xs text-body outline-none transition placeholder:text-muted-faint focus:border-primary focus:ring-2 focus:ring-orange-100"
                     />
                   </span>
                 </label>
+                {passwordError && <p id="login-password-error" role="alert" className="mt-1.5 text-xs text-status-danger">{passwordError}</p>}
               </div>
 
               <button
                 type="submit"
-                className="h-10 w-full rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(245,126,31,0.2)] transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-orange-200"
+                disabled={submitting}
+                className="h-10 w-full rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(245,126,31,0.2)] transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Sign In
+                {submitting ? "Signing in..." : "Sign In"}
               </button>
             </form>
           </div>
@@ -88,6 +161,7 @@ export default function LoginPage() {
           </div>
         </section>
       </div>
+      {toast && <Toast variant={toast.variant} message={toast.message} onClose={() => setToast(null)} />}
     </main>
   );
 }

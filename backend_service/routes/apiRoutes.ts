@@ -7,11 +7,12 @@ const { sequelize, UserAccount, UserRole, UserAccountRole, CreatorProfile, Store
 const authRoutes = require("./authRoutes");
 const { createPaymentOrder, capturePaymentOrder } = require("../controllers/paymentController");
 const { applyCreatorProgram, approveCreatorProfile } = require("../controllers/creatorProgramController");
-const { ensureCreatorRoleForUser, findByToken } = require("../controllers/authHelpers");
+const { ensureCreatorRoleForUser, findByToken, toUser } = require("../controllers/authHelpers");
 const { deleteEncryptedImage, readEncryptedImage, saveEncryptedImage } = require("../services/encryptedImageService");
 const { saveProductFile } = require("../services/productFileService");
 const { setupPaymentToken } = require("../services/paypalService");
 const { sendSecurityEmail } = require("../services/mailService");
+const adminAccessController = require("../controllers/adminAccessController");
 
 const router = express.Router();
 const MARKETPLACE_FEE_RATE = 0.2;
@@ -144,9 +145,39 @@ async function requireAdmin(req, res, next) {
     const user = await findByToken(token);
     if (!user) return res.status(401).json({ error: "User account is unavailable." });
 
-    const role = String(user.role?.RoleName || user.RoleName || "").toLowerCase();
-    if (role !== "admin" && role !== "superadmin") {
+    const roleNames = [user.role?.RoleName || user.RoleName, ...(user.roles || []).map((link) => link.role?.RoleName || link.RoleName)]
+      .filter(Boolean)
+      .map((role) => String(role).toLowerCase());
+    if (!roleNames.includes("admin") && !roleNames.includes("superadmin")) {
       return res.status(403).json({ error: "Admin access required." });
+    }
+
+    req.userId = user.UserId;
+    req.user = user;
+    return next();
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired session." });
+  }
+}
+
+router.get("/admin/session", requireAdmin, (req, res) => {
+  return res.json({ user: toUser(req.user) });
+});
+
+async function requireSuperAdmin(req, res, next) {
+  const authorization = req.headers.authorization || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  if (!token) return res.status(401).json({ error: "Authentication required." });
+
+  try {
+    const user = await findByToken(token);
+    if (!user) return res.status(401).json({ error: "User account is unavailable." });
+
+    const roleNames = [user.role?.RoleName || user.RoleName, ...(user.roles || []).map((link) => link.role?.RoleName || link.RoleName)]
+      .filter(Boolean)
+      .map((role) => String(role).toLowerCase());
+    if (!roleNames.includes("superadmin")) {
+      return res.status(403).json({ error: "Superadmin access required." });
     }
 
     req.userId = user.UserId;
@@ -330,6 +361,15 @@ function parseDiscount(body, price, fallback: { type?: string; amount?: number }
     percent: discountType === "fixed" && price > 0 ? (requestedAmount / price) * 100 : discountType === "percentage" ? requestedAmount : 0,
   };
 }
+
+router.get("/admin/users", requireAdmin, adminAccessController.listUsers);
+router.post("/admin/users", requireSuperAdmin, adminAccessController.createUser);
+router.patch("/admin/users/:userId", requireAdmin, adminAccessController.updateUser);
+router.delete("/admin/users/:userId", requireSuperAdmin, adminAccessController.deleteUser);
+router.get("/admin/roles", requireAdmin, adminAccessController.listRoles);
+router.post("/admin/roles", requireSuperAdmin, adminAccessController.createRole);
+router.patch("/admin/roles/:roleId", requireSuperAdmin, adminAccessController.updateRole);
+router.delete("/admin/roles/:roleId", requireSuperAdmin, adminAccessController.deleteRole);
 
 router.get("/admin/products", requireAdmin, async (req, res) => {
   try {

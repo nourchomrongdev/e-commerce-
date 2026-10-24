@@ -9,16 +9,19 @@ import { routes } from "@/lib/routeController";
 
 const apiUrl = (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) ?? "http://localhost:5000/api";
 type StorefrontOption = { name: string; products: number; href: string };
+type AccountUser = { name?: string; username?: string | null; role?: string; roles?: string[] };
 
 export default function CreatorDashboardHeader({
   onMenuOpen,
   workspace = "creator",
+  accountUser,
   storefrontOpen = false,
   onStorefrontToggle = () => undefined,
   sidebarOpen = false,
 }: {
   onMenuOpen: () => void;
   workspace?: "creator" | "reviewer" | "admin";
+  accountUser?: AccountUser | null;
   storefrontOpen?: boolean;
   onStorefrontToggle?: (next: boolean) => void;
   sidebarOpen?: boolean;
@@ -77,6 +80,11 @@ export default function CreatorDashboardHeader({
   const isAffiliateContext = pathname === "/affiliate" || pathname.startsWith("/affiliate/") || pathname === "/creator/affiliate" || pathname.startsWith("/creator/affiliate/");
   const isReviewerContext = workspace === "reviewer";
   const isAdminContext = workspace === "admin";
+  const accountName = accountUser?.name || accountUser?.username || "Admin";
+  const accountRoles = [accountUser?.role, ...(accountUser?.roles || [])]
+    .filter((role): role is string => Boolean(role))
+    .map((role) => role.toLowerCase());
+  const accountRole = accountRoles.includes("superadmin") ? "Superadmin" : "Admin";
   const activeStorefrontName = isAllStoresOverview || !selectedStorefront ? "All Stores Overview" : selectedStorefront;
 
   useEffect(() => {
@@ -271,11 +279,11 @@ export default function CreatorDashboardHeader({
               className="flex items-center gap-2 rounded-lg p-1 text-left transition hover:bg-accent-light"
             >
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-[#633719] text-sm font-semibold text-white">
-                {isAdminContext ? "A" : isReviewerContext ? "R" : "N"}
+                {isAdminContext ? accountName.charAt(0).toUpperCase() : isReviewerContext ? "R" : "N"}
               </span>
               <span className="hidden sm:block">
-                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : "TestStore"}</span>
-                <span className="block text-[11px] text-[#69738f]">{isAdminContext ? "Admin" : isReviewerContext ? "Reviewer" : isAffiliateContext ? "Affiliate" : "Creator"}</span>
+                <span className="block text-sm font-semibold text-[#111b40]">{isAdminContext ? accountName : isReviewerContext ? "Reviewer" : "TestStore"}</span>
+                <span className="block text-[11px] text-[#69738f]">{isAdminContext ? accountRole : isReviewerContext ? "Reviewer" : isAffiliateContext ? "Affiliate" : "Creator"}</span>
               </span>
               <PublicIcon name="down" className={`hidden h-4 w-4 text-[#69738f] transition-transform sm:block ${accountOpen ? "rotate-180" : ""}`} />
             </button>
@@ -310,6 +318,7 @@ export default function CreatorDashboardHeader({
                 <Link
                   href="/login"
                   onClick={() => {
+                    window.localStorage.removeItem("marketplace-token");
                     window.localStorage.removeItem("creator-selected-storefront");
                     setAccountOpen(false);
                   }}

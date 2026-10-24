@@ -1,5 +1,5 @@
-import AdminSectionWithPagination from "@/components/dashboard/admin/AdminSectionWithPagination";
+import AdminAccessPage from "@/components/dashboard/admin/AdminAccessPage";
 
 export default function RolesPage() {
-  return <AdminSectionWithPagination section="roles" />;
+  return <AdminAccessPage section="roles" />;
 }

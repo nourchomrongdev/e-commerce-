@@ -91,9 +91,16 @@ FIRST TIME RUN GUIDE
 
    For an existing database, do not run the command above because migration 001 recreates the tables.
    Run only this SQL in pgAdmin Query Tool instead:
+   ALTER TABLE "UsersRoles"
+      ADD COLUMN IF NOT EXISTS "Description" TEXT,
+      ADD COLUMN IF NOT EXISTS "UpdatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
    ALTER TABLE "UserAccounts"
       ADD COLUMN IF NOT EXISTS "ResetOtpHash" VARCHAR(64),
-      ADD COLUMN IF NOT EXISTS "ResetOtpExpiresAt" TIMESTAMPTZ;
+      ADD COLUMN IF NOT EXISTS "ResetOtpExpiresAt" TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS "SuspensionMessage" TEXT,
+      ADD COLUMN IF NOT EXISTS "SuspensionStartsAt" TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS "SuspendedUntil" TIMESTAMPTZ;
 
 7) Start all services together from the project root
    npm run dev

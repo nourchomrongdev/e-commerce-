@@ -1,5 +1,5 @@
 const express = require("express");
-const { login } = require("../controllers/loginController");
+const { adminLogin, login } = require("../controllers/loginController");
 const { register } = require("../controllers/registerController");
 const { googleStart, googleCallback, paypalStart, paypalCallback } = require("../controllers/oauthController");
 const { me, forgotPassword, resetPassword } = require("../controllers/userController");
@@ -7,6 +7,7 @@ const { me, forgotPassword, resetPassword } = require("../controllers/userContro
 const router = express.Router();
 
 router.post("/login", login);
+router.post("/admin-login", adminLogin);
 router.post("/register", register);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import PublicIcon from "../icons/PublicIcon";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -45,6 +45,19 @@ export default function Toast({
 }: ToastProps) {
   const tone = variants[variant];
   const symbol = variant === "success" ? <PublicIcon name="check" /> : variant === "warning" ? <PublicIcon name="warning" /> : <PublicIcon name="warning"  />;
+  const onCloseRef = useRef(onClose);
+  const hasOnClose = Boolean(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!hasOnClose || (variant !== "success" && variant !== "error")) return;
+
+    const timeout = window.setTimeout(() => onCloseRef.current?.(), 600);
+    return () => window.clearTimeout(timeout);
+  }, [hasOnClose, message, variant]);
 
   return (
     <div

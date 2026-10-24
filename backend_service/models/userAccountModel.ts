@@ -11,6 +11,9 @@ module.exports = sequelize?.define("UserAccount", {
   ResetOtpExpiresAt: { type: DataTypes.DATE, field: "ResetOtpExpiresAt" },
   RoleId: { type: DataTypes.INTEGER, allowNull: false, field: "RoleId" },
   Status: { type: DataTypes.ENUM("active", "inactive", "suspended", "banned"), allowNull: false, field: "Status" },
+  SuspensionMessage: { type: DataTypes.TEXT, field: "SuspensionMessage" },
+  SuspensionStartsAt: { type: DataTypes.DATE, field: "SuspensionStartsAt" },
+  SuspendedUntil: { type: DataTypes.DATE, field: "SuspendedUntil" },
   CreatedAt: { type: DataTypes.DATE, field: "CreatedAt" },
   UpdatedAt: { type: DataTypes.DATE, field: "UpdatedAt" },
 }, { tableName: "UserAccounts", timestamps: false });

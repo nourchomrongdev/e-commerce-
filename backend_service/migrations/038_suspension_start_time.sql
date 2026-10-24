@@ -1,0 +1,2 @@
+ALTER TABLE "UserAccounts"
+    ADD COLUMN IF NOT EXISTS "SuspensionStartsAt" TIMESTAMPTZ;

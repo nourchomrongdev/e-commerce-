@@ -1,0 +1,3 @@
+ALTER TABLE "UserAccounts"
+    ADD COLUMN IF NOT EXISTS "SuspensionMessage" TEXT,
+    ADD COLUMN IF NOT EXISTS "SuspendedUntil" TIMESTAMPTZ;

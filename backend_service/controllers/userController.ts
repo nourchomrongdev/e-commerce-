@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { sequelize, UserInfo, UserAccount } = require("../models");
-const { findByToken, requireDatabase, toUser } = require("./authHelpers");
+const { findByToken, requireDatabase, restrictionForToken, toUser } = require("./authHelpers");
 const { sendSecurityEmail } = require("../services/mailService");
 
 const otpLength = Math.max(4, Math.min(8, Number(process.env.PASSWORD_RESET_OTP_LENGTH || 6)));
@@ -20,6 +20,19 @@ async function me(req, res) {
   const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
   if (!token) return res.status(401).json({ error: "Authentication required." });
   try {
+    const restriction = await restrictionForToken(token);
+    if (restriction) {
+      return res.status(403).json({
+        error: restriction.status === "banned" ? "Your account has been banned." : "Your account has been disabled.",
+        code: restriction.status === "banned" ? "ACCOUNT_BANNED" : "ACCOUNT_SUSPENDED",
+        message: restriction.message,
+        name: restriction.name,
+        username: restriction.username,
+        email: restriction.email,
+        startsAt: restriction.startsAt,
+        suspendedUntil: restriction.endsAt,
+      });
+    }
     const user = await findByToken(token);
     if (!user) return res.status(401).json({ error: "User account is unavailable." });
     return res.json({ user: toUser(user) });

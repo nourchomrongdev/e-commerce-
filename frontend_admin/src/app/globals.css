@@ -141,6 +141,16 @@
   box-sizing: border-box;
 }
 
+.admin-workspace {
+  zoom: 0.9;
+}
+
+@media (min-width: 901px) {
+  .admin-workspace aside {
+    height: calc(111.111vh - 5rem);
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -149,7 +159,7 @@ body {
   margin: 0;
   background: var(--color-background);
   color: #121326;
-  font-family: var(--font-roboto), Arial, Helvetica, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 img {

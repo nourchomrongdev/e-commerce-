@@ -115,3 +115,77 @@ Example response from `/api/products`:
 ## License
 
 This project is currently unlicensed.
+
+## Create the first Superadmin account
+
+There is no default or backup admin account. Create an account with the email and password you want, then promote it to Superadmin:
+
+1. Make sure the backend database migrations have been run. The default roles, including `Superadmin`, are seeded by the migrations.
+2. Register the account using `POST http://localhost:5000/api/auth/register` with a JSON body like this. Choose your own name, username, email, and a strong password; registration requires a password of at least 8 characters and a username of 3-30 letters, numbers, or underscores.
+
+   ```json
+   {
+     "name": "Marketplace Admin",
+     "username": "marketsuperadmin",
+     "email": "superadmin@example.com",
+     "password": "12345678"
+   }
+   ```
+
+   The registration endpoint creates a regular Buyer account and stores the password as a hash. Do not put a real password in this README, source control, or a shared terminal history.
+3. Connect to the PostgreSQL database configured for `backend_service` and run the SQL below. Replace `admin@example.com` with the email used during registration.
+4. Sign in at `http://localhost:3001/login` with that email and password.
+
+```sql
+BEGIN;
+
+DO $$
+DECLARE
+    account_id INT;
+    superadmin_role_id INT;
+BEGIN
+    SELECT account."UserId"
+    INTO account_id
+    FROM "UserAccounts" account
+    JOIN "UserInfo" info ON info."UserInfoId" = account."UserInfoId"
+    WHERE lower(info."Email") = lower('superadmin@example.com')
+    FOR UPDATE OF account;
+
+    IF account_id IS NULL THEN
+        RAISE EXCEPTION 'No account found for that email. Register it first.';
+    END IF;
+
+    SELECT "UserRoleId"
+    INTO superadmin_role_id
+    FROM "UsersRoles"
+    WHERE lower("RoleName") = 'superadmin';
+
+    IF superadmin_role_id IS NULL THEN
+        RAISE EXCEPTION 'Superadmin role not found. Run the database migrations first.';
+    END IF;
+
+    UPDATE "UserAccounts"
+    SET "RoleId" = superadmin_role_id,
+        "Status" = 'active',
+        "UpdatedAt" = CURRENT_TIMESTAMP
+    WHERE "UserId" = account_id;
+
+    INSERT INTO "UserAccountRoles" ("UserId", "UserRoleId")
+    VALUES (account_id, superadmin_role_id)
+    ON CONFLICT ("UserId", "UserRoleId") DO NOTHING;
+END $$;
+
+COMMIT;
+```
+$body = @{
+    name = "Marketplace Admin"
+    username = "marketsuperadmin"
+    email = "superadmin@example.com"
+    password = "12345678"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+    -Uri "http://localhost:5000/api/auth/register" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body

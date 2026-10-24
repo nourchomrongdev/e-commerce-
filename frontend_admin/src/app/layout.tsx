@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
 import RouteLoadingBar from "@/components/RouteLoadingBar";
 import "./globals.css";
-
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-roboto",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -24,11 +17,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       className="scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <body
-        className={`${roboto.variable} m-0 flex min-h-screen flex-col bg-background text-[#121326] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
-        style={{ fontFamily: "var(--font-roboto)" }}
+        className="m-0 flex min-h-screen flex-col bg-background text-[#121326] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
       >
         <RouteLoadingBar />
         {children}

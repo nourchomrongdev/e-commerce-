@@ -38,6 +38,44 @@ function authResponse(user) {
   return { token: jwt.sign({ sub: user.UserId, role: user.role?.RoleName || user.RoleName }, jwtSecret, { expiresIn: "1d" }), user: toUser(user) };
 }
 
+async function restoreExpiredSuspension(account, transaction?: any) {
+  if (account?.Status === "active") return true;
+  if (!["suspended", "banned"].includes(account?.Status)) return false;
+
+  const now = new Date();
+  const startsAt = account.SuspensionStartsAt ? new Date(account.SuspensionStartsAt) : null;
+  const suspendedUntil = account.SuspendedUntil ? new Date(account.SuspendedUntil) : null;
+  if (startsAt && startsAt > now) return true;
+
+  if (!suspendedUntil || Number.isNaN(suspendedUntil.getTime()) || suspendedUntil > now) return false;
+
+  account.Status = "active";
+  account.SuspensionMessage = null;
+  account.SuspensionStartsAt = null;
+  account.SuspendedUntil = null;
+  await account.save({ transaction });
+  return true;
+}
+
+async function restrictionForToken(token) {
+  const payload = jwt.verify(token, jwtSecret);
+  const account = await UserAccount.findByPk(payload.sub, {
+    include: [{ model: UserInfo, as: "info" }],
+  });
+  if (!account || await restoreExpiredSuspension(account)) return null;
+  if (!["suspended", "banned"].includes(account.Status)) return null;
+
+  return {
+    status: account.Status,
+    message: account.SuspensionMessage || "Your account access has been restricted.",
+    name: account.info?.FullName || "",
+    username: account.Username || "",
+    email: account.info?.Email || "",
+    startsAt: account.SuspensionStartsAt,
+    endsAt: account.SuspendedUntil,
+  };
+}
+
 async function ensureCreatorRoleForUser(user, transaction?: any) {
   if (!user || !user.creatorProfile?.IsVerified) return user;
 
@@ -66,7 +104,7 @@ async function ensureCreatorRoleForUser(user, transaction?: any) {
 
 async function findById(userId, transaction?: any) {
   const user = await UserAccount.findOne({
-    where: { UserId: userId, Status: "active" },
+    where: { UserId: userId },
     include: [
       { model: UserInfo, as: "info" },
       { model: UserRole, as: "role" },
@@ -77,6 +115,7 @@ async function findById(userId, transaction?: any) {
   });
 
   if (!user) return null;
+  if (!(await restoreExpiredSuspension(user, transaction))) return null;
   return ensureCreatorRoleForUser(user, transaction);
 }
 
@@ -85,4 +124,4 @@ function findByToken(token) {
   return findById(payload.sub);
 }
 
-module.exports = { authResponse, ensureCreatorRoleForUser, findById, findByToken, normaliseEmail, requireDatabase, toUser, jwtSecret };
+module.exports = { authResponse, ensureCreatorRoleForUser, findById, findByToken, normaliseEmail, requireDatabase, restrictionForToken, restoreExpiredSuspension, toUser, jwtSecret };

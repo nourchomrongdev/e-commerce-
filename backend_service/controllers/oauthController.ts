@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const { sequelize, UserRole, UserInfo, UserAccount, UserAccountRole, OAuthAccount } = require("../models");
-const { authResponse, findById, normaliseEmail, requireDatabase } = require("./authHelpers");
+const { authResponse, findById, normaliseEmail, requireDatabase, restoreExpiredSuspension } = require("./authHelpers");
 const { sendSecurityEmail } = require("../services/mailService");
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
@@ -31,6 +31,29 @@ function paypalConfigError() {
     return "PAYPAL_REDIRECT_URL must be a valid HTTP(S) URL.";
   }
   return null;
+}
+
+function restrictionRedirect(res, frontendUrl, account) {
+  const params = new URLSearchParams({
+    error: account.Status === "banned" ? "account-banned" : "account-suspended",
+  });
+  if (account.SuspensionMessage) params.set("message", account.SuspensionMessage);
+  if (account.info?.FullName) params.set("name", account.info.FullName);
+  if (account.Username) params.set("username", account.Username);
+  if (account.info?.Email) params.set("email", account.info.Email);
+  if (account.SuspensionStartsAt) params.set("startsAt", new Date(account.SuspensionStartsAt).toISOString());
+  if (account.SuspendedUntil) params.set("suspendedUntil", new Date(account.SuspendedUntil).toISOString());
+  return res.redirect(`${frontendUrl}/login?${params.toString()}`);
+}
+
+class AccountRestrictionError extends Error {
+  account: any;
+
+  constructor(account) {
+    super("Account is restricted.");
+    this.name = "AccountRestrictionError";
+    this.account = account;
+  }
 }
 
 async function googleUsername(displayName, email, providerAccountId, transaction) {
@@ -179,14 +202,34 @@ async function googleCallback(req, res) {
     if (!profile?.sub || !profile.email) return res.status(400).send("Google did not return a usable identity.");
     if (!profile.email_verified) return res.status(403).send("Google email is not verified.");
 
-    let oauthAccount = await OAuthAccount.findOne({ where: { Provider: "google", ProviderAccountId: profile.sub } });
-    let user = oauthAccount ? await findById(oauthAccount.UserId) : null;
-    if (!user) {
+    const oauthAccount = await OAuthAccount.findOne({ where: { Provider: "google", ProviderAccountId: profile.sub } });
+    let user = null;
+    if (oauthAccount) {
+      const linkedAccount = await UserAccount.findByPk(oauthAccount.UserId, {
+        include: [{ model: UserInfo, as: "info" }],
+      });
+      if (!linkedAccount) return res.redirect(`${frontendUrl}/login?error=google-account-unavailable`);
+      if (!(await restoreExpiredSuspension(linkedAccount))) {
+        if (linkedAccount.Status === "banned" || linkedAccount.Status === "suspended") {
+          return restrictionRedirect(res, frontendUrl, linkedAccount);
+        }
+        return res.redirect(`${frontendUrl}/login?error=google-account-unavailable`);
+      }
+      user = await findById(oauthAccount.UserId);
+      if (!user) return res.redirect(`${frontendUrl}/login?error=google-account-unavailable`);
+    } else {
       user = await sequelize.transaction(async (transaction) => {
         const existingInfo = await UserInfo.findOne({ where: { Email: normaliseEmail(profile.email) }, include: [{ model: UserAccount, as: "account" }], transaction, lock: { level: transaction.LOCK.UPDATE, of: UserInfo } });
         let account;
         if (existingInfo?.account) {
           account = existingInfo.account;
+          if (!(await restoreExpiredSuspension(account, transaction))) {
+            if (account.Status === "banned" || account.Status === "suspended") {
+              account.info = existingInfo;
+              throw new AccountRestrictionError(account);
+            }
+            return null;
+          }
           if (!account.Username) {
             account.Username = await googleUsername(profile.name, profile.email, profile.sub, transaction);
             await account.save({ transaction });
@@ -205,6 +248,7 @@ async function googleCallback(req, res) {
         await OAuthAccount.create({ Provider: "google", ProviderAccountId: profile.sub, ProviderEmail: profile.email, UserId: account.UserId }, { transaction });
         return findById(account.UserId, transaction);
       });
+      if (!user) return res.redirect(`${frontendUrl}/login?error=google-account-unavailable`);
     }
     await sendSecurityEmail({
       to: normaliseEmail(profile.email),
@@ -213,6 +257,9 @@ async function googleCallback(req, res) {
     });
     return res.redirect(`${frontendUrl}/oauth/callback#token=${encodeURIComponent(authResponse(user).token)}`);
   } catch (error) {
+    if (error instanceof AccountRestrictionError) {
+      return restrictionRedirect(res, frontendUrl, error.account);
+    }
     console.error("Google OAuth failed", error);
     if (error.name === "SequelizeUniqueConstraintError") return res.redirect(`${frontendUrl}/login?error=google-account-already-linked`);
     return res.redirect(`${frontendUrl}/login?error=google-sign-in-failed`);
